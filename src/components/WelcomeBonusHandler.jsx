@@ -154,4 +154,4 @@ export default function WelcomeBonusHandler() {
   };
 
   return null;
-}00
+}
