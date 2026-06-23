@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { User } from "@/entities/User";
+import { Tournament } from "@/entities/Tournament";
+import { Registration } from "@/entities/Registration";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
@@ -25,8 +27,8 @@ export default function Home() {
     try {
       // Load user + tournaments first (fast) — show immediately
       const [u, allTournaments] = await Promise.all([
-        base44.auth.me().catch(() => null),
-        base44.entities.Tournament.list("-created_date", 50).catch(() => [])
+        User.me().catch(() => null),
+        Tournament.list("-created_date", 50).catch(() => [])
       ]);
       setUser(u);
 
@@ -40,7 +42,7 @@ export default function Home() {
       setLoading(false);
 
       // Load registration counts in background (non-blocking)
-      base44.entities.Registration.list("-created_date", 100).then(allRegs => {
+      Registration.list("-created_date", 100).then(allRegs => {
         const countMap = {};
         (allRegs || []).forEach(r => {
           countMap[r.tournament_id] = (countMap[r.tournament_id] || 0) + 1;
@@ -78,57 +80,18 @@ export default function Home() {
       <div className="px-4 max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-black text-white flex items-center gap-2">
-              🔥 Tournaments
-            </h2>
-            <p className="text-gray-500 text-xs mt-0.5">Qualifier → Semifinal → Grand Final</p>
+            <h2 className="text-xl font-bold text-white">🏆 Tournaments</h2>
+            <p className="text-gray-400 text-sm">Join and win real cash prizes</p>
           </div>
           <Link to={createPageUrl("Tournaments")}>
-            <Button variant="ghost" size="sm" className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 pr-1">
-              View All →
+            <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
+              <Trophy className="w-4 h-4 mr-1" />
+              View All
             </Button>
           </Link>
         </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-t-orange-500 border-orange-500/20 rounded-full animate-spin" />
-          </div>
-        ) : (
-          <TournamentSections tournaments={tournaments} />
-        )}
+        <TournamentSections tournaments={tournaments} loading={loading} user={user} />
       </div>
-
-      {/* Quick Access */}
-      <div className="px-4 max-w-7xl mx-auto mb-8">
-        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Access</h2>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: "Tournaments", emoji: "🏆", href: "MyTournaments" },
-            { label: "Leaderboard", emoji: "⭐", href: "Leaderboard" },
-            { label: "Wallet", emoji: "💰", href: "Wallet" },
-            { label: "Earn 💎", emoji: "💎", href: "EarnDiamonds" },
-          ].map(({ label, emoji, href }) => (
-            <Link key={label} to={createPageUrl(href)}>
-              <div className="bg-gray-900 border border-gray-800 hover:border-orange-500/40 hover:bg-gray-800 rounded-2xl p-3 text-center cursor-pointer active:scale-95">
-                <span className="text-2xl">{emoji}</span>
-                <p className="text-gray-300 text-xs font-semibold mt-1.5 leading-tight">{label}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="px-4 py-8 border-t border-gray-800/60 text-center max-w-7xl mx-auto">
-        <Trophy className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">
-          Made with ❤️ by{" "}
-          <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
-            BattleHub FF
-          </span>
-        </p>
-      </footer>
     </div>
   );
 }

@@ -108,8 +108,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    // If auth is required, redirect to profile or home login state
-    window.location.href = '/Profile';
+    // If auth is required, redirect to login page
+    window.location.href = '/auth/login';
   };
 
   const checkAppState = async () => {
