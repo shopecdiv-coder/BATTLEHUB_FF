@@ -24,22 +24,33 @@ class FirestoreEntity {
   async list(orderField = null, limitCount = 100) {
     try {
       const colRef = collection(db, this.collectionName);
-      let q = colRef;
-      
+      const snap = await getDocs(colRef);
+      let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
       if (orderField) {
         let field = orderField;
-        let direction = 'asc';
+        let desc = false;
         if (orderField.startsWith('-')) {
           field = orderField.substring(1);
-          direction = 'desc';
+          desc = true;
         }
-        q = query(colRef, orderBy(field, direction), limit(limitCount));
-      } else {
-        q = query(colRef, limit(limitCount));
+        results.sort((a, b) => {
+          let valA = a[field];
+          let valB = b[field];
+          if (valA === undefined || valA === null) return 1;
+          if (valB === undefined || valB === null) return -1;
+          
+          // String comparison
+          if (typeof valA === 'string' && typeof valB === 'string') {
+            return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
+          }
+          if (valA < valB) return desc ? 1 : -1;
+          if (valA > valB) return desc ? -1 : 1;
+          return 0;
+        });
       }
-      
-      const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      return results.slice(0, limitCount);
     } catch (e) {
       console.error(`Error listing ${this.collectionName}:`, e);
       return [];
@@ -50,29 +61,44 @@ class FirestoreEntity {
   async filter(conditions = {}, orderField = null, limitCount = 100) {
     try {
       const colRef = collection(db, this.collectionName);
-      let constraints = [];
-      
-      for (const [key, val] of Object.entries(conditions)) {
-        if (val !== undefined && val !== null) {
-          constraints.push(where(key, '==', val));
+      const snap = await getDocs(colRef);
+      let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // In-memory filter
+      results = results.filter(doc => {
+        for (const [key, val] of Object.entries(conditions)) {
+          if (val !== undefined && val !== null) {
+            if (doc[key] !== val) return false;
+          }
         }
-      }
-      
+        return true;
+      });
+
+      // In-memory sort
       if (orderField) {
         let field = orderField;
-        let direction = 'asc';
+        let desc = false;
         if (orderField.startsWith('-')) {
           field = orderField.substring(1);
-          direction = 'desc';
+          desc = true;
         }
-        constraints.push(orderBy(field, direction));
+        results.sort((a, b) => {
+          let valA = a[field];
+          let valB = b[field];
+          if (valA === undefined || valA === null) return 1;
+          if (valB === undefined || valB === null) return -1;
+          
+          // String comparison
+          if (typeof valA === 'string' && typeof valB === 'string') {
+            return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
+          }
+          if (valA < valB) return desc ? 1 : -1;
+          if (valA > valB) return desc ? -1 : 1;
+          return 0;
+        });
       }
-      
-      constraints.push(limit(limitCount));
-      
-      const q = query(colRef, ...constraints);
-      const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      return results.slice(0, limitCount);
     } catch (e) {
       console.error(`Error filtering ${this.collectionName}:`, e);
       return [];

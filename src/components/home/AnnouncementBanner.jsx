@@ -13,7 +13,7 @@ export default function AnnouncementBanner() {
 
   const loadAnnouncements = async () => {
     try {
-      const data = await Announcement.filter({ active: true }).catch(() => []);
+      const data = await Announcement.filter({ active: true, show_on_home: true }, "-created_date", 3).catch(() => []);
       setAnnouncements(data || []);
     } catch (error) {
       // Silent fail

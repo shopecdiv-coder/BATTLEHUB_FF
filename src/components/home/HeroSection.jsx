@@ -56,15 +56,14 @@ export default function HeroSection({ user }) {
                 )}
               </>
             ) : (
-              <Link to="/auth/login">
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-to-r from-[#00FFFF] to-[#0088FF] hover:from-[#00CCFF] hover:to-[#0066CC] text-white font-bold px-10 py-6 text-lg rounded-xl hover-lift"
-                >
-                  <Flame className="w-6 h-6 mr-3" />
-                  Get Started
-                </Button>
-              </Link>
+              <Button 
+                size="lg" 
+                onClick={() => window.location.href = '/auth/login'}
+                className="bg-gradient-to-r from-[#00FFFF] to-[#0088FF] hover:from-[#00CCFF] hover:to-[#0066CC] text-white font-bold px-10 py-6 text-lg rounded-xl hover-lift"
+              >
+                <Flame className="w-6 h-6 mr-3" />
+                Get Started
+              </Button>
             )}
           </div>
 

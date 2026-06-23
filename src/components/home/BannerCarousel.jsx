@@ -33,7 +33,7 @@ export default function BannerCarousel() {
       setLoading(false);
       return;
     }
-    const activeBanners = await Banner.filter({ active: true }).catch(() => []);
+    const activeBanners = await Banner.filter({ active: true }, "order").catch(() => []);
     _bannersCache = activeBanners;
     _bannersFetchedAt = Date.now();
     setBanners(activeBanners);

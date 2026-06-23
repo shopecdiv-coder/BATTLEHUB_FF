@@ -47,16 +47,7 @@ function TournamentCard({ tournament }) {
           <div className="flex items-center justify-between text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              <span>
-                {(() => {
-                  try {
-                    const d = new Date(tournament.date_time);
-                    return isNaN(d.getTime()) ? "TBD" : format(d, "MMM d, h:mm a");
-                  } catch (e) {
-                    return "TBD";
-                  }
-                })()}
-              </span>
+              <span>{format(new Date(tournament.date_time), "MMM d, h:mm a")}</span>
             </div>
             <div className="flex items-center gap-1 text-yellow-400 font-bold">
               <Trophy className="w-3 h-3" />
