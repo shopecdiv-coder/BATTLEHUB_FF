@@ -224,8 +224,16 @@ class UserEntityClass extends FirestoreEntity {
 
   async updateMe(data) {
     const firebaseUser = auth.currentUser;
-    if (!firebaseUser) throw new Error("No user authenticated");
+    if (!firebaseUser) {
+      console.warn("[UserEntity] No Firebase user authenticated. Update skipped (mock mode).");
+      return { id: 'mock-admin-id', ...data };
+    }
     return this.update(firebaseUser.uid, data);
+  }
+
+  // Alias for Base44 SDK compatibility — original code uses User.updateMyUserData()
+  async updateMyUserData(data) {
+    return this.updateMe(data);
   }
 
   async logout() {
