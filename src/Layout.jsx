@@ -315,7 +315,7 @@ function LayoutContent({ children, currentPageName }) {
         </main>
       </div>
       
-      {/* Bottom Navigation - Only on Mobile */}
+      {/* Bottom Navigation - shows on all screen sizes */}
       {user && <BottomNavigation />}
       
       {/* Global Modals */}

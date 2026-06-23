@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MessageCircle, Download, Copy, CheckCircle, Image, Edit2, Save, X } from "lucide-react";
+import { Search, MessageCircle, Download, Copy, CheckCircle, Image, Edit2, Save, X, Trash2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 export default function TournamentRegistrations() {
@@ -18,6 +18,8 @@ export default function TournamentRegistrations() {
   const [sentMessages, setSentMessages] = useState(new Set());
   const [editingReg, setEditingReg] = useState(null); // id of reg being edited
   const [editData, setEditData] = useState({});
+  const [confirmUnregister, setConfirmUnregister] = useState(null); // reg object to unregister
+  const [unregistering, setUnregistering] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -163,6 +165,25 @@ ${membersText}
     setEditingReg(null);
   };
 
+  const handleUnregister = async (reg) => {
+    setUnregistering(true);
+    try {
+      await Registration.delete(reg.id);
+      // Update tournament team count
+      const tourney = getTournament(reg.tournament_id);
+      if (tourney) {
+        const currentCount = Math.max(0, (tourney.current_teams || 1) - 1);
+        await Tournament.update(tourney.id, { current_teams: currentCount });
+      }
+      await loadData();
+      setConfirmUnregister(null);
+    } catch (err) {
+      console.error("Unregister failed:", err);
+      alert("Failed to unregister. Please try again.");
+    }
+    setUnregistering(false);
+  };
+
   const downloadReport = () => {
     let content = `BattleHub FF - Tournament Registrations Report\n`;
     content += `Generated: ${new Date().toLocaleString()}\n`;
@@ -202,7 +223,8 @@ ${membersText}
   );
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+    <>
+      <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-gray-100">Tournament Registrations</CardTitle>
@@ -296,12 +318,15 @@ ${membersText}
                       <p>📅 {format(new Date(reg.created_date), "dd MMM yyyy, hh:mm a")}</p>
                       <p>🎮 {tournament?.mode} • {reg.team_members?.length || 0} members</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button size="sm" onClick={() => sendWhatsApp(reg)} className={`flex-1 text-xs ${sentMessages.has(reg.id) ? 'bg-gray-700 opacity-60' : 'bg-green-600 hover:bg-green-700'}`} disabled={!reg.team_leader_phone}>
                         {sentMessages.has(reg.id) ? <><CheckCircle className="w-3.5 h-3.5 mr-1"/>Message Sent</> : <><MessageCircle className="w-3.5 h-3.5 mr-1"/>Send WhatsApp</>}
                       </Button>
                       <Button size="sm" onClick={() => copyMessage(reg)} variant="outline" className="border-gray-600"><Copy className="w-4 h-4"/></Button>
                       <Button size="sm" onClick={() => startEdit(reg)} variant="outline" className="border-cyan-500/50 text-cyan-400"><Edit2 className="w-4 h-4"/></Button>
+                      <Button size="sm" onClick={() => setConfirmUnregister(reg)} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
+                        <Trash2 className="w-4 h-4"/>
+                      </Button>
                     </div>
                   </>
                 )}
@@ -311,5 +336,44 @@ ${membersText}
         </div>
       </CardContent>
     </Card>
-  );
+
+    {/* ── Unregister Confirm Dialog ── */}
+    {confirmUnregister && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4" onClick={() => !unregistering && setConfirmUnregister(null)}>
+        <div className="bg-gray-900 border border-red-500/40 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-base">Unregister Squad?</h3>
+              <p className="text-gray-400 text-xs">This action cannot be undone</p>
+            </div>
+          </div>
+          <div className="bg-gray-800/60 rounded-xl p-3 mb-4 space-y-1">
+            <p className="text-white text-sm font-semibold">{confirmUnregister.team_name}</p>
+            <p className="text-gray-400 text-xs">Leader: {confirmUnregister.team_leader_ign}</p>
+            <p className="text-gray-500 text-xs">Tournament: {getTournament(confirmUnregister.tournament_id)?.title || 'Unknown'}</p>
+          </div>
+          <p className="text-gray-400 text-xs mb-4">Are you sure you want to remove this squad from the tournament? Their slot will be freed.</p>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleUnregister(confirmUnregister)}
+              disabled={unregistering}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm"
+            >
+              {unregistering ? (
+                <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Removing...</>
+              ) : (
+                <><Trash2 className="w-3.5 h-3.5 mr-2" />Yes, Unregister</>
+              )}
+            </Button>
+            <Button onClick={() => setConfirmUnregister(null)} disabled={unregistering} variant="outline" className="flex-1 border-gray-700 text-gray-300 text-sm">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
 }

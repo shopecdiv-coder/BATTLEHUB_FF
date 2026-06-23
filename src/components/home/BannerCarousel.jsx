@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Banner } from "@/entities/Banner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-// Module-level cache to avoid repeated fetches
-let _bannersCache = null;
-let _bannersFetchedAt = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+import { cacheGet, cacheSet } from "@/lib/cache";
 
 export default function BannerCarousel() {
   const [banners, setBanners] = useState([]);
@@ -27,15 +23,15 @@ export default function BannerCarousel() {
   }, [banners]);
 
   const loadBanners = async () => {
-    const now = Date.now();
-    if (_bannersCache && (now - _bannersFetchedAt) < CACHE_TTL) {
-      setBanners(_bannersCache);
+    const CACHE_KEY = 'banners_active';
+    const cached = cacheGet(CACHE_KEY);
+    if (cached) {
+      setBanners(cached);
       setLoading(false);
       return;
     }
     const activeBanners = await Banner.filter({ active: true }, "order").catch(() => []);
-    _bannersCache = activeBanners;
-    _bannersFetchedAt = Date.now();
+    cacheSet(CACHE_KEY, activeBanners, 10 * 60 * 1000);
     setBanners(activeBanners);
     setLoading(false);
   };

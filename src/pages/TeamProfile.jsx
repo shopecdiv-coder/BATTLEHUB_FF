@@ -124,7 +124,7 @@ export default function TeamProfile() {
                 <img src={teamLogo} alt="logo" className="w-20 h-20 rounded-2xl object-cover border-4 border-gray-800 flex-shrink-0" onError={e => e.target.style.display='none'} />
               ) : (
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center text-white text-3xl font-black border-4 border-gray-800 flex-shrink-0">
-                  {teamName.charAt(0).toUpperCase()}
+                  {(teamName || "?").charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="pb-1">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Announcement } from "@/entities/Announcement";
 import { Bell, X, Megaphone } from "lucide-react";
-
+import { cacheGet, cacheSet } from "@/lib/cache";
 
 export default function AnnouncementBanner() {
   const [announcements, setAnnouncements] = useState([]);
@@ -13,8 +13,16 @@ export default function AnnouncementBanner() {
 
   const loadAnnouncements = async () => {
     try {
+      const CACHE_KEY = 'announcements_home';
+      const cached = cacheGet(CACHE_KEY);
+      if (cached) {
+        setAnnouncements(cached);
+        return;
+      }
       const data = await Announcement.filter({ active: true, show_on_home: true }, "-created_date", 3).catch(() => []);
-      setAnnouncements(data || []);
+      const formatted = data || [];
+      cacheSet(CACHE_KEY, formatted, 5 * 60 * 1000);
+      setAnnouncements(formatted);
     } catch (error) {
       // Silent fail
     }

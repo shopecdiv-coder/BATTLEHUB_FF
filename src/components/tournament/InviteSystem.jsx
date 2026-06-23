@@ -61,11 +61,11 @@ export function SendInvitePanel({ tournament, currentUser, onInviteSent }) {
       if (byUniqueId && byUniqueId.length > 0) {
         found = byUniqueId[0];
       } else {
-        const allUsers = await User.list("-created_date", 3000).catch(() => []);
+        const allUsers = await User.list("-created_date", 200).catch(() => []);
         found = allUsers.find(u => (u.unique_id || `BH${u.id.replace(/-/g,'').slice(-8).toUpperCase()}`).toUpperCase() === searchUid);
       }
     } catch {
-      const allUsers = await User.list("-created_date", 3000).catch(() => []);
+      const allUsers = await User.list("-created_date", 200).catch(() => []);
       found = allUsers.find(u => (u.unique_id || `BH${u.id.replace(/-/g,'').slice(-8).toUpperCase()}`).toUpperCase() === searchUid);
     }
 

@@ -37,6 +37,7 @@ export default function TournamentManagement({ tournaments, onUpdate }) {
   const [deleteCode, setDeleteCode] = useState("");
   const [lbSearch, setLbSearch] = useState("");
   const [finalizedTournaments, setFinalizedTournaments] = useState(new Set());
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     // Load which completed tournaments have a finalized leaderboard
@@ -117,60 +118,76 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
 
   const sendMessageToRegistered = async (tournament) => {
     if (!messageText.trim() && !roomCode.trim()) return;
-
-    const registrations = await Registration.filter({ tournament_id: tournament.id });
-
-    // Send all messages in parallel for speed
-    await Promise.all(registrations.map(async (reg) => {
-      // Build the in-app message: only room credentials + optional extra message
-      let inAppMsg = "";
-      if (roomCode) {
-        inAppMsg += `ROOM ID: ${roomCode}`;
-        if (roomPassword) inAppMsg += `\nPASSWORD: ${roomPassword}`;
-      }
-      if (messageText.trim()) {
-        inAppMsg += (inAppMsg ? "\n\n" : "") + messageText.trim();
+    setIsSending(true);
+    try {
+      const registrations = await Registration.filter({ tournament_id: tournament.id });
+      if (!registrations.length) {
+        alert("⚠️ No registrations found for this tournament!");
+        setIsSending(false);
+        return;
       }
 
-      const tasks = [
-        PlayerMessage.create({
-          tournament_id: tournament.id,
-          recipient_id: reg.team_leader_id,
-          recipient_ign: reg.team_leader_ign,
-          message: inAppMsg || messageText,
-          room_code: roomCode,
-          room_password: roomPassword,
-          sent_at: new Date().toISOString(),
-          read: false
-        })
-      ];
-      if (roomCode) {
+      // Send all messages in parallel for speed
+      await Promise.all(registrations.map(async (reg) => {
+        // Build the in-app message: room credentials + optional extra message
+        let inAppMsg = "";
+        if (roomCode.trim()) {
+          inAppMsg += `ROOM ID: ${roomCode.trim()}`;
+          if (roomPassword.trim()) inAppMsg += `\nPASSWORD: ${roomPassword.trim()}`;
+        }
+        if (messageText.trim()) {
+          inAppMsg += (inAppMsg ? "\n\n" : "") + messageText.trim();
+        }
+
+        const tasks = [
+          PlayerMessage.create({
+            tournament_id: tournament.id,
+            recipient_id: reg.team_leader_id,
+            recipient_ign: reg.team_leader_ign,
+            message: inAppMsg,
+            room_code: roomCode.trim(),
+            room_password: roomPassword.trim(),
+            sent_at: new Date().toISOString(),
+            read: false
+          })
+        ];
+        // Always create notification when sending
         tasks.push(Notification.create({
           recipient_id: reg.team_leader_id,
           type: "Match Update",
-          title: `🔑 ${tournament.title} — Room Credentials`,
-          message: `Room ID: ${roomCode}${roomPassword ? ` | Password: ${roomPassword}` : ""}`,
+          title: roomCode.trim() 
+            ? `🔑 ${tournament.title} — Room Credentials` 
+            : `📢 ${tournament.title} — Match Update`,
+          message: roomCode.trim()
+            ? `Room ID: ${roomCode.trim()}${roomPassword.trim() ? ` | Password: ${roomPassword.trim()}` : ""}${messageText.trim() ? `\n\n📢 ${messageText.trim()}` : ""}`
+            : messageText.trim(),
           link: createPageUrl(`TournamentDetail?id=${tournament.id}`),
-          priority: "High",
+          priority: roomCode.trim() ? "Urgent" : "High",
           dismissable: false,
           created_at: new Date().toISOString()
         }));
-      }
-      return Promise.all(tasks);
-    }));
+        return Promise.all(tasks);
+      }));
 
-    if (roomCode) {
+      // Update tournament with latest room credentials
       await Tournament.update(tournament.id, {
-        room_code: roomCode,
-        room_password: roomPassword
+        room_code: roomCode.trim() || "",
+        room_password: roomPassword.trim() || "",
+        room_message: messageText.trim() || ""
       });
-    }
 
-    setSendingMessage(null);
-    setMessageText("");
-    setRoomCode("");
-    setRoomPassword("");
-    onUpdate();
+      alert(`✅ Message sent to ${registrations.length} registered player(s)!\n${roomCode.trim() ? `🔑 Room ID: ${roomCode.trim()}` : ""}${roomPassword.trim() ? `\n🔒 Password: ${roomPassword.trim()}` : ""}${messageText.trim() ? `\n📢 Extra: ${messageText.trim()}` : ""}`);
+
+      setSendingMessage(null);
+      setMessageText("");
+      setRoomCode("");
+      setRoomPassword("");
+      onUpdate();
+    } catch (err) {
+      console.error("Send message error:", err);
+      alert("❌ Error sending message. Please try again.");
+    }
+    setIsSending(false);
   };
 
   const deleteAllMessages = async (tournament) => {
@@ -875,20 +892,19 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                       variant="outline"
                       onClick={() => { setSendingMessage(null); setMessageText(""); setRoomCode(""); setRoomPassword(""); }}
                       className="border-gray-700"
+                      disabled={isSending}
                     >
                       Cancel
                     </Button>
                     <Button
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        if (!messageText.trim() && !roomCode.trim()) return;
-                        sendMessageToRegistered(tournament);
-                      }}
-                      disabled={!messageText.trim() && !roomCode.trim()}
+                      onClick={() => sendMessageToRegistered(tournament)}
+                      disabled={isSending || (!messageText.trim() && !roomCode.trim())}
                       className="bg-green-500 hover:bg-green-600 active:scale-95"
                     >
-                      <Send className="w-4 h-4 mr-2" />
-                      Send to All Registered
+                      {isSending ? (
+                        <><span className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> Sending...
+                      </>) : (
+                        <><Send className="w-4 h-4 mr-2" /> Send to All Registered</>)}
                     </Button>
                   </div>
                 </div>

@@ -8,14 +8,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Trophy, Flame } from "lucide-react";
 
-export default function MatchCountdownTimer() {
+export default function MatchCountdownTimer({ user, registrations, tournaments }) {
   const [upcomingMatches, setUpcomingMatches] = useState([]);
   const [timeLeft, setTimeLeft] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadUpcomingMatches();
-  }, []);
+  }, [user, registrations, tournaments]);
 
   // Update countdown every second
   useEffect(() => {
@@ -32,18 +32,22 @@ export default function MatchCountdownTimer() {
 
   const loadUpcomingMatches = async () => {
     try {
-      const currentUser = await User.me().catch(() => null);
+      const currentUser = user || (await User.me().catch(() => null));
       if (!currentUser) {
         setLoading(false);
         return;
       }
 
       // Get user's registrations
-      const registrations = await Registration.filter({ 
-        team_leader_id: currentUser.id 
-      }).catch(() => []);
+      let myRegs = registrations;
+      if (!myRegs) {
+        myRegs = await Registration.filter({ 
+          team_leader_id: currentUser.id 
+        }).catch(() => []);
+      }
 
-      if (registrations.length === 0) {
+      if (!myRegs || myRegs.length === 0) {
+        setUpcomingMatches([]);
         setLoading(false);
         return;
       }
@@ -52,10 +56,17 @@ export default function MatchCountdownTimer() {
       const now = new Date();
       const matches = [];
 
-      for (const reg of registrations) {
-        const tournaments = await Tournament.filter({ id: reg.tournament_id }).catch(() => []);
-        if (tournaments.length > 0) {
-          const tournament = tournaments[0];
+      for (const reg of myRegs) {
+        let tournament = null;
+        if (tournaments && tournaments.length > 0) {
+          tournament = tournaments.find(t => t.id === reg.tournament_id);
+        }
+        if (!tournament) {
+          const tList = await Tournament.filter({ id: reg.tournament_id }).catch(() => []);
+          if (tList.length > 0) tournament = tList[0];
+        }
+
+        if (tournament) {
           const matchDate = new Date(tournament.date_time);
           const twelveHoursBefore = matchDate - (12 * 60 * 60 * 1000);
           

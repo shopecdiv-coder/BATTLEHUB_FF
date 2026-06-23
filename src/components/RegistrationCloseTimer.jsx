@@ -7,7 +7,15 @@ export default function RegistrationCloseTimer({ closingDate }) {
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
+      if (!closingDate) {
+        setTimeLeft("N/A");
+        return false;
+      }
       const close = new Date(closingDate);
+      if (isNaN(close.getTime())) {
+        setTimeLeft("N/A");
+        return false;
+      }
       
       // CRITICAL FIX: Now considers BOTH date AND time
       const diff = close.getTime() - now.getTime();

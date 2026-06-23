@@ -150,7 +150,7 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             <Button
               type="button"
               onClick={() => setVideoType("direct")}
@@ -159,6 +159,15 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
             >
               <Video className="w-4 h-4 mr-2" />
               Upload Video
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setVideoType("url")}
+              variant={videoType === "url" ? "default" : "outline"}
+              className={videoType === "url" ? "bg-cyan-600" : "border-gray-700"}
+            >
+              <LinkIcon className="w-4 h-4 mr-2" />
+              Direct Video URL (MP4)
             </Button>
             <Button
               type="button"
@@ -213,6 +222,26 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
                 </div>
               )}
             </div>
+          ) : videoType === "url" ? (
+            <div className="space-y-3">
+              <Label className="text-gray-300">Direct Video URL (.mp4 / .webm)</Label>
+              <Input
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value.trim())}
+                placeholder="https://example.com/my-video.mp4"
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+              <p className="text-xs text-gray-500">Paste a direct link to an MP4 video file hosted online</p>
+              {videoUrl && (
+                <div className="relative">
+                  <video
+                    src={videoUrl}
+                    className="w-full h-48 object-cover rounded-lg border-2 border-cyan-500/50"
+                    controls
+                  />
+                </div>
+              )}
+            </div>
           ) : (
             <div className="space-y-3">
               {videoUrl ? (
@@ -260,7 +289,7 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
 
           <Button
             onClick={handleCreateBanner}
-            disabled={(videoType === "direct" && !videoUrl) || (videoType === "youtube" && !youtubeId) || uploadingVideo}
+            disabled={((videoType === "direct" || videoType === "url") && !videoUrl) || (videoType === "youtube" && !youtubeId) || uploadingVideo}
             className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600"
           >
             <Upload className="w-4 h-4 mr-2" />

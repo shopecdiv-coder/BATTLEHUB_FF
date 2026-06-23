@@ -30,16 +30,8 @@ export default function RealTimeAnalytics() {
 
   const loadAnalytics = async () => {
     try {
-      // Load all users in batches
-      let allUsers = [];
-      let skip = 0;
-      while (true) {
-        const batch = await User.list("-created_date", 500, skip).catch(() => []);
-        if (!batch || batch.length === 0) break;
-        allUsers = [...allUsers, ...batch];
-        if (batch.length < 500) break;
-        skip += 500;
-      }
+      // Load all users in a single fetch (up to 5000)
+      const allUsers = await User.list("-created_date", 5000).catch(() => []);
       allUsersRef.current = allUsers;
 
       const [allRegistrations, allActiveUsers] = await Promise.all([

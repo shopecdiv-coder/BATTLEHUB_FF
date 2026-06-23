@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Crown, Medal, Zap, Flame, RefreshCw, Users, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cacheGet, cacheSet } from "@/lib/cache";
 
 export default function Leaderboard() {
   const [teamEntries, setTeamEntries] = useState([]);
@@ -21,6 +22,17 @@ export default function Leaderboard() {
 
   const loadData = useCallback(async () => {
     setRefreshing(true);
+    const CACHE_KEY = 'leaderboard_data';
+    const cached = cacheGet(CACHE_KEY);
+    if (cached) {
+      setTeamEntries(cached.teams);
+      setPlayerEntries(cached.players);
+      setChampionTournaments(cached.champions);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       // Fetch all TournamentLeaderboard entries (finalized ones are publicly readable)
       const allLB = await base44.entities.TournamentLeaderboard.list("-created_date", 200).catch(() => []);
@@ -50,7 +62,6 @@ export default function Leaderboard() {
         if (b.total_points !== a.total_points) return b.total_points - a.total_points;
         return b.total_kills - a.total_kills;
       });
-      setTeamEntries(teams);
 
       // ── Build Player Leaderboard ──
       // Aggregate from team_members arrays across all leaderboard entries
@@ -92,7 +103,6 @@ export default function Leaderboard() {
         }
       });
       const players = Object.values(playerMap).sort((a, b) => b.kills - a.kills);
-      setPlayerEntries(players);
 
       // ── Champion Tournaments (completed) ──
       const completed = await base44.entities.Tournament.filter({ status: "Completed" }, "-created_date", 10).catch(() => []);
@@ -100,6 +110,16 @@ export default function Leaderboard() {
         const top = await base44.entities.TournamentLeaderboard.filter({ tournament_id: t.id }, "rank", 3).catch(() => []);
         return { ...t, topPlayers: top };
       }));
+
+      // Cache the loaded data
+      cacheSet(CACHE_KEY, {
+        teams,
+        players,
+        champions: withTop
+      }, 5 * 60 * 1000);
+
+      setTeamEntries(teams);
+      setPlayerEntries(players);
       setChampionTournaments(withTop);
     } catch (err) {
       console.error("Leaderboard error:", err);

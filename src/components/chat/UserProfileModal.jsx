@@ -20,25 +20,10 @@ export default function UserProfileModal({ userId, onClose }) {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      // Try multiple approaches to find the user
-      let foundUser = null;
-      
-      // Method 1: Direct filter by ID
-      const users = await User.filter({ id: userId }).catch(() => []);
-      if (users.length > 0) {
-        foundUser = users[0];
-      }
-      
-      // Method 2: List all and find (fallback)
-      if (!foundUser) {
-        const allUsers = await User.list("-created_date", 500).catch(() => []);
-        foundUser = allUsers.find(u => u.id === userId);
-      }
-      
-      // Method 3: Try list without filters
-      if (!foundUser) {
-        const allUsers = await User.list().catch(() => []);
-        foundUser = allUsers.find(u => u.id === userId);
+      // Direct fetch by ID (UID or Email)
+      let foundUser = await User.get(userId);
+      if (!foundUser && typeof userId === 'string' && userId.includes('@')) {
+        foundUser = await User.get(userId.toLowerCase());
       }
       
       if (foundUser) {

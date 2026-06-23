@@ -7,6 +7,7 @@ import { BanRecord } from "@/entities/BanRecord";
 import { Referral } from "@/entities/Referral";
 import { TeamProfile } from "@/entities/TeamProfile";
 import { base44 } from "@/api/base44Client";
+import { UploadFile } from "@/integrations/Core";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import RegistrationSuccessModal from "./RegistrationSuccessModal";
@@ -47,6 +48,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
   const [savedSquads, setSavedSquads] = useState([]);
   const [showSavedSquads, setShowSavedSquads] = useState(false);
   const [bookedSlots, setBookedSlots] = useState([]);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const maxMembers = tournament.mode === "Solo" ? 1 : tournament.mode === "Duo" ? 2 : 4;
   const requiredCoins = tournament.entry_fee || 0;
@@ -117,6 +119,10 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
     } else if (step === 1 && !isSolo) {
       if (!teamName || teamName.length < 3) {
         setError("Team Name must be at least 3 characters");
+        return;
+      }
+      if (!teamLogoUrl) {
+        setError("Team Logo is required. Please upload a logo image.");
         return;
       }
       setStep(2);
@@ -233,7 +239,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
       isLeader: i === teamHeadIndex
     }));
 
-    const leaderMember = finalMembers.find(m => m.isLeader) || finalMembers[0];
+    const leaderMember = finalMembers.find(m => m.isLeader) || finalMembers[0] || { ign: user.ign || user.full_name, uid: user.game_uid || "" };
 
     // CRITICAL STEP: create the registration. Only this failing means registration failed.
     try {
@@ -243,7 +249,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
         team_name: isSolo ? (user.ign || user.full_name) : teamName,
         team_leader_id: user.id,
         team_leader_ign: user.ign || user.full_name,
-        team_leader_uid: leaderMember.uid,
+        team_leader_uid: leaderMember.uid || "",
         team_leader_phone: phoneNumber,
         team_members: finalMembers,
         time_slot: selectedSlot,
@@ -254,7 +260,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
       });
     } catch (error) {
       console.error("Registration error:", error);
-      setError("Registration failed. Please try again.");
+      setError(`Registration failed: ${error.message || error}`);
       setSubmitting(false);
       return;
     }
@@ -706,16 +712,45 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                     autoFocus
                   />
                   <p className="text-xs text-gray-500">Must be unique in this tournament</p>
-                  <Label className="text-sm text-cyan-300 mt-2">Team Logo (optional)</Label>
-                  <Input
-                    value={teamLogoUrl}
-                    onChange={(e) => setTeamLogoUrl(e.target.value)}
-                    placeholder="Paste team logo image URL..."
-                    className="bg-gray-800 border-gray-700 text-white"
-                  />
-                  {teamLogoUrl && (
-                    <img src={teamLogoUrl} alt="Team Logo" className="w-16 h-16 object-cover rounded-lg border border-cyan-500/50" onError={(e) => e.target.style.display='none'} />
-                  )}
+                  <Label className="text-sm text-cyan-300 mt-2">
+                    Team Logo <span className="text-red-400">*</span> <span className="text-gray-500 text-xs">(required)</span>
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 cursor-pointer">
+                      <div className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed transition-all ${
+                        teamLogoUrl ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-gray-600 bg-gray-800/60 hover:border-cyan-500/50'
+                      }`}>
+                        {logoUploading ? (
+                          <><div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" /><span className="text-cyan-400 text-sm">Uploading...</span></>
+                        ) : teamLogoUrl ? (
+                          <><span className="text-green-400 text-sm">✅ Logo uploaded — click to change</span></>
+                        ) : (
+                          <><span className="text-gray-400 text-sm">📁 Click to upload team logo</span></>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          setLogoUploading(true);
+                          try {
+                            const { file_url } = await UploadFile({ file });
+                            setTeamLogoUrl(file_url);
+                          } catch (err) {
+                            setError("Logo upload failed. Please try again.");
+                          } finally {
+                            setLogoUploading(false);
+                          }
+                        }}
+                      />
+                    </label>
+                    {teamLogoUrl && (
+                      <img src={teamLogoUrl} alt="Team Logo" className="w-16 h-16 object-cover rounded-lg border-2 border-cyan-500/50 flex-shrink-0" onError={(e) => e.target.style.display='none'} />
+                    )}
+                  </div>
 
                   {savedSquads.length > 0 && (
                     <div>

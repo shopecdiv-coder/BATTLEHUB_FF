@@ -29,6 +29,17 @@ import TournamentChatFullscreen from "../components/tournament/TournamentChatFul
 import InviteManager, { SendInvitePanel } from "../components/tournament/InviteSystem";
 
 export default function TournamentDetail() {
+  const safeFormatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "N/A";
+      return format(d, "PPP p");
+    } catch (e) {
+      return "N/A";
+    }
+  };
+
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const tournamentId = urlParams.get("id");
@@ -406,14 +417,10 @@ export default function TournamentDetail() {
                       </div>
                     </div>
                     
-                    {tournament.room_password && (
-                      <div>
-                        <p className="text-[#FF004C] text-sm font-bold mb-2">PASSWORD</p>
-                        <div className="glass-card border-2 border-[#FF004C] rounded-lg px-4 py-4 bg-gray-800/50">
-                          <p className="font-display text-3xl font-black text-[#FF004C] text-center tracking-wider">
-                            {tournament.room_password}
-                          </p>
-                        </div>
+                    {tournament.room_message && (
+                      <div className="mt-4 p-4 rounded-xl bg-gray-950/80 border border-green-500/30 text-xs text-green-300 whitespace-pre-wrap break-words">
+                        <p className="font-bold text-[10px] text-green-400 uppercase tracking-wider mb-1">📢 Admin Message</p>
+                        {tournament.room_message}
                       </div>
                     )}
                   </CardContent>
@@ -436,13 +443,13 @@ export default function TournamentDetail() {
                       <CardTitle className="text-gray-100">Tournament Details</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <DetailRow icon={Calendar} label="Date & Time" value={format(new Date(tournament.date_time), "PPP p")} />
+                      <DetailRow icon={Calendar} label="Date & Time" value={safeFormatDate(tournament.date_time)} />
                       <div className="flex items-center gap-3">
                         <Clock className="w-5 h-5 text-purple-400" />
                         <div className="flex-1">
                           <p className="text-sm text-gray-400">Registration Closes</p>
                           <div className="flex items-center gap-3">
-                            <p className="font-semibold text-gray-100">{format(new Date(tournament.registration_closes), "PPP p")}</p>
+                            <p className="font-semibold text-gray-100">{safeFormatDate(tournament.registration_closes)}</p>
                             <RegistrationCloseTimer closingDate={tournament.registration_closes} />
                           </div>
                         </div>
@@ -1093,7 +1100,7 @@ function LeaderboardTab({ registrations, leaderboardEntries, user, isRegistered,
                           <img src={logo} alt="" className="w-8 h-8 rounded-lg object-cover border border-gray-600 flex-shrink-0" onError={e => e.target.style.display='none'} />
                         ) : (
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                            {displayName.charAt(0).toUpperCase()}
+                            {(displayName || "?").charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div>

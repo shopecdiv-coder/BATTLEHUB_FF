@@ -14,6 +14,8 @@ import TournamentProgressBar from "../components/home/TournamentProgressBar";
 
 export default function Home() {
   const [tournaments, setTournaments] = useState([]);
+  const [allTournaments, setAllTournaments] = useState([]);
+  const [myRegistrations, setMyRegistrations] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,13 +26,15 @@ export default function Home() {
   const loadData = async () => {
     try {
       // Load user + tournaments first (fast) — show immediately
-      const [u, allTournaments] = await Promise.all([
+      const [u, fetchedTournaments] = await Promise.all([
         base44.auth.me().catch(() => null),
         base44.entities.Tournament.list("-created_date", 50).catch(() => [])
       ]);
       setUser(u);
+      const tList = fetchedTournaments || [];
+      setAllTournaments(tList);
 
-      const active = (allTournaments || []).filter(t =>
+      const active = tList.filter(t =>
         t.is_template !== true &&
         t.status !== "Completed" &&
         t.status !== "Cancelled" &&
@@ -42,10 +46,16 @@ export default function Home() {
       // Load registration counts in background (non-blocking)
       base44.entities.Registration.list("-created_date", 100).then(allRegs => {
         const countMap = {};
-        (allRegs || []).forEach(r => {
+        const regs = allRegs || [];
+        regs.forEach(r => {
           countMap[r.tournament_id] = (countMap[r.tournament_id] || 0) + 1;
         });
         setTournaments(prev => prev.map(t => ({ ...t, current_teams: countMap[t.id] || 0 })));
+
+        if (u) {
+          const userRegs = regs.filter(r => r.team_leader_id === u.id);
+          setMyRegistrations(userRegs);
+        }
       }).catch(() => {});
     } catch (e) {
       console.error("Home loadData error:", e);
@@ -63,7 +73,7 @@ export default function Home() {
 
       {/* Countdown Timer */}
       <div className="px-4 pt-4 max-w-7xl mx-auto">
-        <MatchCountdownTimer />
+        <MatchCountdownTimer user={user} registrations={myRegistrations} tournaments={allTournaments} />
       </div>
 
       {/* Banner Carousel */}
@@ -72,7 +82,7 @@ export default function Home() {
       </div>
 
       {/* User Journey Progress Bar */}
-      <TournamentProgressBar user={user} />
+      <TournamentProgressBar user={user} tournaments={allTournaments} />
 
       {/* Tournament Sections */}
       <div className="px-4 max-w-7xl mx-auto mb-8">
@@ -99,35 +109,21 @@ export default function Home() {
         )}
       </div>
 
-      {/* Quick Access */}
-      <div className="px-4 max-w-7xl mx-auto mb-8">
-        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Access</h2>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: "Tournaments", emoji: "🏆", href: "MyTournaments" },
-            { label: "Leaderboard", emoji: "⭐", href: "Leaderboard" },
-            { label: "Wallet", emoji: "💰", href: "Wallet" },
-            { label: "Earn 💎", emoji: "💎", href: "EarnDiamonds" },
-          ].map(({ label, emoji, href }) => (
-            <Link key={label} to={createPageUrl(href)}>
-              <div className="bg-gray-900 border border-gray-800 hover:border-orange-500/40 hover:bg-gray-800 rounded-2xl p-3 text-center cursor-pointer active:scale-95">
-                <span className="text-2xl">{emoji}</span>
-                <p className="text-gray-300 text-xs font-semibold mt-1.5 leading-tight">{label}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
       {/* Footer */}
-      <footer className="px-4 py-8 border-t border-gray-800/60 text-center max-w-7xl mx-auto">
-        <Trophy className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">
-          Made with ❤️ by{" "}
-          <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
-            BattleHub FF
-          </span>
-        </p>
+      <footer className="px-4 py-16 border-t border-gray-800/40 text-center max-w-7xl mx-auto relative overflow-hidden mt-12 bg-gradient-to-b from-transparent to-gray-950/80 rounded-b-3xl">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
+        <div className="relative z-10 flex flex-col items-center justify-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 flex items-center justify-center shadow-lg shadow-orange-500/5 hover:scale-110 transition-transform duration-300 group">
+            <Trophy className="w-8 h-8 text-orange-400 group-hover:animate-bounce" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-[0.25em] text-gray-500 font-bold"></p>
+            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-red-500 to-purple-500 drop-shadow">
+              Made with ❤️ by BATTLEHUB FF
+            </h3>
+            <p className="text-gray-600 text-[10px] md:text-xs">© {new Date().getFullYear()} BattleHub FF. All rights reserved.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );

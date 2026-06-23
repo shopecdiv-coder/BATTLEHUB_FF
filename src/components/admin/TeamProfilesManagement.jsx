@@ -154,7 +154,7 @@ export default function TeamProfilesManagement() {
                   <img src={team.team_logo_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-gray-600 flex-shrink-0" onError={e => e.target.style.display='none'} />
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center text-white text-xl font-black flex-shrink-0">
-                    {team.team_name.charAt(0).toUpperCase()}
+                    {(team.team_name || "?").charAt(0).toUpperCase()}
                   </div>
                 )}
 

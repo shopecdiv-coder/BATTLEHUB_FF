@@ -19,6 +19,8 @@ export default function SwipeNavigation({ children }) {
   const currentIndex = PAGES.indexOf(location.pathname);
 
   useEffect(() => {
+    if (location.pathname === createPageUrl("GlobalChat")) return;
+
     const handleTouchStart = (e) => {
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;

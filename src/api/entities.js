@@ -15,6 +15,24 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
+// Helper to recursively remove undefined fields so Firestore doesn't reject writes
+function cleanUndefined(obj) {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => typeof item === 'object' ? cleanUndefined(item) : item);
+  }
+  if (typeof obj === 'object') {
+    const cleaned = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (val !== undefined) {
+        cleaned[key] = typeof val === 'object' ? cleanUndefined(val) : val;
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 class FirestoreEntity {
   constructor(collectionName) {
     this.collectionName = collectionName;
@@ -24,9 +42,7 @@ class FirestoreEntity {
   async list(orderField = null, limitCount = 100) {
     try {
       const colRef = collection(db, this.collectionName);
-      const snap = await getDocs(colRef);
-      let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
+      const queryConstraints = [];
       if (orderField) {
         let field = orderField;
         let desc = false;
@@ -34,47 +50,78 @@ class FirestoreEntity {
           field = orderField.substring(1);
           desc = true;
         }
-        results.sort((a, b) => {
-          let valA = a[field];
-          let valB = b[field];
-          if (valA === undefined || valA === null) return 1;
-          if (valB === undefined || valB === null) return -1;
-          
-          // String comparison
-          if (typeof valA === 'string' && typeof valB === 'string') {
-            return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
-          }
-          if (valA < valB) return desc ? 1 : -1;
-          if (valA > valB) return desc ? -1 : 1;
-          return 0;
-        });
+        queryConstraints.push(orderBy(field, desc ? 'desc' : 'asc'));
       }
-
-      return results.slice(0, limitCount);
+      if (limitCount) {
+        queryConstraints.push(limit(limitCount));
+      }
+      const q = query(colRef, ...queryConstraints);
+      const snap = await getDocs(q);
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (e) {
-      console.error(`Error listing ${this.collectionName}:`, e);
-      return [];
+      console.warn(`[FirestoreEntity.list] Direct query failed, falling back to in-memory:`, e);
+      try {
+        const colRef = collection(db, this.collectionName);
+        const snap = await getDocs(colRef);
+        let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (orderField) {
+          let field = orderField;
+          let desc = false;
+          if (orderField.startsWith('-')) {
+            field = orderField.substring(1);
+            desc = true;
+          }
+          results.sort((a, b) => {
+            let valA = a[field];
+            let valB = b[field];
+            if (valA === undefined || valA === null) return 1;
+            if (valB === undefined || valB === null) return -1;
+            
+            // String comparison
+            if (typeof valA === 'string' && typeof valB === 'string') {
+              return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
+            }
+            if (valA < valB) return desc ? 1 : -1;
+            if (valA > valB) return desc ? -1 : 1;
+            return 0;
+          });
+        }
+
+        return results.slice(0, limitCount);
+      } catch (innerErr) {
+        console.error(`Error listing ${this.collectionName}:`, innerErr);
+        return [];
+      }
     }
   }
 
   // filter(conditions, orderByField, limitCount)
   async filter(conditions = {}, orderField = null, limitCount = 100) {
     try {
-      const colRef = collection(db, this.collectionName);
-      const snap = await getDocs(colRef);
-      let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      // In-memory filter
-      results = results.filter(doc => {
+      // Document ID query optimization
+      if (conditions.id !== undefined && conditions.id !== null) {
+        const docId = conditions.id;
+        const docData = await this.get(docId);
+        if (!docData) return [];
+        
+        // Match other conditions in-memory
         for (const [key, val] of Object.entries(conditions)) {
-          if (val !== undefined && val !== null) {
-            if (doc[key] !== val) return false;
+          if (key !== 'id' && val !== undefined && val !== null) {
+            if (docData[key] !== val) return [];
           }
         }
-        return true;
-      });
+        return [docData];
+      }
 
-      // In-memory sort
+      const colRef = collection(db, this.collectionName);
+      const queryConstraints = [];
+      
+      for (const [key, val] of Object.entries(conditions)) {
+        if (val !== undefined && val !== null) {
+          queryConstraints.push(where(key, "==", val));
+        }
+      }
       if (orderField) {
         let field = orderField;
         let desc = false;
@@ -82,26 +129,60 @@ class FirestoreEntity {
           field = orderField.substring(1);
           desc = true;
         }
-        results.sort((a, b) => {
-          let valA = a[field];
-          let valB = b[field];
-          if (valA === undefined || valA === null) return 1;
-          if (valB === undefined || valB === null) return -1;
-          
-          // String comparison
-          if (typeof valA === 'string' && typeof valB === 'string') {
-            return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
-          }
-          if (valA < valB) return desc ? 1 : -1;
-          if (valA > valB) return desc ? -1 : 1;
-          return 0;
-        });
+        queryConstraints.push(orderBy(field, desc ? 'desc' : 'asc'));
       }
-
-      return results.slice(0, limitCount);
+      if (limitCount) {
+        queryConstraints.push(limit(limitCount));
+      }
+      const q = query(colRef, ...queryConstraints);
+      const snap = await getDocs(q);
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (e) {
-      console.error(`Error filtering ${this.collectionName}:`, e);
-      return [];
+      console.warn(`[FirestoreEntity.filter] Direct query failed, falling back to in-memory:`, e);
+      try {
+        const colRef = collection(db, this.collectionName);
+        const snap = await getDocs(colRef);
+        let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // In-memory filter
+        results = results.filter(doc => {
+          for (const [key, val] of Object.entries(conditions)) {
+            if (val !== undefined && val !== null) {
+              if (doc[key] !== val) return false;
+            }
+          }
+          return true;
+        });
+
+        // In-memory sort
+        if (orderField) {
+          let field = orderField;
+          let desc = false;
+          if (orderField.startsWith('-')) {
+            field = orderField.substring(1);
+            desc = true;
+          }
+          results.sort((a, b) => {
+            let valA = a[field];
+            let valB = b[field];
+            if (valA === undefined || valA === null) return 1;
+            if (valB === undefined || valB === null) return -1;
+            
+            // String comparison
+            if (typeof valA === 'string' && typeof valB === 'string') {
+              return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
+            }
+            if (valA < valB) return desc ? 1 : -1;
+            if (valA > valB) return desc ? -1 : 1;
+            return 0;
+          });
+        }
+
+        return results.slice(0, limitCount);
+      } catch (innerErr) {
+        console.error(`Error filtering ${this.collectionName}:`, innerErr);
+        return [];
+      }
     }
   }
 
@@ -129,8 +210,9 @@ class FirestoreEntity {
         ...data,
         created_date: data.created_date || new Date().toISOString()
       };
-      const docRef = await addDoc(colRef, docData);
-      return { id: docRef.id, ...docData };
+      const cleanedData = cleanUndefined(docData);
+      const docRef = await addDoc(colRef, cleanedData);
+      return { id: docRef.id, ...cleanedData };
     } catch (e) {
       console.error(`Error creating ${this.collectionName}:`, e);
       throw e;
@@ -146,8 +228,9 @@ class FirestoreEntity {
         ...data,
         updated_date: new Date().toISOString()
       };
-      await updateDoc(docRef, updateData);
-      return { id, ...updateData };
+      const cleanedData = cleanUndefined(updateData);
+      await updateDoc(docRef, cleanedData);
+      return { id, ...cleanedData };
     } catch (e) {
       console.error(`Error updating ${this.collectionName}:`, e);
       throw e;
@@ -187,36 +270,42 @@ class UserEntityClass extends FirestoreEntity {
               }
               resolve(profile);
             } else {
-              const defaultProfile = {
-                id: firebaseUser.uid,
-                email: firebaseUser.email,
-                role: firebaseUser.email === 'shopecdiv@gmail.com' ? 'admin' : 'user',
-                created_date: new Date().toISOString()
-              };
-              const docRef = doc(db, 'users', firebaseUser.uid);
-              await setDoc(docRef, defaultProfile);
-              resolve(defaultProfile);
+              const emailDocRef = doc(db, 'users', firebaseUser.email.toLowerCase());
+              const emailSnap = await getDoc(emailDocRef);
+              if (emailSnap.exists()) {
+                const profileData = { ...emailSnap.data(), id: firebaseUser.uid };
+                const userDocRef = doc(db, 'users', firebaseUser.uid);
+                await setDoc(userDocRef, profileData);
+                
+                // Migrate diamonds
+                try {
+                  const dSnap = await getDocs(query(collection(db, 'diamonds'), where("user_id", "==", firebaseUser.email.toLowerCase())));
+                  for (const dDoc of dSnap.docs) {
+                    await updateDoc(dDoc.ref, { user_id: firebaseUser.uid });
+                  }
+                } catch (dErr) {
+                  console.error("Error migrating diamonds in entities:", dErr);
+                }
+
+                await deleteDoc(emailDocRef);
+                resolve(profileData);
+              } else {
+                const defaultProfile = {
+                  id: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  role: firebaseUser.email === 'shopecdiv@gmail.com' ? 'admin' : 'user',
+                  created_date: new Date().toISOString()
+                };
+                const docRef = doc(db, 'users', firebaseUser.uid);
+                await setDoc(docRef, defaultProfile);
+                resolve(defaultProfile);
+              }
             }
           } catch (e) {
             reject(e);
           }
         } else {
-          // Resolve with mock admin profile instead of rejecting so all features are visible
-          resolve({
-            id: 'mock-admin-id',
-            email: 'shopecdiv@gmail.com',
-            full_name: 'BattleHub Admin',
-            ign: 'BH_ADMIN',
-            game_uid: '1234567890',
-            role: 'admin',
-            wallet_balance: 10000,
-            unique_id: 'BHADMIN1',
-            rank: 'Grandmaster',
-            total_tournaments: 120,
-            total_wins: 85,
-            total_kills: 450,
-            created_date: new Date().toISOString()
-          });
+          reject(new Error("No user authenticated"));
         }
       });
     });

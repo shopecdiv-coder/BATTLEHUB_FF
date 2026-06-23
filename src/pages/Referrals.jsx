@@ -143,16 +143,16 @@ export default function Referrals() {
         referrer = byUniqueId[0];
       }
       
-      // If not found by unique_id, try scanning all users
+      // If not found by unique_id, try scanning recent users
       if (!referrer) {
         try {
-          const allUsers = await User.list("-created_date", 2000);
+          const allUsers = await User.list("-created_date", 200);
           referrer = allUsers.find(u => {
             const userCode = u.unique_id || `BH${u.id.substring(0, 6).toUpperCase()}`;
             return userCode === inputCode;
           });
         } catch (e) {
-          // fallback: try to construct ID from code pattern BH + 6 chars
+          // fallback
         }
       }
 

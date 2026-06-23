@@ -25,6 +25,16 @@ import PhoneNumberModal from "../components/wallet/PhoneNumberModal";
 import CoinInvoiceDownload from "../components/wallet/CoinInvoiceDownload";
 import { createPageUrl } from "@/utils";
 
+// Safe date formatter — prevents crash on null/invalid dates
+const safeFormat = (dateStr, fmt) => {
+  try {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return format(d, fmt);
+  } catch { return ""; }
+};
+
 export default function Wallet() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -54,26 +64,51 @@ export default function Wallet() {
 
   const loadData = async () => {
     setLoading(true);
+    setError("");
     try {
       const currentUser = await User.me();
       setUser(currentUser);
       if (!currentUser.mobile_number && !currentUser.phone) { setShowPhoneModal(true); setLoading(false); return; }
-      const accounts = await Diamond.filter({ user_id: currentUser.id });
-      if (accounts.length > 0) {
-        setCoinAccount(accounts[0]);
-      } else {
-        const newAccount = await Diamond.create({ user_id: currentUser.id, user_ign: currentUser.ign || currentUser.full_name, diamond_balance: 0, bh_coin_balance: 0, transactions: [] });
-        setCoinAccount(newAccount);
+      
+      // Load diamond account — don't crash if it fails
+      try {
+        const accounts = await Diamond.filter({ user_id: currentUser.id });
+        if (accounts && accounts.length > 0) {
+          setCoinAccount(accounts[0]);
+        } else {
+          try {
+            const newAccount = await Diamond.create({ user_id: currentUser.id, user_ign: currentUser.ign || currentUser.full_name, diamond_balance: 0, bh_coin_balance: 0, transactions: [] });
+            setCoinAccount(newAccount);
+          } catch (createErr) {
+            console.error("Error creating diamond account:", createErr);
+            setCoinAccount({ diamond_balance: 0, bh_coin_balance: 0, transactions: [] });
+          }
+        }
+      } catch (dErr) {
+        console.error("Error loading diamond:", dErr);
+        setCoinAccount({ diamond_balance: 0, bh_coin_balance: 0, transactions: [] });
       }
-      const [requests, payments, codes] = await Promise.all([
-        RedeemRequest.filter({ user_id: currentUser.id }, "-created_date"),
-        PaymentRequest.filter({ user_id: currentUser.id }, "-created_date"),
-        RedeemCode.filter({ user_id: currentUser.id }, "-created_date")
-      ]);
-      setRedeemRequests(requests);
-      setPaymentRequests(payments);
-      setRedeemCodes(codes);
-    } catch (e) { setError("Failed to load wallet"); }
+
+      // Load requests — independent, don't crash page
+      try {
+        const [requests, payments, codes] = await Promise.all([
+          RedeemRequest.filter({ user_id: currentUser.id }, "-created_date").catch(() => []),
+          PaymentRequest.filter({ user_id: currentUser.id }, "-created_date").catch(() => []),
+          RedeemCode.filter({ user_id: currentUser.id }, "-created_date").catch(() => [])
+        ]);
+        setRedeemRequests(requests || []);
+        setPaymentRequests(payments || []);
+        setRedeemCodes(codes || []);
+      } catch (reqErr) {
+        console.error("Error loading requests:", reqErr);
+        setRedeemRequests([]);
+        setPaymentRequests([]);
+        setRedeemCodes([]);
+      }
+    } catch (e) {
+      console.error("Wallet load error:", e);
+      setError("Failed to load wallet. Please refresh the page.");
+    }
     setLoading(false);
   };
 
@@ -268,7 +303,7 @@ export default function Wallet() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-white">+{req.diamond_amount} 🪙</p>
-                            <p className="text-xs text-gray-500">{format(new Date(req.created_date), "dd MMM, HH:mm")}</p>
+                            <p className="text-xs text-gray-500">{safeFormat(req.created_date, "dd MMM, HH:mm")}</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -303,7 +338,7 @@ export default function Wallet() {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-white">₹{req.inr_amount}</p>
-                          <p className="text-xs text-gray-500">{format(new Date(req.created_date), "dd MMM yyyy")}</p>
+                          <p className="text-xs text-gray-500">{safeFormat(req.created_date, "dd MMM yyyy")}</p>
                         </div>
                       </div>
                       <Badge className={`text-xs ${req.status === "Completed" ? "bg-green-500/20 text-green-400" : req.status === "Rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>{req.status}</Badge>
@@ -336,7 +371,7 @@ export default function Wallet() {
                       </div>
                       <div>
                         <p className="text-sm text-white font-medium">{tx.description}</p>
-                        <p className="text-xs text-gray-500">{tx.timestamp ? format(new Date(tx.timestamp), "dd MMM, HH:mm") : ""}</p>
+                        <p className="text-xs text-gray-500">{tx.timestamp ? safeFormat(tx.timestamp, "dd MMM, HH:mm") : ""}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -494,7 +529,7 @@ export default function Wallet() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-white">{code.coin_amount} Coins</p>
-                            <p className="text-xs text-gray-500">{format(new Date(code.created_date), "dd MMM, HH:mm")}</p>
+                            <p className="text-xs text-gray-500">{safeFormat(code.created_date, "dd MMM, HH:mm")}</p>
                           </div>
                         </div>
                         <Badge className={code.status === "Sent" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}>{code.status}</Badge>

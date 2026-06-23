@@ -141,20 +141,25 @@ function JourneyBar({ journey, isLatest }) {
   );
 }
 
-export default function TournamentProgressBar({ user }) {
+export default function TournamentProgressBar({ user, tournaments }) {
   const [journeys, setJourneys] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user?.id) loadJourney();
     else setLoading(false);
-  }, [user]);
+  }, [user, tournaments]);
 
   const loadJourney = async () => {
     try {
       const regs = await Registration.filter({ team_leader_id: user.id }).catch(() => []);
-      if (!regs || regs.length === 0) { setLoading(false); return; }
-      const allTournaments = await Tournament.list("-created_date", 100).catch(() => []);
+      if (!regs || regs.length === 0) { setJourneys([]); setLoading(false); return; }
+      
+      let allTournaments = tournaments;
+      if (!allTournaments || allTournaments.length === 0) {
+        allTournaments = await Tournament.list("-created_date", 100).catch(() => []);
+      }
+      
       const tournamentsMap = {};
       (allTournaments || []).forEach(t => { tournamentsMap[t.id] = t; });
       const built = buildJourneys(regs, tournamentsMap);

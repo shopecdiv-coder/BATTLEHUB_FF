@@ -123,8 +123,8 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (formData.ign && formData.ign !== user.ign) {
-      const allUsers = await User.list();
-      const ignExists = allUsers.some(u => u.ign === formData.ign && u.id !== user.id);
+      const existingUsers = await User.filter({ ign: formData.ign });
+      const ignExists = existingUsers.some(u => u.id !== user.id);
       if (ignExists) {
         const suggestions = [
           formData.ign + Math.floor(Math.random() * 100),
@@ -314,12 +314,32 @@ Thank you for being a part of BattleHub FF! 🏆
                     </Button>
                   ) : (
                     <div className="w-full space-y-2">
-                      <Input
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        placeholder="Paste image URL here..."
-                        className="bg-gray-700 border-purple-500/50 text-white text-sm"
-                      />
+                      <label className="cursor-pointer block">
+                        <div className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed transition-all ${
+                          avatarUrl ? 'border-purple-500/60 bg-purple-500/10' : 'border-gray-600 bg-gray-800/60 hover:border-purple-500/50'
+                        }`}>
+                          {avatarUrl ? (
+                            <span className="text-green-400 text-sm">✅ Photo ready — click to change</span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">📸 Click to upload profile photo</span>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            try {
+                              const { file_url } = await UploadFile({ file });
+                              setAvatarUrl(file_url);
+                            } catch (err) {
+                              alert("Photo upload failed. Please try again.");
+                            }
+                          }}
+                        />
+                      </label>
                       <div className="flex gap-2">
                         <Button size="sm" className="flex-1 bg-purple-600" onClick={async () => {
                           await User.updateMyUserData({ avatar_url: avatarUrl });
@@ -595,12 +615,32 @@ Thank you for being a part of BattleHub FF! 🏆
                   placeholder="Squad Name (e.g., Alpha Squad)"
                   className="bg-gray-900 border-gray-700 text-white"
                 />
-                <Input
-                  value={newSquad.logo_url || ""}
-                  onChange={(e) => setNewSquad({ ...newSquad, logo_url: e.target.value })}
-                  placeholder="Squad logo image URL (optional)..."
-                  className="bg-gray-900 border-gray-700 text-white"
-                />
+                <label className="cursor-pointer block">
+                  <div className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed transition-all ${
+                    newSquad.logo_url ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-gray-600 bg-gray-900/60 hover:border-cyan-500/50'
+                  }`}>
+                    {newSquad.logo_url ? (
+                      <span className="text-green-400 text-sm">✅ Logo uploaded — click to change</span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">📁 Click to upload squad logo (optional)</span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      try {
+                        const { file_url } = await UploadFile({ file });
+                        setNewSquad({ ...newSquad, logo_url: file_url });
+                      } catch (err) {
+                        alert("Logo upload failed. Please try again.");
+                      }
+                    }}
+                  />
+                </label>
                 {newSquad.logo_url && (
                   <img src={newSquad.logo_url} alt="logo" className="w-14 h-14 rounded-lg object-cover border border-cyan-500/40" onError={e => e.target.style.display='none'} />
                 )}

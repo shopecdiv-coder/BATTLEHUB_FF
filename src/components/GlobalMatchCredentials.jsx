@@ -6,6 +6,18 @@ import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
 import { Trophy, X, Copy, CheckCircle, ChevronDown } from "lucide-react";
 
+const getExtraMessageOnly = (message) => {
+  if (!message) return "";
+  if (message.startsWith("ROOM ID:")) {
+    const parts = message.split("\n\n");
+    if (parts.length > 1) {
+      return parts.slice(1).join("\n\n");
+    }
+    return "";
+  }
+  return message;
+};
+
 export default function GlobalMatchCredentials() {
   const [credentials, setCredentials] = useState([]);
   const [playerMsgCredentials, setPlayerMsgCredentials] = useState([]);
@@ -142,6 +154,19 @@ export default function GlobalMatchCredentials() {
                 </div>
               )}
             </div>
+
+            {/* Extra Message Display */}
+            {(() => {
+              const extraMsg = getExtraMessageOnly(credential.message);
+              if (!extraMsg) return null;
+              return (
+                <div className="mt-3 p-3 rounded-xl bg-gray-950/80 border border-cyan-500/20 text-xs text-cyan-200 whitespace-pre-wrap break-words leading-relaxed">
+                  <p className="font-bold text-[10px] text-cyan-400 uppercase tracking-wider mb-1">📢 Admin Message</p>
+                  {extraMsg}
+                </div>
+              );
+            })()}
+
 
             <div className="flex gap-2 mt-3">
               <Button

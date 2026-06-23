@@ -27,16 +27,8 @@ export default function CoinLedger() {
   const loadLedger = async () => {
     setLoading(true);
     try {
-      // Load all diamond accounts
-      let allAccounts = [];
-      let skip = 0;
-      while (true) {
-        const batch = await Diamond.list("-updated_date", 500, skip).catch(() => []);
-        if (!batch || batch.length === 0) break;
-        allAccounts = [...allAccounts, ...batch];
-        if (batch.length < 500) break;
-        skip += 500;
-      }
+      // Load all diamond accounts in a single fetch (up to 5000)
+      const allAccounts = await Diamond.list("-updated_date", 5000).catch(() => []);
 
       // Flatten all transactions with user info
       const txns = [];

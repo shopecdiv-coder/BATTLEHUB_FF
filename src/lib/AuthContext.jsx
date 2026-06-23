@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { auth, db } from '@/api/firebaseClient';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }) => {
           let profileData = {
             id: firebaseUser.uid,
             email: firebaseUser.email,
+            full_name: firebaseUser.displayName || '',
             role: 'user',
             created_date: new Date().toISOString()
           };
@@ -36,10 +37,31 @@ export const AuthProvider = ({ children }) => {
               await setDoc(userDocRef, { role: 'admin' }, { merge: true });
             }
           } else {
-            if (profileData.email === 'shopecdiv@gmail.com') {
-              profileData.role = 'admin';
+            // Check if there is an imported profile by email
+            const emailDocRef = doc(db, 'users', firebaseUser.email.toLowerCase());
+            const emailSnap = await getDoc(emailDocRef);
+            if (emailSnap.exists()) {
+              profileData = { ...profileData, ...emailSnap.data(), id: firebaseUser.uid };
+              await setDoc(userDocRef, profileData);
+              
+              // Migrate diamonds
+              try {
+                const dSnap = await getDocs(query(collection(db, 'diamonds'), where("user_id", "==", firebaseUser.email.toLowerCase())));
+                for (const dDoc of dSnap.docs) {
+                  await updateDoc(dDoc.ref, { user_id: firebaseUser.uid });
+                }
+              } catch (dErr) {
+                console.error("Error migrating diamonds:", dErr);
+              }
+
+              // Delete the temporary email-indexed document
+              await deleteDoc(emailDocRef);
+            } else {
+              if (profileData.email === 'shopecdiv@gmail.com') {
+                profileData.role = 'admin';
+              }
+              await setDoc(userDocRef, profileData);
             }
-            await setDoc(userDocRef, profileData);
           }
           
           setUser(profileData);
@@ -52,23 +74,8 @@ export const AuthProvider = ({ children }) => {
           });
         }
       } else {
-        // Default Mock Admin User for development / preview
-        setUser({
-          id: 'mock-admin-id',
-          email: 'shopecdiv@gmail.com',
-          full_name: 'BattleHub Admin',
-          ign: 'BH_ADMIN',
-          game_uid: '1234567890',
-          role: 'admin',
-          wallet_balance: 10000,
-          unique_id: 'BHADMIN1',
-          rank: 'Grandmaster',
-          total_tournaments: 120,
-          total_wins: 85,
-          total_kills: 450,
-          created_date: new Date().toISOString()
-        });
-        setIsAuthenticated(true);
+        setUser(null);
+        setIsAuthenticated(false);
       }
       setIsLoadingAuth(false);
     });
@@ -121,6 +128,8 @@ export const AuthProvider = ({ children }) => {
       throw e;
     }
   };
+
+
 
   const navigateToLogin = () => {
     // If auth is required, redirect to login page

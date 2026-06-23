@@ -21,13 +21,41 @@ export default function UserTournamentHistory() {
     setResult(null);
 
     try {
-      // Search by unique_id (BH... format)
+      const searchVal = searchId.trim();
+      const searchValLower = searchVal.toLowerCase();
+      const searchValUpper = searchVal.toUpperCase();
+      
       let foundUser = null;
-      const users = await User.list("-created_date", 2000);
-      foundUser = users.find(u =>
-        u.unique_id?.toLowerCase() === searchId.trim().toLowerCase() ||
-        u.ign?.toLowerCase() === searchId.trim().toLowerCase()
-      );
+      
+      // Run parallel direct queries for different combinations
+      const candidates = await Promise.all([
+        User.filter({ unique_id: searchVal }, null, 5).catch(() => []),
+        User.filter({ unique_id: searchValUpper }, null, 5).catch(() => []),
+        User.filter({ unique_id: searchValLower }, null, 5).catch(() => []),
+        User.filter({ ign: searchVal }, null, 5).catch(() => []),
+        User.filter({ ign: searchValLower }, null, 5).catch(() => []),
+      ]);
+      
+      // Find the first matching candidate in the results
+      for (const list of candidates) {
+        const match = list.find(u => 
+          u.unique_id?.toLowerCase() === searchValLower || 
+          u.ign?.toLowerCase() === searchValLower
+        );
+        if (match) {
+          foundUser = match;
+          break;
+        }
+      }
+      
+      // Fallback: scan a small set of the most recent users
+      if (!foundUser) {
+        const users = await User.list("-created_date", 200).catch(() => []);
+        foundUser = users.find(u =>
+          u.unique_id?.toLowerCase() === searchValLower ||
+          u.ign?.toLowerCase() === searchValLower
+        );
+      }
 
       if (!foundUser) {
         setError("No user found with this Unique ID or IGN.");

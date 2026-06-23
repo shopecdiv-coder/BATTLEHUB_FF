@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Send, Pin, Trash2, Reply, X,
   MoreVertical, Shield, Flame, Megaphone, Pencil, Image,
-  ChevronDown, SmilePlus, CheckCheck, ArrowDown, Maximize2
+  ChevronDown, SmilePlus, CheckCheck, ArrowDown, Maximize2, Search
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ChatSettings } from "@/entities/ChatSettings";
@@ -56,6 +56,11 @@ const REACTIONS = [
   { key: 'claps', emoji: '👏' },
 ];
 
+const EMOJIS = [
+  '😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾',
+  '👍','👎','👊','✊','🤛','🤜','🤞','✌️','🤘','🤟','👌','🤏','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🦷','🦴','👀','👁️','👅','👄','💋','🩸'
+];
+
 export default function GlobalChat() {
   const [user, setUser] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -76,7 +81,15 @@ export default function GlobalChat() {
   const [chatDP, setChatDP] = useState("");
   const [showReactionPicker, setShowReactionPicker] = useState(null);
   const [showPinnedFull, setShowPinnedFull] = useState(false);
-  const [ytViewer, setYtViewer] = useState(null); // { id: string, title: string }
+  const [ytViewer, setYtViewer] = useState(null); 
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [swipedMessageId, setSwipedMessageId] = useState(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [selectedLongPressedMessage, setSelectedLongPressedMessage] = useState(null);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -85,7 +98,8 @@ export default function GlobalChat() {
   const isUserScrolledUp = useRef(false);
   const initialScrollDone = useRef(false);
   const prevMessagesLength = useRef(0);
-  const lastMessageId = useRef(null);
+  const touchStartRef = useRef(0);
+  const longPressTimer = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -141,7 +155,6 @@ export default function GlobalChat() {
         const newLastId = reversed[reversed.length - 1]?.id;
         const oldLastId = prev[prev.length - 1]?.id;
         
-        // Count new messages while scrolled up
         if (isUserScrolledUp.current && newLastId !== oldLastId && prev.length > 0) {
           const newMsgs = reversed.filter(m => !prev.some(p => p.id === m.id));
           if (newMsgs.length > 0) {
@@ -156,7 +169,6 @@ export default function GlobalChat() {
     } catch {}
   };
 
-  // Scroll tracking
   useEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
@@ -172,13 +184,11 @@ export default function GlobalChat() {
         isUserScrolledUp.current = true;
       }
     };
-    // Check initial state
     onScroll();
     container.addEventListener('scroll', onScroll, { passive: true });
     return () => container.removeEventListener('scroll', onScroll);
   }, [loading, messages.length]);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (!messages.length || !chatContainerRef.current) return;
     const container = chatContainerRef.current;
@@ -218,6 +228,7 @@ export default function GlobalChat() {
     setNewMessage("");
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setReplyTo(null);
+    setShowEmojiPicker(false);
     
     try {
       const filteredMessage = mediaUrl ? mediaUrl : filterBadWords(msgText);
@@ -301,10 +312,62 @@ export default function GlobalChat() {
     setUploading(false);
   };
 
-  // Group messages by date
+  const handleTouchStart = (e, msg) => {
+    touchStartRef.current = e.touches[0].clientX;
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      setSelectedLongPressedMessage(msg);
+      setShowBottomSheet(true);
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+  };
+
+  const handleTouchMove = (e, msgId) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+    const diff = e.touches[0].clientX - touchStartRef.current;
+    if (diff > 0 && diff < 100) {
+      setSwipedMessageId(msgId);
+      setSwipeOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = (msg) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+    if (swipeOffset > 60) {
+      setReplyTo(msg);
+      if (navigator.vibrate) navigator.vibrate(30);
+    }
+    setSwipedMessageId(null);
+    setSwipeOffset(0);
+  };
+
+  const highlightText = (text, query) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={i} className="bg-yellow-400 text-black rounded px-0.5">{part}</mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
+
   const groupedMessages = [];
   let lastDate = null;
-  messages.forEach((msg, index) => {
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter(m => !m.is_deleted && m.message.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages;
+
+  filteredMessages.forEach((msg, index) => {
     const dateLabel = getDateLabel(msg.created_date);
     if (dateLabel !== lastDate) {
       groupedMessages.push({ type: 'date', label: dateLabel, id: `date-${index}` });
@@ -348,31 +411,64 @@ export default function GlobalChat() {
 
       {/* ── Header ── */}
       <div className="relative z-10 flex-shrink-0 bg-gray-950/90 backdrop-blur-xl border-b border-white/8 px-4 py-3 shadow-2xl">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Avatar
-                className="w-11 h-11 ring-2 ring-cyan-500/50 cursor-pointer shadow-lg shadow-cyan-900/30"
-                onClick={() => chatDP && setMediaViewer({ url: chatDP, type: 'image' })}
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+          {isSearching ? (
+            <div className="flex items-center gap-2 w-full animate-in fade-in duration-200">
+              <Input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search messages..."
+                className="bg-gray-900 border-gray-800 text-white text-sm h-10 w-full focus:border-cyan-500/50"
+                autoFocus
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsSearching(false);
+                  setSearchQuery("");
+                }}
+                className="text-gray-400 hover:text-white px-2.5"
               >
-                <AvatarImage src={chatDP || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-cyan-600 to-purple-700">
-                  <Flame className="w-5 h-5 text-white" />
-                </AvatarFallback>
-              </Avatar>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-gray-950 shadow" />
+                Cancel
+              </Button>
             </div>
-            <div>
-              <h1 className="font-bold text-white text-[15px] leading-tight tracking-tight">BattleHub Chat</h1>
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                <p className="text-emerald-400 text-xs font-medium">{onlineCount} online</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Avatar
+                    className="w-11 h-11 ring-2 ring-cyan-500/50 cursor-pointer shadow-lg shadow-cyan-900/30"
+                    onClick={() => chatDP && setMediaViewer({ url: chatDP, type: 'image' })}
+                  >
+                    <AvatarImage src={chatDP || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-cyan-600 to-purple-700">
+                      <Flame className="w-5 h-5 text-white" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-gray-950 shadow" />
+                </div>
+                <div>
+                  <h1 className="font-bold text-white text-[15px] leading-tight tracking-tight">BattleHub Chat</h1>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    <p className="text-emerald-400 text-xs font-medium">{onlineCount} online</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <Badge className="bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold px-2.5 py-1">
-            🔴 LIVE
-          </Badge>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsSearching(true)}
+                  className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95"
+                >
+                  <Search className="w-4.5 h-4.5" />
+                </button>
+                <Badge className="bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold px-2.5 py-1">
+                  🔴 LIVE
+                </Badge>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -450,9 +546,27 @@ export default function GlobalChat() {
               <div
                 key={msg.id}
                 id={`msg-${msg.id}`}
-                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group mb-1`}
+                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group mb-1 relative overflow-visible`}
               >
-                <div className={`flex gap-2 max-w-[80%] sm:max-w-[72%] ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-end`}>
+                {swipedMessageId === msg.id && swipeOffset > 10 && (
+                  <div
+                    className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center text-cyan-400 transition-opacity"
+                    style={{ opacity: Math.min(swipeOffset / 60, 1) }}
+                  >
+                    <Reply className="w-5 h-5 animate-pulse" />
+                  </div>
+                )}
+
+                <div
+                  className={`flex gap-2 max-w-[80%] sm:max-w-[72%] ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-end`}
+                  onTouchStart={(e) => handleTouchStart(e, msg)}
+                  onTouchMove={(e) => handleTouchMove(e, msg.id)}
+                  onTouchEnd={() => handleTouchEnd(msg)}
+                  style={{
+                    transform: swipedMessageId === msg.id ? `translateX(${swipeOffset}px)` : 'none',
+                    transition: swipedMessageId === msg.id ? 'none' : 'transform 0.15s ease'
+                  }}
+                >
                   {/* Avatar */}
                   {!isOwn && (
                     <button onClick={() => setViewProfileId(msg.user_id)} className="flex-shrink-0 mb-1">
@@ -470,12 +584,12 @@ export default function GlobalChat() {
                     <div
                       className={`relative rounded-2xl overflow-visible ${
                         isAnnouncement
-                          ? 'bg-gradient-to-br from-amber-600/95 to-orange-700/95 border border-amber-400/30 shadow-lg shadow-amber-900/20'
+                          ? 'bg-gradient-to-br from-amber-600/95 to-orange-700/95 border border-amber-400/30 shadow-lg shadow-amber-900/20 rounded-2xl'
                           : isDeleted
                             ? 'bg-gray-800/40'
                             : isOwn
-                              ? 'bg-gradient-to-br from-violet-600 to-indigo-700 shadow-lg shadow-violet-900/40'
-                              : 'bg-gray-800/90'
+                              ? 'bg-gradient-to-br from-cyan-500 to-violet-600 shadow-lg shadow-cyan-500/10 border border-white/10 rounded-2xl rounded-tr-sm'
+                              : 'bg-gray-900/90 border border-white/5 rounded-2xl rounded-tl-sm backdrop-blur-sm shadow-md'
                       } ${isImage && !isDeleted ? 'p-1.5' : 'px-3.5 py-2.5'}`}
                     >
                       {isAnnouncement && (
@@ -547,10 +661,11 @@ export default function GlobalChat() {
                             {msg.message.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
                               part.match(/^https?:\/\//) ? (
                                 <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline hover:text-cyan-200 break-all text-xs">{part}</a>
-                              ) : part
+                              ) : (
+                                highlightText(part, searchQuery)
+                              )
                             )}
                           </p>
-                          {/* YouTube thumbnail viewer */}
                           {msg.message.split(/\s+/).map((word, wi) => {
                             const ytId = getYouTubeId(word);
                             if (!ytId) return null;
@@ -592,7 +707,6 @@ export default function GlobalChat() {
                       )}
                     </div>
 
-                    {/* Reactions */}
                     {totalReactions > 0 && (
                       <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
                         {REACTIONS.map(r => {
@@ -613,9 +727,8 @@ export default function GlobalChat() {
                     )}
                   </div>
 
-                  {/* Actions */}
                   {!isDeleted && (
-                    <div className={`flex flex-col gap-1 self-center ${showReactionPicker === msg.id ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'} ${isOwn ? 'order-first' : 'order-last'}`}>
+                    <div className={`flex flex-col gap-1 self-center md:flex ${showReactionPicker === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${isOwn ? 'order-first' : 'order-last'} transition-opacity`}>
                       <div className="relative">
                         <button
                           onPointerDown={(e) => { e.stopPropagation(); setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id); }}
@@ -683,7 +796,6 @@ export default function GlobalChat() {
         </div>
       </div>
 
-      {/* ── Scroll to bottom — WhatsApp style (only shown when scrolled up) ── */}
       {showScrollBtn && (
         <div className="fixed z-[9999]" style={{ bottom: '90px', right: '16px' }}>
           <div className="relative">
@@ -703,7 +815,6 @@ export default function GlobalChat() {
         </div>
       )}
 
-      {/* ── Reply Preview ── */}
       {replyTo && (
         <div className="relative z-10 flex-shrink-0 bg-gray-950/95 backdrop-blur border-t border-white/5 px-4 py-2.5">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
@@ -719,9 +830,25 @@ export default function GlobalChat() {
         </div>
       )}
 
-      {/* ── Input Area ── */}
       <div className="relative z-10 flex-shrink-0 bg-gray-950/98 backdrop-blur-xl border-t border-white/5 px-3 py-3 pb-20">
-        <div className="max-w-3xl mx-auto flex items-end gap-2">
+        <div className="max-w-3xl mx-auto flex items-end gap-2 relative">
+          
+          {showEmojiPicker && (
+            <div className="absolute bottom-14 left-0 z-50 bg-gray-900 border border-white/10 rounded-2xl p-3 shadow-2xl w-72 h-48 overflow-y-auto grid grid-cols-6 gap-2 backdrop-blur-xl scrollbar-thin">
+              {EMOJIS.map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => {
+                    setNewMessage(prev => prev + emoji);
+                  }}
+                  className="text-2xl hover:bg-white/10 p-1.5 rounded active:scale-125 transition-transform flex items-center justify-center"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+
           {user?.role === "admin" && (
             <>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadAndSendImage(e.target.files[0])} />
@@ -737,6 +864,13 @@ export default function GlobalChat() {
               </button>
             </>
           )}
+
+          <button
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`w-10 h-10 rounded-full border flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors ${showEmojiPicker ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-400' : 'bg-gray-800/80 border-white/10 text-gray-400 hover:text-white'}`}
+          >
+            😊
+          </button>
 
           <div className="flex-1 relative">
             <textarea
@@ -757,6 +891,7 @@ export default function GlobalChat() {
                   sendMessage();
                 }
               }}
+              onClick={() => setShowEmojiPicker(false)}
               disabled={sending}
               rows={1}
             />
@@ -775,7 +910,99 @@ export default function GlobalChat() {
         </div>
       </div>
 
-      {/* ── Media Viewer ── */}
+      {showBottomSheet && selectedLongPressedMessage && (
+        <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm flex items-end justify-center" onClick={() => setShowBottomSheet(false)}>
+          <div
+            className="w-full max-w-md bg-gray-950 border-t border-white/10 rounded-t-3xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200 pb-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-12 h-1.5 bg-gray-800 rounded-full mx-auto mb-4" onClick={() => setShowBottomSheet(false)} />
+            
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-3 px-1">Message Options</p>
+            
+            <div className="space-y-1">
+              <button
+                onClick={() => {
+                  setReplyTo(selectedLongPressedMessage);
+                  setShowBottomSheet(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 hover:bg-white/5 rounded-xl text-left text-sm text-gray-200"
+              >
+                <Reply className="w-4 h-4 text-cyan-400" /> Reply
+              </button>
+              
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedLongPressedMessage.message);
+                  setShowBottomSheet(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 hover:bg-white/5 rounded-xl text-left text-sm text-gray-200"
+              >
+                <CheckCheck className="w-4 h-4 text-emerald-400" /> Copy Text
+              </button>
+
+              {selectedLongPressedMessage.user_id === user.id && !selectedLongPressedMessage.is_deleted && (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingMessageId(selectedLongPressedMessage.id);
+                      setEditText(selectedLongPressedMessage.message);
+                      setShowBottomSheet(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-white/5 rounded-xl text-left text-sm text-blue-400"
+                  >
+                    <Pencil className="w-4 h-4" /> Edit Message
+                  </button>
+                  <button
+                    onClick={() => {
+                      deleteMessage(selectedLongPressedMessage);
+                      setShowBottomSheet(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-red-500/10 rounded-xl text-left text-sm text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete Message
+                  </button>
+                </>
+              )}
+
+              {user.role === "admin" && (
+                <>
+                  {selectedLongPressedMessage.user_id !== user.id && !selectedLongPressedMessage.is_deleted && (
+                    <button
+                      onClick={() => {
+                        deleteMessage(selectedLongPressedMessage);
+                        setShowBottomSheet(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-3 hover:bg-red-500/10 rounded-xl text-left text-sm text-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete for All
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      togglePin(selectedLongPressedMessage);
+                      setShowBottomSheet(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-white/5 rounded-xl text-left text-sm text-amber-400"
+                  >
+                    <Pin className="w-4 h-4" /> {selectedLongPressedMessage.is_pinned ? 'Unpin Message' : 'Pin Message'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      markAsAnnouncement(selectedLongPressedMessage);
+                      setShowBottomSheet(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-white/5 rounded-xl text-left text-sm text-orange-400"
+                  >
+                    <Megaphone className="w-4 h-4" /> {selectedLongPressedMessage.is_announcement ? 'Un-announce' : 'Announce Message'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Dialog open={!!mediaViewer} onOpenChange={() => setMediaViewer(null)}>
         <DialogContent className="bg-black/97 border-white/10 max-w-4xl p-1 rounded-2xl">
           {mediaViewer?.type === 'image' && (
@@ -788,7 +1015,6 @@ export default function GlobalChat() {
         <UserProfileModal userId={viewProfileId} onClose={() => setViewProfileId(null)} />
       )}
 
-      {/* ── YouTube Viewer Modal ── */}
       {ytViewer && (
         <div
           className="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center p-4"

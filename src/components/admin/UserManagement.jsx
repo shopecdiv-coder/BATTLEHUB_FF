@@ -80,17 +80,8 @@ export default function UserManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Load all users in batches of 500
-      let allUsers = [];
-      let skip = 0;
-      const batchSize = 500;
-      while (true) {
-        const batch = await User.list("-created_date", batchSize, skip).catch(() => []);
-        if (!batch || batch.length === 0) break;
-        allUsers = [...allUsers, ...batch];
-        if (batch.length < batchSize) break;
-        skip += batchSize;
-      }
+      // Load all users in a single fetch (up to 5000)
+      const allUsers = await User.list("-created_date", 5000).catch(() => []);
       
       setUsers(allUsers || []);
       setFilteredUsers(allUsers || []);
@@ -463,7 +454,12 @@ export default function UserManagement() {
             <CardTitle className="text-white">All Users ({filteredUsers.length})</CardTitle>
           </CardHeader>
           <CardContent className="max-h-[600px] overflow-y-auto space-y-2">
-            {filteredUsers.map((u) => (
+            {filteredUsers.length > 100 && (
+              <div className="text-xs text-gray-400 bg-gray-700/30 rounded-lg p-2 text-center mb-2">
+                Showing 100 of {filteredUsers.length} users. Use search to narrow results.
+              </div>
+            )}
+            {filteredUsers.slice(0, 100).map((u) => (
               <div
                 key={u.id}
                 onClick={() => selectUser(u)}

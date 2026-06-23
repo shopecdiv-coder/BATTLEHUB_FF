@@ -79,8 +79,4 @@
     user-select: text;
   }
 }
-
-* {
-  transition: none !important;
-  animation-duration: 0s !important;
-}
+

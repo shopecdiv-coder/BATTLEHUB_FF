@@ -43,6 +43,7 @@ export default function BottomNavigation() {
   }, []);
 
   useEffect(() => {
+    if (location.pathname === createPageUrl("GlobalChat")) return;
     const currentIndex = SWIPE_PAGES.indexOf(location.pathname);
 
     const handleTouchStart = (e) => {

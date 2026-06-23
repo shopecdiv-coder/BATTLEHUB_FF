@@ -3,6 +3,7 @@ import { VideoBanner as VideoBannerEntity } from "@/entities/VideoBanner";
 import { AppSettings } from "@/entities/AppSettings";
 import { Volume2, VolumeX, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cacheGet, cacheSet } from "@/lib/cache";
 
 const getYouTubeId = (url) => {
   if (!url) return null;
@@ -20,10 +21,22 @@ export default function VideoBanner() {
 
   useEffect(() => {
     loadVideoBanner();
-    AppSettings.filter({ setting_key: "video_banner_text" }).then(s => {
-      if (s.length > 0 && s[0].setting_value) setBannerText(s[0].setting_value);
-    }).catch(() => {});
+    loadBannerText();
   }, []);
+
+  const loadBannerText = async () => {
+    const CACHE_KEY = 'settings_video_banner';
+    const cached = cacheGet(CACHE_KEY);
+    if (cached) {
+      if (cached.length > 0 && cached[0].setting_value) setBannerText(cached[0].setting_value);
+      return;
+    }
+    AppSettings.filter({ setting_key: "video_banner_text" }).then(s => {
+      const data = s || [];
+      cacheSet(CACHE_KEY, data, 10 * 60 * 1000);
+      if (data.length > 0 && data[0].setting_value) setBannerText(data[0].setting_value);
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     if (videoRef.current) {
@@ -32,9 +45,17 @@ export default function VideoBanner() {
   }, [isMuted]);
 
   const loadVideoBanner = async () => {
+    const CACHE_KEY = 'video_banners_active';
+    const cached = cacheGet(CACHE_KEY);
+    if (cached) {
+      if (cached.length > 0) setVideoBanner(cached[0]);
+      return;
+    }
     const banners = await VideoBannerEntity.filter({ active: true }).catch(() => []);
-    if (banners.length > 0) {
-      setVideoBanner(banners[0]);
+    const formatted = banners || [];
+    cacheSet(CACHE_KEY, formatted, 10 * 60 * 1000);
+    if (formatted.length > 0) {
+      setVideoBanner(formatted[0]);
     }
   };
 
