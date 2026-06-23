@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, collection, addDoc, doc, setDoc } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBPoUEVfjtAwT1A94vbJuI-ZS9z6AqhVsI",
@@ -16,49 +16,58 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-async function seed() {
+async function cleanAndSeed() {
   try {
-    let userCredential;
-    try {
-      userCredential = await signInWithEmailAndPassword(auth, 'shopecdiv@gmail.com', '84543600');
-      console.log("Logged in existing user!");
-    } catch (err) {
-      console.log("User not found or invalid credential, creating new user...");
-      userCredential = await createUserWithEmailAndPassword(auth, 'shopecdiv@gmail.com', '84543600');
-      console.log("Created new user!");
-      
-      // Add user to users collection to make them an admin
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        email: 'shopecdiv@gmail.com',
-        full_name: 'Admin',
-        role: 'admin',
-        wallet_balance: 1000,
-        diamonds_balance: 500,
-        created_date: Date.now()
-      });
-      console.log("User added to users collection as Admin!");
+    await signInWithEmailAndPassword(auth, 'shopecdiv@gmail.com', '84543600');
+    console.log("Logged in!");
+
+    // Clean old tournaments
+    const tournamentsRef = collection(db, 'tournaments');
+    const snap = await getDocs(tournamentsRef);
+    for (const docSnap of snap.docs) {
+      await deleteDoc(doc(db, 'tournaments', docSnap.id));
+      console.log(`Deleted tournament ${docSnap.id}`);
     }
 
-    const videoBannerRef = collection(db, 'video_banners');
-    await addDoc(videoBannerRef, {
-      video_url: "dQw4w9WgXcQ", 
+    // Clean old video banners
+    const vbRef = collection(db, 'video_banners');
+    const vbSnap = await getDocs(vbRef);
+    for (const docSnap of vbSnap.docs) {
+      await deleteDoc(doc(db, 'video_banners', docSnap.id));
+    }
+
+    // Clean old banners
+    const bRef = collection(db, 'banners');
+    const bSnap = await getDocs(bRef);
+    for (const docSnap of bSnap.docs) {
+      await deleteDoc(doc(db, 'banners', docSnap.id));
+    }
+
+    // Clean old announcements
+    const aRef = collection(db, 'announcements');
+    const aSnap = await getDocs(aRef);
+    for (const docSnap of aSnap.docs) {
+      await deleteDoc(doc(db, 'announcements', docSnap.id));
+    }
+
+    // Insert corrected data
+    await addDoc(vbRef, {
+      video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", 
       video_type: "youtube",
       active: true,
       created_date: Date.now()
     });
-    console.log("Video banner added!");
+    console.log("Added valid Video banner");
 
-    const bannersRef = collection(db, 'banners');
-    await addDoc(bannersRef, {
+    await addDoc(bRef, {
       image_url: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070",
       link_url: "",
       active: true,
       created_date: Date.now()
     });
-    console.log("Banner added!");
+    console.log("Added valid Banner");
 
-    const announcementsRef = collection(db, 'announcements');
-    await addDoc(announcementsRef, {
+    await addDoc(aRef, {
       title: "Welcome to BATTLEHUB FF!",
       message: "We have migrated to a new system!",
       priority: "High",
@@ -66,29 +75,34 @@ async function seed() {
       show_on_home: true,
       created_date: Date.now()
     });
-    console.log("Announcement added!");
+    console.log("Added valid Announcement");
 
-    const tournamentsRef = collection(db, 'tournaments');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
     await addDoc(tournamentsRef, {
       title: "Free Fire Grand Clash",
       game: "Free Fire",
-      type: "Squad",
+      mode: "Squad",
+      tournament_type: "Qualifier",
       entry_fee: 50,
       prize_pool: 1000,
       status: "Upcoming",
-      start_time: Date.now() + 86400000,
+      date_time: tomorrow.toISOString(), // Correct date_time ISO string
+      registration_closes: tomorrow.toISOString(),
       max_teams: 12,
       registered_teams: 0,
+      map: "Bermuda",
       created_date: Date.now()
     });
-    console.log("Tournament added!");
+    console.log("Added corrected Tournament!");
 
-    console.log("Seeding complete! You can exit.");
+    console.log("Re-seeding complete!");
     process.exit(0);
   } catch (e) {
-    console.error("Error seeding:", e);
+    console.error("Error re-seeding:", e);
     process.exit(1);
   }
 }
 
-seed();
+cleanAndSeed();
