@@ -165,14 +165,25 @@ export default function Menu() {
           </div>
         )}
 
-        {/* Logout Button */}
-        <Button
-          onClick={handleLogout}
-          className="w-full bg-red-600 hover:bg-red-700 text-white py-6 text-lg font-bold"
-        >
-          <LogOut className="w-5 h-5 mr-2" />
-          Logout
-        </Button>
+        {/* Logout or Login Button */}
+        {user ? (
+          <Button
+            onClick={handleLogout}
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-6 text-lg font-bold rounded-2xl"
+          >
+            <LogOut className="w-5 h-5 mr-2" />
+            Logout
+          </Button>
+        ) : (
+          <Link to="/auth/login" className="block w-full">
+            <Button
+              className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white py-6 text-lg font-bold rounded-2xl"
+            >
+              <UserIcon className="w-5 h-5 mr-2" />
+              Login / Register
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

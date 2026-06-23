@@ -192,7 +192,7 @@ class UserEntityClass extends FirestoreEntity {
   }
 
   redirectToLogin() {
-    window.dispatchEvent(new Event('open-login-modal'));
+    window.location.href = '/auth/login';
   }
 }
 

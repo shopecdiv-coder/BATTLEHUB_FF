@@ -57,29 +57,34 @@ export default function Profile() {
   };
 
   const loadUser = async () => {
-    const currentUser = await User.me();
-    
-    if (!currentUser.unique_id) {
-      const uniqueId = await generateTrulyUniqueId(currentUser.id);
-      await User.updateMyUserData({ unique_id: uniqueId });
-      currentUser.unique_id = uniqueId;
+    try {
+      const currentUser = await User.me();
+      
+      if (!currentUser.unique_id) {
+        const uniqueId = await generateTrulyUniqueId(currentUser.id);
+        await User.updateMyUserData({ unique_id: uniqueId });
+        currentUser.unique_id = uniqueId;
+      }
+      
+      setUser(currentUser);
+      setFormData({
+        ign: currentUser.ign || "",
+        game_uid: currentUser.game_uid || "",
+        rank: currentUser.rank || "Bronze",
+        phone: currentUser.phone || ""
+      });
+      setAvatarUrl(currentUser.avatar_url || "");
+      setSavedSquads(currentUser.saved_squads || []);
+
+      // Load performance data in background
+      Registration.filter({ team_leader_id: currentUser.id }).then(regs => setUserRegistrations(regs || [])).catch(() => {});
+      Diamond.filter({ user_id: currentUser.id }).then(d => setUserDiamond(d?.[0] || null)).catch(() => {});
+
+      setLoading(false);
+    } catch (e) {
+      console.error("Profile load user failed, redirecting to login:", e);
+      navigate("/auth/login");
     }
-    
-    setUser(currentUser);
-    setFormData({
-      ign: currentUser.ign || "",
-      game_uid: currentUser.game_uid || "",
-      rank: currentUser.rank || "Bronze",
-      phone: currentUser.phone || ""
-    });
-    setAvatarUrl(currentUser.avatar_url || "");
-    setSavedSquads(currentUser.saved_squads || []);
-
-    // Load performance data in background
-    Registration.filter({ team_leader_id: currentUser.id }).then(regs => setUserRegistrations(regs || [])).catch(() => {});
-    Diamond.filter({ user_id: currentUser.id }).then(d => setUserDiamond(d?.[0] || null)).catch(() => {});
-
-    setLoading(false);
   };
 
   const saveSquad = async () => {

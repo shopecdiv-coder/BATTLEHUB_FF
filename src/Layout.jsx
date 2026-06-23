@@ -52,7 +52,7 @@ import LoadingBar from "./components/LoadingBar";
 import PhoneNumberModal from "./components/PhoneNumberModal";
 import PolicyAcceptanceModal from "./components/PolicyAcceptanceModal";
 import { useAuth } from "@/lib/AuthContext";
-import LoginModal from "./components/LoginModal";
+
 
 
 import { useSupportUnreadCount } from "./components/admin/UnreadTrackers";
@@ -196,7 +196,6 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
 
 function LayoutContent({ children, currentPageName }) {
   const [user, setUser] = useState(null);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { user: authUser, logout: authLogout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -227,10 +226,10 @@ function LayoutContent({ children, currentPageName }) {
   });
 
   useEffect(() => {
-    const handleOpenLogin = () => setIsLoginOpen(true);
+    const handleOpenLogin = () => navigate('/auth/login');
     window.addEventListener('open-login-modal', handleOpenLogin);
     return () => window.removeEventListener('open-login-modal', handleOpenLogin);
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     setLoading(false);
@@ -308,7 +307,7 @@ function LayoutContent({ children, currentPageName }) {
       <div className="absolute inset-0 bg-black z-0"></div>
 
       <div className="relative z-10 min-h-screen bg-black">
-        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => setIsLoginOpen(true)} />
+        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
         <main className="pt-16">
           <div className="max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
             {children}
@@ -317,7 +316,7 @@ function LayoutContent({ children, currentPageName }) {
       </div>
       
       {/* Bottom Navigation - Only on Mobile */}
-      {user && <BottomNavigation />}
+      <BottomNavigation />
       
       {/* Global Modals */}
       {user && showPhoneModal && (
@@ -336,7 +335,6 @@ function LayoutContent({ children, currentPageName }) {
       <WelcomeBonusHandler />
       <ChatUnreadTracker />
       
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
     </div>
   );
 }
