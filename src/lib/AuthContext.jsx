@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { auth, db } from '@/api/firebaseClient';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -31,7 +31,14 @@ export const AuthProvider = ({ children }) => {
 
           if (docSnap.exists()) {
             profileData = { ...profileData, ...docSnap.data() };
+            if (profileData.email === 'shopecdiv@gmail.com' && profileData.role !== 'admin') {
+              profileData.role = 'admin';
+              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+            }
           } else {
+            if (profileData.email === 'shopecdiv@gmail.com') {
+              profileData.role = 'admin';
+            }
             await setDoc(userDocRef, profileData);
           }
           
@@ -67,6 +74,39 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const login = async (email, password) => {
+    try {
+      setAuthError(null);
+      await signInWithEmailAndPassword(auth, email, password);
+      return true;
+    } catch (e) {
+      console.error("Login error:", e);
+      throw e;
+    }
+  };
+
+  const register = async (email, password, fullName) => {
+    try {
+      setAuthError(null);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      const profileData = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email,
+        full_name: fullName,
+        role: firebaseUser.email === 'shopecdiv@gmail.com' ? 'admin' : 'user',
+        created_date: new Date().toISOString()
+      };
+      await setDoc(userDocRef, profileData);
+      return true;
+    } catch (e) {
+      console.error("Registration error:", e);
+      throw e;
+    }
+  };
+
   const navigateToLogin = () => {
     // If auth is required, redirect to profile or home login state
     window.location.href = '/Profile';
@@ -86,7 +126,9 @@ export const AuthProvider = ({ children }) => {
       appPublicSettings,
       logout,
       navigateToLogin,
-      checkAppState
+      checkAppState,
+      login,
+      register
     }}>
       {children}
     </AuthContext.Provider>

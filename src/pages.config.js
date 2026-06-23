@@ -63,11 +63,11 @@ import Notices from './pages/Notices';
 import PastTournamentDetail from './pages/PastTournamentDetail';
 import PastTournaments from './pages/PastTournaments';
 import PlayerProfile from './pages/PlayerProfile';
-import PrivacyPolicy from './pages/PrivacyPolicy';
+import AppPrivacy from './pages/AppPrivacy';
 import Profile from './pages/Profile';
 import Ratings from './pages/Ratings';
 import Referrals from './pages/Referrals';
-import RefundPolicy from './pages/RefundPolicy';
+import AppRefund from './pages/AppRefund';
 import Rules from './pages/Rules';
 import ShareApp from './pages/ShareApp';
 import Support from './pages/Support';
@@ -97,11 +97,11 @@ export const PAGES = {
     "PastTournamentDetail": PastTournamentDetail,
     "PastTournaments": PastTournaments,
     "PlayerProfile": PlayerProfile,
-    "PrivacyPolicy": PrivacyPolicy,
+    "PrivacyPolicy": AppPrivacy,
     "Profile": Profile,
     "Ratings": Ratings,
     "Referrals": Referrals,
-    "RefundPolicy": RefundPolicy,
+    "RefundPolicy": AppRefund,
     "Rules": Rules,
     "ShareApp": ShareApp,
     "Support": Support,

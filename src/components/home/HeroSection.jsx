@@ -58,7 +58,7 @@ export default function HeroSection({ user }) {
             ) : (
               <Button 
                 size="lg" 
-                onClick={() => window.location.href = '/auth/login'}
+                onClick={() => window.dispatchEvent(new Event('open-login-modal'))}
                 className="bg-gradient-to-r from-[#00FFFF] to-[#0088FF] hover:from-[#00CCFF] hover:to-[#0066CC] text-white font-bold px-10 py-6 text-lg rounded-xl hover-lift"
               >
                 <Flame className="w-6 h-6 mr-3" />

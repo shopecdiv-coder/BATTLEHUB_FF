@@ -51,6 +51,8 @@ import ChatUnreadTracker from "./components/ChatUnreadTracker";
 import LoadingBar from "./components/LoadingBar";
 import PhoneNumberModal from "./components/PhoneNumberModal";
 import PolicyAcceptanceModal from "./components/PolicyAcceptanceModal";
+import { useAuth } from "@/lib/AuthContext";
+import LoginModal from "./components/LoginModal";
 
 
 import { useSupportUnreadCount } from "./components/admin/UnreadTrackers";
@@ -132,7 +134,7 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
   );
 }
 
-function Header({ user, onLogout, unreadMessages }) {
+function Header({ user, onLogout, unreadMessages, onLoginClick }) {
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
 
@@ -181,7 +183,7 @@ function Header({ user, onLogout, unreadMessages }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button onClick={() => User.redirectToLogin()} className="bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90">
+              <Button onClick={onLoginClick} className="bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90">
                 Login / Register
               </Button>
             )}
@@ -194,6 +196,8 @@ function Header({ user, onLogout, unreadMessages }) {
 
 function LayoutContent({ children, currentPageName }) {
   const [user, setUser] = useState(null);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const { user: authUser, logout: authLogout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [referralPageVisible, setReferralPageVisible] = useState(true);
@@ -223,53 +227,62 @@ function LayoutContent({ children, currentPageName }) {
   });
 
   useEffect(() => {
-    const checkUser = async () => {
-      setLoading(false);
+    const handleOpenLogin = () => setIsLoginOpen(true);
+    window.addEventListener('open-login-modal', handleOpenLogin);
+    return () => window.removeEventListener('open-login-modal', handleOpenLogin);
+  }, []);
 
-      User.me()
-        .then(async currentUser => {
-          if (currentUser.is_banned) {
-            const banUntil = currentUser.ban_until ? new Date(currentUser.ban_until) : null;
-            if (!banUntil || banUntil > new Date()) {
-              User.logout();
-              alert(`🚫 Banned: ${currentUser.ban_reason || 'Violation'}`);
-              window.location.reload();
-              return;
-            }
-          }
-          // Ensure unique_id is assigned (once, permanently)
-          if (!currentUser.unique_id) {
-            const raw = currentUser.id.replace(/-/g, "");
-            const uniqueId = `BH${raw.slice(-8).toUpperCase()}`;
-            await User.updateMyUserData({ unique_id: uniqueId }).catch(() => {});
-            currentUser.unique_id = uniqueId;
-          }
-          
-          setUser(currentUser);
-          
-          if (!currentUser.phone && !currentUser.mobile_number) {
-            setShowPhoneModal(true);
-          }
-          
-          const activeUsers = await ActiveUser.filter({ user_id: currentUser.id }).catch(() => []);
-          if (activeUsers.length > 0) {
-            await ActiveUser.update(activeUsers[0].id, { last_active: new Date().toISOString() });
-          } else {
-            await ActiveUser.create({ user_id: currentUser.id, last_active: new Date().toISOString() });
-          }
-        })
-        .catch(() => setUser(null));
+  useEffect(() => {
+    setLoading(false);
 
-      AppSettings.filter({ setting_key: "referral_page_visible" })
-        .then(s => s.length > 0 && setReferralPageVisible(s[0].is_enabled))
-        .catch(() => {});
-    };
-    checkUser();
+    AppSettings.filter({ setting_key: "referral_page_visible" })
+      .then(s => s.length > 0 && setReferralPageVisible(s[0].is_enabled))
+      .catch(() => {});
 
-    // Optimize: Update activity every 10 minutes
-    const activityInterval = setInterval(() => {
-      User.me().then(async currentUser => {
+    if (authUser) {
+      const syncUser = async () => {
+        if (authUser.is_banned) {
+          const banUntil = authUser.ban_until ? new Date(authUser.ban_until) : null;
+          if (!banUntil || banUntil > new Date()) {
+            await authLogout();
+            alert(`🚫 Banned: ${authUser.ban_reason || 'Violation'}`);
+            window.location.reload();
+            return;
+          }
+        }
+        
+        let currentUser = { ...authUser };
+        
+        if (!currentUser.unique_id) {
+          const raw = currentUser.id.replace(/-/g, "");
+          const uniqueId = `BH${raw.slice(-8).toUpperCase()}`;
+          await User.updateMyUserData({ unique_id: uniqueId }).catch(() => {});
+          currentUser.unique_id = uniqueId;
+        }
+        
+        setUser(currentUser);
+        
+        if (!currentUser.phone && !currentUser.mobile_number) {
+          setShowPhoneModal(true);
+        }
+        
         const activeUsers = await ActiveUser.filter({ user_id: currentUser.id }).catch(() => []);
+        if (activeUsers.length > 0) {
+          await ActiveUser.update(activeUsers[0].id, { last_active: new Date().toISOString() });
+        } else {
+          await ActiveUser.create({ user_id: currentUser.id, last_active: new Date().toISOString() });
+        }
+      };
+      syncUser();
+    } else {
+      setUser(null);
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!user) return;
+    const activityInterval = setInterval(() => {
+      ActiveUser.filter({ user_id: user.id }).then(async activeUsers => {
         if (activeUsers.length > 0) {
           await ActiveUser.update(activeUsers[0].id, { last_active: new Date().toISOString() });
         }
@@ -277,7 +290,7 @@ function LayoutContent({ children, currentPageName }) {
     }, 600000);
 
     return () => clearInterval(activityInterval);
-  }, []);
+  }, [user]);
 
   const handleLogout = async () => {
     await User.logout();
@@ -295,7 +308,7 @@ function LayoutContent({ children, currentPageName }) {
       <div className="absolute inset-0 bg-black z-0"></div>
 
       <div className="relative z-10 min-h-screen bg-black">
-        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} />
+        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => setIsLoginOpen(true)} />
         <main className="pt-16">
           <div className="max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
             {children}
@@ -322,6 +335,8 @@ function LayoutContent({ children, currentPageName }) {
       <GlobalInviteManager />
       <WelcomeBonusHandler />
       <ChatUnreadTracker />
+      
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
     </div>
   );
 }

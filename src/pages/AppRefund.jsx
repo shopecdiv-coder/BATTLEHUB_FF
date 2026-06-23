@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function RefundPolicy() {
+export default function AppRefund() {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
 

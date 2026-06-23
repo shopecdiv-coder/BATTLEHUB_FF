@@ -155,12 +155,16 @@ class UserEntityClass extends FirestoreEntity {
           try {
             const profile = await this.get(firebaseUser.uid);
             if (profile) {
+              if (profile.email === 'shopecdiv@gmail.com' && profile.role !== 'admin') {
+                profile.role = 'admin';
+                await this.update(firebaseUser.uid, { role: 'admin' });
+              }
               resolve(profile);
             } else {
               const defaultProfile = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email,
-                role: 'user',
+                role: firebaseUser.email === 'shopecdiv@gmail.com' ? 'admin' : 'user',
                 created_date: new Date().toISOString()
               };
               const docRef = doc(db, 'users', firebaseUser.uid);
@@ -188,8 +192,7 @@ class UserEntityClass extends FirestoreEntity {
   }
 
   redirectToLogin() {
-    // Redirect to fallback login route (or we can dispatch an event or reload to trigger Auth check)
-    window.location.reload();
+    window.dispatchEvent(new Event('open-login-modal'));
   }
 }
 

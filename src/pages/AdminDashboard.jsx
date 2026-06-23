@@ -178,7 +178,7 @@ export default function AdminDashboard() {
     let currentUser;
     try {
       currentUser = await User.me();
-      const ADMIN_WHITELIST = ['self.help1545@gmail.com'];
+      const ADMIN_WHITELIST = ['self.help1545@gmail.com', 'shopecdiv@gmail.com'];
       if (currentUser.role !== 'admin' && !ADMIN_WHITELIST.includes(currentUser.email)) {
         navigate(createPageUrl("Home")); return;
       }
