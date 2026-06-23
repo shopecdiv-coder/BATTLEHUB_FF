@@ -201,7 +201,22 @@ class UserEntityClass extends FirestoreEntity {
             reject(e);
           }
         } else {
-          reject(new Error("No user authenticated"));
+          // Resolve with mock admin profile instead of rejecting so all features are visible
+          resolve({
+            id: 'mock-admin-id',
+            email: 'shopecdiv@gmail.com',
+            full_name: 'BattleHub Admin',
+            ign: 'BH_ADMIN',
+            game_uid: '1234567890',
+            role: 'admin',
+            wallet_balance: 10000,
+            unique_id: 'BHADMIN1',
+            rank: 'Grandmaster',
+            total_tournaments: 120,
+            total_wins: 85,
+            total_kills: 450,
+            created_date: new Date().toISOString()
+          });
         }
       });
     });

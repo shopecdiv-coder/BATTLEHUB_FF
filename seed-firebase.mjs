@@ -2,7 +2,7 @@
 // Run with: node seed-firebase.mjs
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBPoUEVfjtAwT1A94vbJuI-ZS9z6AqhVsI",
@@ -480,6 +480,46 @@ async function seedAIKnowledge() {
   for (const k of knowledge) await addItem('ai_knowledge', k);
 }
 
+// ─── USER & DIAMOND DATA ───
+async function seedUserData() {
+  await clearCollection('users');
+  await clearCollection('diamonds');
+  console.log('👤 Seeding user & diamond data...');
+  
+  const mockAdminId = 'mock-admin-id';
+  
+  const mockUser = {
+    email: 'shopecdiv@gmail.com',
+    full_name: 'BattleHub Admin',
+    ign: 'BH_ADMIN',
+    game_uid: '1234567890',
+    role: 'admin',
+    wallet_balance: 10000,
+    unique_id: 'BHADMIN1',
+    rank: 'Grandmaster',
+    total_tournaments: 120,
+    total_wins: 85,
+    total_kills: 450,
+    created_date: now
+  };
+  await setDoc(doc(db, 'users', mockAdminId), mockUser);
+  console.log(`  ✅ Added mock user: ${mockAdminId}`);
+
+  const mockDiamond = {
+    user_id: mockAdminId,
+    user_ign: 'BH_ADMIN',
+    diamond_balance: 5000,
+    bh_coin_balance: 5000,
+    transactions: [
+      { type: "Credit", coin_type: "Diamond", amount: 5000, description: "🎉 Admin Welcome Pack", timestamp: now },
+      { type: "Credit", coin_type: "BH Coin", amount: 5000, description: "🪙 Admin Daily Bonus", timestamp: now }
+    ],
+    created_date: now
+  };
+  await setDoc(doc(db, 'diamonds', 'mock-admin-diamond-id'), mockDiamond);
+  console.log(`  ✅ Added mock diamond account: mock-admin-diamond-id`);
+}
+
 // ─── MAIN ───
 async function main() {
   console.log('🚀 BattleHub FF – Firebase Seed Script (Complete schema format)');
@@ -502,6 +542,7 @@ async function main() {
     await seedWinnerNotices();
     await seedMessageTemplates();
     await seedAIKnowledge();
+    await seedUserData();
 
     console.log('\n✅✅✅  ALL DATA SEEDED SUCCESSFULLY WITH CORRECT SCHEMA!  ✅✅✅');
   } catch (err) {

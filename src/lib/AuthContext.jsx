@@ -52,8 +52,23 @@ export const AuthProvider = ({ children }) => {
           });
         }
       } else {
-        setUser(null);
-        setIsAuthenticated(false);
+        // Default Mock Admin User for development / preview
+        setUser({
+          id: 'mock-admin-id',
+          email: 'shopecdiv@gmail.com',
+          full_name: 'BattleHub Admin',
+          ign: 'BH_ADMIN',
+          game_uid: '1234567890',
+          role: 'admin',
+          wallet_balance: 10000,
+          unique_id: 'BHADMIN1',
+          rank: 'Grandmaster',
+          total_tournaments: 120,
+          total_wins: 85,
+          total_kills: 450,
+          created_date: new Date().toISOString()
+        });
+        setIsAuthenticated(true);
       }
       setIsLoadingAuth(false);
     });
