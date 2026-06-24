@@ -2,13 +2,19 @@ import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Bell, Search, ExternalLink } from "lucide-react";
+import { Copy, Bell, Search, Send, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function NotificationManager() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const { toast } = useToast();
+  
+  // Modal state
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [title, setTitle] = useState("BATTLEHUB APP");
+  const [body, setBody] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     User.list().then(setUsers);
@@ -19,13 +25,37 @@ export default function NotificationManager() {
     (u.email || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const copyToken = (token) => {
-    if (!token) return;
-    navigator.clipboard.writeText(token);
-    toast({
-      title: "Token Copied",
-      description: "Paste this in Firebase Console to send a notification."
-    });
+  const handleSendPush = async () => {
+    if (!selectedUser || !selectedUser.fcm_token) return;
+    if (!title || !body) {
+      toast({ title: "Error", description: "Title and Body are required.", variant: "destructive" });
+      return;
+    }
+    
+    setIsSending(true);
+    try {
+      const res = await fetch('/api/sendPush', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: selectedUser.fcm_token,
+          title: title,
+          body: body
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ title: "Sent!", description: "Push notification has been sent successfully." });
+        setSelectedUser(null);
+        setBody("");
+      } else {
+        toast({ title: "Failed", description: data.error || "Could not send notification.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Network error occurred.", variant: "destructive" });
+    }
+    setIsSending(false);
   };
 
   return (
@@ -37,15 +67,9 @@ export default function NotificationManager() {
         </div>
         
         <div className="bg-black/30 border border-emerald-500/20 rounded-xl p-4 mb-6">
-          <p className="text-gray-300 text-sm mb-3">
-            To send a personal push notification directly to a user's phone:
+          <p className="text-gray-300 text-sm">
+            Search for a user below and click <strong>Send Push</strong> to instantly send them a notification on their device.
           </p>
-          <ol className="list-decimal pl-4 space-y-1 text-sm text-gray-400">
-            <li>Find the user below and click <strong>Copy Token</strong>.</li>
-            <li>Open <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline inline-flex items-center">Firebase Console <ExternalLink className="w-3 h-3 ml-1" /></a>.</li>
-            <li>Go to <strong>Engage &gt; Messaging &gt; New Campaign &gt; Notifications</strong>.</li>
-            <li>Write your message, then click <strong>Send test message</strong> and paste the token!</li>
-          </ol>
         </div>
 
         <div className="relative mb-6">
@@ -71,12 +95,12 @@ export default function NotificationManager() {
               <div>
                 {u.fcm_token ? (
                   <Button 
-                    onClick={() => copyToken(u.fcm_token)} 
+                    onClick={() => setSelectedUser(u)} 
                     variant="outline" 
                     className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 h-8 text-xs font-medium"
                   >
-                    <Copy className="w-3.5 h-3.5 mr-2" />
-                    Copy Token
+                    <Send className="w-3.5 h-3.5 mr-2" />
+                    Send Push
                   </Button>
                 ) : (
                   <span className="text-xs text-gray-500 italic bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">No Token yet</span>
@@ -89,6 +113,47 @@ export default function NotificationManager() {
           )}
         </div>
       </div>
+
+      {/* Modal for sending push */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1A1A1A] border border-white/10 rounded-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Send to {selectedUser.ign || selectedUser.full_name}</h3>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Title</label>
+                <Input 
+                  value={title} 
+                  onChange={e => setTitle(e.target.value)} 
+                  className="bg-black/40 border-white/10 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Message Body</label>
+                <textarea 
+                  value={body} 
+                  onChange={e => setBody(e.target.value)} 
+                  className="w-full bg-black/40 border-white/10 border rounded-md text-white p-3 text-sm min-h-[100px] outline-none focus:border-emerald-500/50"
+                  placeholder="Enter your message here..."
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-white">Cancel</Button>
+              <Button 
+                onClick={handleSendPush} 
+                disabled={isSending}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+              >
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                Send Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
