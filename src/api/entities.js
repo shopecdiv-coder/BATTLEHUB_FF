@@ -227,6 +227,29 @@ class FirestoreEntity {
       const cleanedData = cleanUndefined(docData);
       const docRef = await addDoc(colRef, cleanedData);
       cacheInvalidateAll();
+
+      // Automatically send a push notification to the user's device
+      if (this.collectionName === 'notifications' && cleanedData.recipient_id) {
+         try {
+             const userDocRef = doc(db, 'users', cleanedData.recipient_id);
+             const userSnap = await getDoc(userDocRef);
+             if (userSnap.exists() && userSnap.data().fcm_token) {
+                 const token = userSnap.data().fcm_token;
+                 const title = cleanedData.title || "BATTLEHUB APP";
+                 const body = cleanedData.message || cleanedData.body || "You have a new notification";
+                 
+                 // Fire and forget fetch to our Vercel API
+                 fetch('/api/sendPush', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, title, body })
+                 }).catch(err => console.error("Auto Push API failed", err));
+             }
+         } catch(err) {
+             console.error("Failed to check token for auto push", err);
+         }
+      }
+
       return { id: docRef.id, ...cleanedData };
     } catch (e) {
       console.error(`Error creating ${this.collectionName}:`, e);
