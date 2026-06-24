@@ -89,6 +89,24 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  // Listen for late FCM token injections (e.g. from Android WebView bridge)
+  useEffect(() => {
+    const handleToken = async (e) => {
+      const token = e.detail;
+      if (user && user.id && user.fcm_token !== token) {
+        try {
+          const userDocRef = doc(db, 'users', user.id);
+          await setDoc(userDocRef, { fcm_token: token }, { merge: true });
+          setUser(prev => ({ ...prev, fcm_token: token }));
+        } catch (err) {
+          console.error("Failed to sync late FCM token:", err);
+        }
+      }
+    };
+    window.addEventListener('fcmTokenReceived', handleToken);
+    return () => window.removeEventListener('fcmTokenReceived', handleToken);
+  }, [user]);
+
   const logout = async (shouldRedirect = true) => {
     try {
       await signOut(auth);
