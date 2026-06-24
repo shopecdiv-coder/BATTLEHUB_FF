@@ -1,4 +1,5 @@
-import admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 import fs from 'fs';
 import path from 'path';
 
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    if (!admin.apps.length) {
+    if (getApps().length === 0) {
       let serviceAccount;
       const envServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
       
@@ -43,8 +44,8 @@ export default async function handler(req, res) {
         }
       }
 
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+      initializeApp({
+        credential: cert(serviceAccount)
       });
     }
 
@@ -56,7 +57,7 @@ export default async function handler(req, res) {
       token: token,
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await getMessaging().send(message);
     return res.status(200).json({ success: true, messageId: response });
   } catch (error) {
     console.error('Error sending message:', error);
