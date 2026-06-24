@@ -464,21 +464,9 @@ export default function SharedChatInterface({
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-4">
-            <Flame className="w-10 h-10 text-gray-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-300 mb-2">Login Required</h2>
-          <p className="text-gray-500">Please login to access Chat</p>
-        </div>
-      </div>
-    );
-  }
+  // Allow unauthenticated users to view the chat, but not send messages.
 
-  const canChat = user?.role === "admin" || roomType === "global" || isRegistered;
+  const canChat = Boolean(user && (user.role === "admin" || roomType === "global" || isRegistered));
 
   return (
     <div
