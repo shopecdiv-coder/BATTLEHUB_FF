@@ -757,7 +757,7 @@ export default function SharedChatInterface({
                       ) : (
                         <div className="space-y-1">
                           <p className="text-[13px] text-white leading-snug break-words whitespace-pre-wrap inline-block">
-                            {msg.message.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                            {(msg.message || "").split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
                               part.match(/^https?:\/\//) ? (
                                 <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline hover:text-cyan-200 break-all text-xs">{part}</a>
                               ) : (
@@ -765,33 +765,21 @@ export default function SharedChatInterface({
                               )
                             )}
                           </p>
-                          {msg.message.split(/\s+/).map((word, wi) => {
+                          {(msg.message || "").split(/\s+/).map((word, wi) => {
                             const ytId = getYouTubeId(word);
                             if (!ytId) return null;
                             return (
-                              <button
-                                key={wi}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setYtViewer({ id: ytId });
-                                }}
-                                className="relative block rounded-xl overflow-hidden mt-1.5 group"
-                                style={{ maxWidth: 260 }}
-                              >
-                                <img
-                                  src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
-                                  alt="YouTube video"
-                                  className="w-full rounded-xl"
-                                />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl group-hover:bg-black/60 transition-colors">
-                                  <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center shadow-lg">
-                                    <svg className="w-5 h-5 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                  </div>
-                                </div>
-                                <div className="absolute top-1.5 right-1.5 bg-black/60 rounded p-0.5">
-                                  <Maximize2 className="w-3 h-3 text-white" />
-                                </div>
-                              </button>
+                              <div key={wi} className="mt-2 rounded-xl overflow-hidden" style={{ width: '100%', maxWidth: 280, aspectRatio: '16/9' }}>
+                                <iframe
+                                  width="100%"
+                                  height="100%"
+                                  src={`https://www.youtube.com/embed/${ytId}`}
+                                  title="YouTube video player"
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                ></iframe>
+                              </div>
                             );
                           })}
                         </div>
