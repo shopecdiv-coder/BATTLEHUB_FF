@@ -625,7 +625,7 @@ export default function SharedChatInterface({
             }
 
             const { msg } = item;
-            const isOwn = msg.user_id === user.id;
+            const isOwn = msg.user_id === user?.id;
             const isImage = msg.message_type === "image";
             const isDeleted = msg.is_deleted;
             const isAnnouncement = msg.is_announcement;
@@ -791,7 +791,7 @@ export default function SharedChatInterface({
                             {totalReactions > 0 && REACTIONS.map(r => {
                               const count = msg.reactions?.[r.key]?.length || 0;
                               if (!count) return null;
-                              const hasReacted = msg.reactions?.[r.key]?.includes(user.id);
+                              const hasReacted = msg.reactions?.[r.key]?.includes(user?.id);
                               return (
                                 <button
                                   key={r.key}
@@ -825,7 +825,7 @@ export default function SharedChatInterface({
                             onClick={(e) => {
                               addReaction(msg, r.key);
                             }}
-                            className={`text-2xl hover:scale-125 transition-transform active:scale-95 outline-none cursor-pointer ${msg.reactions?.[r.key]?.includes(user.id) ? 'bg-white/10 rounded-full' : ''}`}
+                            className={`text-2xl hover:scale-125 transition-transform active:scale-95 outline-none cursor-pointer ${msg.reactions?.[r.key]?.includes(user?.id) ? 'bg-white/10 rounded-full' : ''}`}
                           >
                             {r.emoji}
                           </button>
@@ -840,7 +840,7 @@ export default function SharedChatInterface({
                       <DropdownMenuItem onClick={() => navigator.clipboard.writeText(msg.message)} className="text-gray-200 text-sm rounded-xl py-3 px-3 cursor-pointer outline-none hover:bg-white/10 focus:bg-white/10">
                         <CheckCheck className="w-4 h-4 mr-3 text-emerald-400" /> Copy
                       </DropdownMenuItem>
-                      {msg.user_id === user.id && (
+                      {msg.user_id === user?.id && (
                         <>
                           <DropdownMenuItem onClick={() => { setEditingMessageId(msg.id); setEditText(msg.message); }} className="text-blue-400 text-sm rounded-xl py-3 px-3 cursor-pointer outline-none hover:bg-white/10 focus:bg-white/10">
                             <Pencil className="w-4 h-4 mr-3" /> Edit
@@ -850,9 +850,9 @@ export default function SharedChatInterface({
                           </DropdownMenuItem>
                         </>
                       )}
-                      {user.role === "admin" && (
+                      {user?.role === "admin" && (
                         <>
-                          {msg.user_id !== user.id && (
+                          {msg.user_id !== user?.id && (
                             <DropdownMenuItem onClick={() => deleteMessage(msg)} className="text-red-400 text-sm rounded-xl py-3 px-3 cursor-pointer outline-none hover:bg-red-500/10 focus:bg-red-500/10">
                               <Trash2 className="w-4 h-4 mr-3" /> Delete for All
                             </DropdownMenuItem>
