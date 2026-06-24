@@ -14,6 +14,7 @@ import {
   limit 
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { cacheGet, cacheSet, cacheInvalidateAll } from '@/lib/cache';
 
 // Helper to recursively remove undefined fields so Firestore doesn't reject writes
 function cleanUndefined(obj) {
@@ -40,6 +41,11 @@ class FirestoreEntity {
 
   // list(orderByField, limitCount)
   async list(orderField = null, limitCount = 100) {
+    const cacheKey = `list_${this.collectionName}_${orderField}_${limitCount}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
+    let finalRes = [];
     try {
       const colRef = collection(db, this.collectionName);
       const queryConstraints = [];
@@ -57,7 +63,7 @@ class FirestoreEntity {
       }
       const q = query(colRef, ...queryConstraints);
       const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      finalRes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (e) {
       console.warn(`[FirestoreEntity.list] Direct query failed, falling back to in-memory:`, e);
       try {
@@ -77,8 +83,6 @@ class FirestoreEntity {
             let valB = b[field];
             if (valA === undefined || valA === null) return 1;
             if (valB === undefined || valB === null) return -1;
-            
-            // String comparison
             if (typeof valA === 'string' && typeof valB === 'string') {
               return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
             }
@@ -87,25 +91,31 @@ class FirestoreEntity {
             return 0;
           });
         }
-
-        return results.slice(0, limitCount);
+        finalRes = results.slice(0, limitCount);
       } catch (innerErr) {
         console.error(`Error listing ${this.collectionName}:`, innerErr);
-        return [];
       }
     }
+
+    if (finalRes && finalRes.length > 0) {
+      cacheSet(cacheKey, finalRes, 2 * 60 * 1000); // 2 min TTL
+    }
+    return finalRes;
   }
 
   // filter(conditions, orderByField, limitCount)
   async filter(conditions = {}, orderField = null, limitCount = 100) {
+    const conditionKey = Object.entries(conditions).map(([k,v]) => `${k}:${v}`).join('|');
+    const cacheKey = `filter_${this.collectionName}_${conditionKey}_${orderField}_${limitCount}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
+    let finalRes = [];
     try {
-      // Document ID query optimization
       if (conditions.id !== undefined && conditions.id !== null) {
         const docId = conditions.id;
         const docData = await this.get(docId);
         if (!docData) return [];
-        
-        // Match other conditions in-memory
         for (const [key, val] of Object.entries(conditions)) {
           if (key !== 'id' && val !== undefined && val !== null) {
             if (docData[key] !== val) return [];
@@ -116,7 +126,6 @@ class FirestoreEntity {
 
       const colRef = collection(db, this.collectionName);
       const queryConstraints = [];
-      
       for (const [key, val] of Object.entries(conditions)) {
         if (val !== undefined && val !== null) {
           queryConstraints.push(where(key, "==", val));
@@ -136,7 +145,7 @@ class FirestoreEntity {
       }
       const q = query(colRef, ...queryConstraints);
       const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      finalRes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (e) {
       console.warn(`[FirestoreEntity.filter] Direct query failed, falling back to in-memory:`, e);
       try {
@@ -144,7 +153,6 @@ class FirestoreEntity {
         const snap = await getDocs(colRef);
         let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // In-memory filter
         results = results.filter(doc => {
           for (const [key, val] of Object.entries(conditions)) {
             if (val !== undefined && val !== null) {
@@ -154,7 +162,6 @@ class FirestoreEntity {
           return true;
         });
 
-        // In-memory sort
         if (orderField) {
           let field = orderField;
           let desc = false;
@@ -167,8 +174,6 @@ class FirestoreEntity {
             let valB = b[field];
             if (valA === undefined || valA === null) return 1;
             if (valB === undefined || valB === null) return -1;
-            
-            // String comparison
             if (typeof valA === 'string' && typeof valB === 'string') {
               return desc ? valB.localeCompare(valA) : valA.localeCompare(valB);
             }
@@ -177,23 +182,32 @@ class FirestoreEntity {
             return 0;
           });
         }
-
-        return results.slice(0, limitCount);
+        finalRes = results.slice(0, limitCount);
       } catch (innerErr) {
         console.error(`Error filtering ${this.collectionName}:`, innerErr);
-        return [];
       }
     }
+
+    if (finalRes && finalRes.length > 0) {
+      cacheSet(cacheKey, finalRes, 2 * 60 * 1000);
+    }
+    return finalRes;
   }
 
   // get(id)
   async get(id) {
+    if (!id) return null;
+    const cacheKey = `get_${this.collectionName}_${id}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
     try {
-      if (!id) return null;
       const docRef = doc(db, this.collectionName, id);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        return { id: snap.id, ...snap.data() };
+        const data = { id: snap.id, ...snap.data() };
+        cacheSet(cacheKey, data, 2 * 60 * 1000);
+        return data;
       }
       return null;
     } catch (e) {
@@ -212,6 +226,7 @@ class FirestoreEntity {
       };
       const cleanedData = cleanUndefined(docData);
       const docRef = await addDoc(colRef, cleanedData);
+      cacheInvalidateAll();
       return { id: docRef.id, ...cleanedData };
     } catch (e) {
       console.error(`Error creating ${this.collectionName}:`, e);
@@ -230,6 +245,7 @@ class FirestoreEntity {
       };
       const cleanedData = cleanUndefined(updateData);
       await updateDoc(docRef, cleanedData);
+      cacheInvalidateAll();
       return { id, ...cleanedData };
     } catch (e) {
       console.error(`Error updating ${this.collectionName}:`, e);
@@ -243,6 +259,7 @@ class FirestoreEntity {
       if (!id) throw new Error("Document ID is required for delete");
       const docRef = doc(db, this.collectionName, id);
       await deleteDoc(docRef);
+      cacheInvalidateAll();
       return true;
     } catch (e) {
       console.error(`Error deleting ${this.collectionName}:`, e);

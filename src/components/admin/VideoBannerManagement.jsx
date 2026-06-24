@@ -47,13 +47,18 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
       return;
     }
 
+    if (file.size > 100 * 1024 * 1024) {
+      alert("Video file is too large. Maximum allowed size is 100MB.");
+      return;
+    }
+
     setUploadingVideo(true);
     try {
       const { file_url } = await UploadFile({ file });
       setVideoUrl(file_url);
     } catch (error) {
       console.error("Error uploading video:", error);
-      alert("Failed to upload video");
+      alert(`Failed to upload video: ${error.message || "Unknown error"}`);
     } finally {
       setUploadingVideo(false);
     }

@@ -110,15 +110,14 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="px-4 py-16 border-t border-gray-800/40 text-center max-w-7xl mx-auto relative overflow-hidden mt-12 bg-gradient-to-b from-transparent to-gray-950/80 rounded-b-3xl">
+      <footer className="px-4 py-8 border-t border-gray-800/40 text-center max-w-7xl mx-auto relative overflow-hidden mt-6 bg-gradient-to-b from-transparent to-gray-950/80 rounded-b-3xl">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
-        <div className="relative z-10 flex flex-col items-center justify-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 flex items-center justify-center shadow-lg shadow-orange-500/5 hover:scale-110 transition-transform duration-300 group">
-            <Trophy className="w-8 h-8 text-orange-400 group-hover:animate-bounce" />
+        <div className="relative z-10 flex flex-col items-center justify-center gap-2">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 flex items-center justify-center shadow-lg shadow-orange-500/5 hover:scale-110 transition-transform duration-300 group">
+            <Trophy className="w-5 h-5 text-orange-400 group-hover:animate-bounce" />
           </div>
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.25em] text-gray-500 font-bold"></p>
-            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-red-500 to-purple-500 drop-shadow">
+          <div className="space-y-0.5">
+            <h3 className="text-base md:text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-red-500 to-purple-500 drop-shadow">
               Made with ❤️ by BATTLEHUB FF
             </h3>
             <p className="text-gray-600 text-[10px] md:text-xs">© {new Date().getFullYear()} BattleHub FF. All rights reserved.</p>

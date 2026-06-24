@@ -47,29 +47,6 @@ export default function Support() {
   useEffect(() => {
     SupportContact.list("order", 10).then(c => setSupportContacts(c || [])).catch(() => {});
     loadData();
-    
-    // Load Tidio script only on Support page
-    const script = document.createElement('script');
-    script.id = 'tidio-support-script';
-    script.src = '//code.tidio.co/alfqiaakxaxhkvuuitc797gssml524wp.js';
-    script.async = true;
-    document.body.appendChild(script);
-    
-    return () => {
-      // Cleanup: remove Tidio script and hide widget when leaving Support page
-      try {
-        const existingScript = document.getElementById('tidio-support-script');
-        if (existingScript) document.body.removeChild(existingScript);
-        if (window.tidioChatApi) {
-          window.tidioChatApi.hide();
-        }
-        // Remove tidio iframe/container
-        const tidioEl = document.getElementById('tidio-chat');
-        if (tidioEl) tidioEl.remove();
-        const tidioFrame = document.getElementById('tidio-chat-iframe');
-        if (tidioFrame) tidioFrame.remove();
-      } catch (e) {}
-    };
   }, []);
 
   // Optimize: Real-time polling reduced to 60 seconds
@@ -357,31 +334,10 @@ export default function Support() {
 
           {/* Support Options - Priority Order */}
           <div className="grid md:grid-cols-4 gap-4 mb-8">
-            {/* Dynamic WhatsApp Contacts */}
-            {supportContacts.length > 0 ? (
-              supportContacts.map((contact, idx) => (
-                <a
-                  key={contact.id}
-                  href={`https://wa.me/${contact.whatsapp_number}?text=${encodeURIComponent('Hello, I need help with BattleHub FF')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <Card className="bg-gradient-to-br from-green-900/40 to-green-800/20 border-2 border-green-500/50 hover:border-green-400 transition-all cursor-pointer h-full group">
-                    <CardContent className="p-6 text-center">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-green-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <MessageCircle className="w-8 h-8 text-green-400" />
-                      </div>
-                      {idx === 0 && <Badge className="bg-green-500 text-white mb-2">🔥 RECOMMENDED</Badge>}
-                      <h3 className="text-xl font-bold text-white mb-2">{contact.name}</h3>
-                      <p className="text-gray-300 text-sm">{contact.role || "Direct support via WhatsApp - Fast response"}</p>
-                    </CardContent>
-                  </Card>
-                </a>
-              ))
-            ) : (
+            {supportContacts.map((contact, idx) => (
               <a
-                href={`https://wa.me/917366877171?text=${encodeURIComponent('Hello, I need help with BattleHub FF')}`}
+                key={contact.id}
+                href={`https://wa.me/${contact.whatsapp_number}?text=${encodeURIComponent('Hello, I need help with BattleHub FF')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block"
@@ -391,36 +347,13 @@ export default function Support() {
                     <div className="w-16 h-16 mx-auto mb-4 bg-green-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                       <MessageCircle className="w-8 h-8 text-green-400" />
                     </div>
-                    <Badge className="bg-green-500 text-white mb-2">🔥 RECOMMENDED</Badge>
-                    <h3 className="text-xl font-bold text-white mb-2">WhatsApp Support</h3>
-                    <p className="text-gray-300 text-sm">Direct support via WhatsApp - Fast response</p>
+                    {idx === 0 && <Badge className="bg-green-500 text-white mb-2">🔥 RECOMMENDED</Badge>}
+                    <h3 className="text-xl font-bold text-white mb-2">{contact.name}</h3>
+                    <p className="text-gray-300 text-sm">{contact.role || "Direct support via WhatsApp - Fast response"}</p>
                   </CardContent>
                 </Card>
               </a>
-            )}
-
-            {/* 2. Tidio Live Chat - PRIORITY 2 */}
-            <Card 
-              className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 border-2 border-blue-500/50 hover:border-blue-400 transition-all cursor-pointer h-full group"
-              onClick={() => {
-                if (window.tidioChatApi) {
-                  window.tidioChatApi.open();
-                } else {
-                  alert("Live chat loading... Please wait a moment and try again.");
-                }
-              }}
-            >
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-blue-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <MessageSquare className="w-8 h-8 text-blue-400" />
-                </div>
-                <Badge className="bg-blue-500 text-white mb-2">💬 LIVE CHAT</Badge>
-                <h3 className="text-xl font-bold text-white mb-2">Live Chat Support</h3>
-                <p className="text-gray-300 text-sm">
-                  Chat with our support team in real-time
-                </p>
-              </CardContent>
-            </Card>
+            ))}
 
             {/* 3. Email Support */}
             <a href="mailto:helpbattlehub@gmail.com" className="block">

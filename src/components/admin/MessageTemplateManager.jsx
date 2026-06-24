@@ -176,8 +176,8 @@ export default function MessageTemplateManager() {
 
   const filteredTemplates = templates.filter(t => {
     const matchesSearch = !searchQuery || 
-      t.template_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.message_template.toLowerCase().includes(searchQuery.toLowerCase());
+      (t.template_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.message_template || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "all" || t.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -354,7 +354,7 @@ export default function MessageTemplateManager() {
                   </div>
                   <div className="bg-gray-900/50 rounded p-3">
                     <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">
-                      {template.message_template.substring(0, 200)}{template.message_template.length > 200 ? '...' : ''}
+                      {(template.message_template || "").substring(0, 200)}{(template.message_template || "").length > 200 ? '...' : ''}
                     </pre>
                   </div>
                   {template.variables && template.variables.length > 0 && (

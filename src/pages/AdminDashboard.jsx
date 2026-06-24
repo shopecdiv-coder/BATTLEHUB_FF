@@ -293,7 +293,7 @@ export default function AdminDashboard() {
       case "payments": return <PaymentManagement requests={paymentRequests} onUpdate={loadData} />;
       case "redeems": return <RedeemManagement requests={redeemRequests} onUpdate={loadData} />;
       case "leaderboard": return <LeaderboardControl users={users} onUpdate={loadData} />;
-      case "past": return <PastTournamentManagement pastTournaments={pastTournaments} onUpdate={loadData} />;
+      case "past": return <PastTournamentManagement tournaments={pastTournaments} onUpdate={loadData} />;
       case "banners": return <BannerManagement banners={banners} onUpdate={loadData} />;
       case "appnotices": return <AppNoticeManagement notices={appNotices} onUpdate={loadData} />;
       case "video": return <VideoBannerManagement banners={videoBanners} onUpdate={loadData} />;

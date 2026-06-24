@@ -70,7 +70,8 @@ export default function Profile() {
       ign: currentUser.ign || "",
       game_uid: currentUser.game_uid || "",
       rank: currentUser.rank || "Bronze",
-      phone: currentUser.phone || ""
+      phone: currentUser.phone || "",
+      bio: currentUser.bio || ""
     });
     setAvatarUrl(currentUser.avatar_url || "");
     setSavedSquads(currentUser.saved_squads || []);
@@ -483,6 +484,18 @@ Thank you for being a part of BattleHub FF! 🏆
                     <p className="text-xs text-green-400 bg-green-500/10 p-2 rounded border border-green-500/30">
                       💬 WhatsApp notification ke liye apna number yahan dale
                     </p>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="bio" className="text-gray-300">Bio</Label>
+                    <textarea
+                      id="bio"
+                      value={formData.bio || ""}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      className="w-full bg-gray-800 border border-gray-700 text-gray-100 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="Tell us a bit about yourself..."
+                      rows={3}
+                    />
                   </div>
 
                   <div className="space-y-2">

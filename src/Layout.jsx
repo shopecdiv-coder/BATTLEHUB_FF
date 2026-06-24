@@ -138,8 +138,14 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
 
+  // Reset glass-mode just in case it was applied
+  useEffect(() => {
+    document.documentElement.classList.remove("glass-mode");
+    localStorage.removeItem("glassMode");
+  }, []);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
@@ -156,8 +162,8 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10 border-2 border-orange-400">
-                      <AvatarImage src={`https://api.dicebear.com/6.x/bottts/svg?seed=${user.email}`} />
+                    <Avatar className="h-10 w-10 border-2 border-orange-400 object-cover">
+                      <AvatarImage src={user.avatar_url || `https://api.dicebear.com/6.x/bottts/svg?seed=${user.email}`} className="object-cover" />
                       <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -309,7 +315,7 @@ function LayoutContent({ children, currentPageName }) {
       <div className="relative z-10 min-h-screen bg-black">
         <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
         <main className="pt-16">
-          <div className="max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8">
+          <div className="max-w-screen-2xl mx-auto px-0 py-2 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>

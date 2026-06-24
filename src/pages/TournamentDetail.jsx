@@ -105,34 +105,44 @@ export default function TournamentDetail() {
 
   const loadData = async () => {
     try {
-      const currentUser = await User.me();
-      setUser(currentUser);
+      // Parallel loading for massive speedup
+      const [currentUser, tournamentData, allRegistrations, tournamentMatches, lbEntries] = await Promise.all([
+        User.me().catch(() => null),
+        Tournament.filter({ id: tournamentId }).catch(() => []),
+        Registration.filter({ tournament_id: tournamentId }).catch(() => []),
+        Match.filter({ tournament_id: tournamentId }, "-match_number").catch(() => []),
+        TournamentLeaderboard.filter({ tournament_id: tournamentId }, "rank").catch(() => [])
+      ]);
 
-      const tournamentData = await Tournament.filter({ id: tournamentId });
-      if (tournamentData.length > 0) {
-        setTournament(tournamentData[0]);
+      if (currentUser) setUser(currentUser);
+      
+      let currentTournament = null;
+      if (tournamentData && tournamentData.length > 0) {
+        currentTournament = tournamentData[0];
+        setTournament(currentTournament);
       }
 
-      const allRegistrations = await Registration.filter({ tournament_id: tournamentId });
-      setRegistrations(allRegistrations);
-
-      const userReg = allRegistrations.find(r => r.team_leader_id === currentUser.id);
-      setIsRegistered(!!userReg);
-      setUserRegistration(userReg);
-      if (userReg) {
-        setEditIGN(userReg.team_members?.[0]?.ign || userReg.team_leader_ign || "");
-        setEditUID(userReg.team_members?.[0]?.uid || "");
-      }
-
-      const tournamentMatches = await Match.filter({ tournament_id: tournamentId }, "-match_number");
-      setMatches(tournamentMatches);
-
-      // Load tournament leaderboard
-      const lbEntries = await TournamentLeaderboard.filter({ tournament_id: tournamentId }, "rank").catch(() => []);
+      setMatches(tournamentMatches || []);
       setLeaderboardEntries(lbEntries || []);
 
+      if (allRegistrations) {
+        setRegistrations(allRegistrations);
+        if (currentUser) {
+          const userReg = allRegistrations.find(r => r.team_leader_id === currentUser.id);
+          setIsRegistered(!!userReg);
+          setUserRegistration(userReg);
+          if (userReg) {
+            setEditIGN(userReg.team_members?.[0]?.ign || userReg.team_leader_ign || "");
+            setEditUID(userReg.team_members?.[0]?.uid || "");
+            
+            if (userReg.status === "Qualified") setRegistrationStatus("Qualified");
+            else if (userReg.status === "Disqualified") setRegistrationStatus("Disqualified");
+          }
+        }
+      }
+
       // Load existing target tournaments for move system (admin only) — only non-Completed
-      if (currentUser.role === "admin") {
+      if (currentUser && currentUser.role === "admin") {
         const sfAll = await Tournament.filter({ tournament_type: "Semifinal" }).catch(() => []);
         const gfAll = await Tournament.filter({ tournament_type: "Grand Final" }).catch(() => []);
         const openSf = sfAll.filter(t => t.status !== "Completed" && t.status !== "Cancelled");
@@ -142,9 +152,10 @@ export default function TournamentDetail() {
         setGfTournament(openGf?.[0] || null);
       }
     } catch (error) {
-      console.error("Error loading tournament:", error);
+      console.error("Error loading tournament details:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleRegistrationSuccess = async () => {
@@ -692,12 +703,13 @@ export default function TournamentDetail() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="chat">
-                <div className="h-[600px] flex flex-col">
+              <TabsContent value="chat" className="flex-1 mt-0">
+                <div className="h-[500px] flex flex-col">
                   <TournamentChat
                     tournament={tournament}
                     user={user}
                     isRegistered={isRegistered}
+                    onExpand={() => setShowChatPopup(true)}
                   />
                 </div>
               </TabsContent>

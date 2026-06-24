@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { auth, db } from '@/api/firebaseClient';
-import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -129,7 +129,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
+  const resetPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return true;
+    } catch (e) {
+      console.error("Reset password error:", e);
+      throw e;
+    }
+  };
 
   const navigateToLogin = () => {
     // If auth is required, redirect to login page
@@ -152,7 +160,8 @@ export const AuthProvider = ({ children }) => {
       navigateToLogin,
       checkAppState,
       login,
-      register
+      register,
+      resetPassword
     }}>
       {children}
     </AuthContext.Provider>
