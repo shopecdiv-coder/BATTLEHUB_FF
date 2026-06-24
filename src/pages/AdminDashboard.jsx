@@ -45,6 +45,7 @@ import TournamentLeaderboardManager from "../components/admin/TournamentLeaderbo
 import PhotoLibraryManagement from "../components/admin/PhotoLibraryManagement";
 import RealTimeAnalytics from "../components/admin/RealTimeAnalytics";
 import ReferralCodeManager from "../components/admin/ReferralCodeManager";
+import NotificationManager from "../components/admin/NotificationManager";
 import ThemeManager from "../components/admin/ThemeManager";
 import LegalFAQManagement from "../components/admin/LegalFAQManagement";
 import AboutUsManagement from "../components/admin/AboutUsManagement";
@@ -75,6 +76,7 @@ const NAV_GROUPS = [
     items: [
       { id: "analytics", label: "Analytics", icon: BarChart2 },
       { id: "users", label: "Users", icon: Users },
+      { id: "notifications", label: "Push Notifications", icon: Bell },
       { id: "walletoverview", label: "Wallet Overview", icon: Wallet },
       { id: "coinledger", label: "Coin Ledger", icon: Coins },
       { id: "user-history", label: "User History", icon: History },
@@ -300,6 +302,7 @@ export default function AdminDashboard() {
       case "referrals": return <ReferralManagement onUpdate={loadData} />;
       case "announcements": return <AnnouncementManagement />;
       case "users": return <UserManagement />;
+      case "notifications": return <NotificationManager />;
       case "matchlb": return <TournamentLeaderboardManager onUpdate={loadData} />;
       case "photos": return <PhotoLibraryManagement />;
       case "analytics": return <RealTimeAnalytics />;

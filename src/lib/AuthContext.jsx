@@ -64,6 +64,12 @@ export const AuthProvider = ({ children }) => {
             }
           }
           
+          const localFCM = localStorage.getItem('fcm_token');
+          if (localFCM && profileData.fcm_token !== localFCM) {
+             profileData.fcm_token = localFCM;
+             await setDoc(userDocRef, { fcm_token: localFCM }, { merge: true });
+          }
+          
           setUser(profileData);
           setIsAuthenticated(true);
         } catch (e) {

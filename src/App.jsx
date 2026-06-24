@@ -12,6 +12,10 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import Login from './pages/Login';
 
+window.setFCMToken = (token) => {
+  if (token) localStorage.setItem('fcm_token', token);
+};
+
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
