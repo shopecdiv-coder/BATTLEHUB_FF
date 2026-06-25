@@ -9,12 +9,24 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
   const [saved, setSaved] = useState(post.saves?.includes(user?.id));
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default to muted for auto-play compatibility
   const [showFullDesc, setShowFullDesc] = useState(false);
   const videoRef = useRef(null);
   const cardRef = useRef(null);
 
   const isYouTube = post.media_url && (post.media_url.includes("youtube.com") || post.media_url.includes("youtu.be"));
+  
+  // Transform shorts URL to standard watch URL to guarantee ReactPlayer compatibility
+  const getSafeVideoUrl = (url) => {
+    if (!url) return url;
+    if (url.includes("youtube.com/shorts/")) {
+      const videoId = url.split("youtube.com/shorts/")[1].split("?")[0];
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+    return url;
+  };
+
+  const safeMediaUrl = getSafeVideoUrl(post.media_url);
 
   // Track views and auto-play using IntersectionObserver
   useEffect(() => {
@@ -101,7 +113,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
           {isYouTube ? (
             <div className="absolute w-full h-full flex items-center justify-center pointer-events-none">
               <ReactPlayer 
-                url={post.media_url}
+                url={safeMediaUrl}
                 playing={isPlaying}
                 muted={isMuted}
                 loop

@@ -11,6 +11,16 @@ export default function MediaAllCard({ post, user, onUpdate, onOpenComments }) {
 
   const isYouTube = post.media_url && (post.media_url.includes("youtube.com") || post.media_url.includes("youtu.be"));
 
+  const getSafeVideoUrl = (url) => {
+    if (!url) return url;
+    if (url.includes("youtube.com/shorts/")) {
+      const videoId = url.split("youtube.com/shorts/")[1].split("?")[0];
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+    return url;
+  };
+  const safeMediaUrl = getSafeVideoUrl(post.media_url);
+
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!user) { alert("Please login to like"); return; }
@@ -83,7 +93,7 @@ export default function MediaAllCard({ post, user, onUpdate, onOpenComments }) {
             isYouTube ? (
               <div className="relative w-full pb-[56.25%] sm:pb-[56.25%]">
                 <ReactPlayer 
-                  url={post.media_url}
+                  url={safeMediaUrl}
                   controls={true}
                   width="100%"
                   height="100%"
