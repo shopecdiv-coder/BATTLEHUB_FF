@@ -455,7 +455,9 @@ export default function SharedChatInterface({
 
   const handleTouchMove = (e, msgId) => {
     const diff = e.touches[0].clientX - touchStartRef.current;
-    if (diff > 0 && diff < 100) {
+    // Only trigger re-render if the user clearly swipes right (diff > 15)
+    // This prevents micro-jiggle from freezing the app on long-press
+    if (diff > 15 && diff < 100) {
       setSwipedMessageId(msgId);
       setSwipeOffset(diff);
     }
@@ -780,7 +782,9 @@ export default function SharedChatInterface({
                         <img
                           src={msg.message}
                           alt="Shared image"
-                          className="max-w-[200px] sm:max-w-[240px] rounded-xl cursor-pointer hover:opacity-90"
+                          draggable={false}
+                          onContextMenu={(e) => e.preventDefault()}
+                          className="max-w-[200px] sm:max-w-[240px] rounded-xl cursor-pointer hover:opacity-90 select-none"
                           onClick={(e) => {
                             e.stopPropagation();
                             setMediaViewer({ url: msg.message, type: 'image' });
