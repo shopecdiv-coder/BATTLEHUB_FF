@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MediaPost } from "@/entities/MediaPost";
 import { MediaComment as MediaCommentEntity } from "@/entities/MediaComment";
 import { User } from "@/entities/User";
@@ -301,14 +302,14 @@ export default function MediaFeed() {
 
       {/* Render BottomNavigation only if comments drawer is closed */}
       {!selectedPost && <BottomNavigation />}
-      {/* Comments Drawer (Modernized) */}
-      {selectedPost && (
-        <>
+      {/* Comments Drawer (Modernized via Portal to ensure absolute top layer) */}
+      {selectedPost && createPortal(
+        <div className="fixed inset-0 z-[100] flex flex-col">
           <div 
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm z-[60] transition-opacity" 
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity" 
             onClick={handleCloseComments}
           />
-          <div className="absolute bottom-0 left-0 right-0 h-[75dvh] bg-gray-950 rounded-t-[2rem] z-[60] flex flex-col animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] border-t border-gray-800 overflow-hidden pb-safe">
+          <div className="absolute bottom-0 left-0 right-0 h-[75dvh] bg-gray-950 rounded-t-[2rem] flex flex-col animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] border-t border-gray-800 overflow-hidden pb-safe">
             
             {/* Header */}
             <div className="flex flex-col items-center pt-4 pb-3 border-b border-gray-800/60 bg-gray-900/50 backdrop-blur-md">
@@ -447,7 +448,8 @@ export default function MediaFeed() {
             </div>
 
           </div>
-        </>
+        </div>,
+        document.body
       )}
     </div>
   );
