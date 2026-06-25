@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, Bookmark, MoreVertical, Flag, Play, Trash } from "lucide-react";
-import { MediaPost, MediaComment } from "@/entities/MediaPost"; // Or separate entity imports
-import { MediaComment as MediaCommentEntity } from "@/entities/MediaComment";
+import { MediaPost } from "@/entities/MediaPost";
+import { MediaComment } from "@/entities/MediaComment";
 import { User } from "@/entities/User";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,7 @@ export default function MediaPostCard({ post, user, onUpdate, isDetail = false }
 
   const handleShare = async (e) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/media/post/${post.id}`;
+    const shareUrl = `https://battlehubff.site/media/post/${post.id}`;
     if (navigator.share) {
       try {
         await navigator.share({

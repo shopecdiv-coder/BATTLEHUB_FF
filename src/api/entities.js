@@ -34,7 +34,7 @@ function cleanUndefined(obj) {
   return obj;
 }
 
-class FirestoreEntity {
+export class FirestoreEntity {
   constructor(collectionName) {
     this.collectionName = collectionName;
   }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { MediaPost, MediaComment } from "@/entities/MediaPost";
-import { MediaComment as MediaCommentEntity } from "@/entities/MediaComment";
+import { MediaPost } from "@/entities/MediaPost";
+import { MediaComment } from "@/entities/MediaComment";
 import { User } from "@/entities/User";
 import MediaPostCard from "@/components/media/MediaPostCard";
 import { ArrowLeft, Loader2, Send, Download } from "lucide-react";
@@ -20,11 +20,9 @@ export default function MediaPostDetail() {
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
   
-  // Check if we are inside a WebView (Android/iOS)
-  // Or if window.AndroidDownload exists
-  const isWebView = /Mobile|Android|iOS/.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches;
-  const hasAndroidApp = typeof window.AndroidDownload !== 'undefined';
-  const showDownloadPrompt = !hasAndroidApp && !isWebView; // Adjust logic based on your app's environment
+  // Check if we are inside the actual BATTLEHUB Android App
+  const hasAndroidApp = typeof window.AndroidDownload !== 'undefined' || typeof window.AndroidBridge !== 'undefined';
+  const showDownloadPrompt = !hasAndroidApp;
 
   useEffect(() => {
     User.me().then(setUser).catch(() => setUser(null));
@@ -41,7 +39,7 @@ export default function MediaPostDetail() {
       setPost(fetchedPost);
       
       if (fetchedPost && !fetchedPost.comments_disabled) {
-        const fetchedComments = await MediaCommentEntity.filter({ post_id: id, is_deleted: false });
+        const fetchedComments = await MediaComment.filter({ post_id: id, is_deleted: false });
         fetchedComments.sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0));
         setComments(fetchedComments);
       }
@@ -71,7 +69,7 @@ export default function MediaPostDetail() {
         is_deleted: false,
         likes: []
       };
-      await MediaCommentEntity.create(commentData);
+      await MediaComment.create(commentData);
       setNewComment("");
       await loadPostData(); // reload comments
     } catch (err) {
