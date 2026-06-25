@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Heart, MessageCircle, Bookmark, Play, Volume2, VolumeX, ChevronDown, ChevronUp } from "lucide-react";
 import { MediaPost } from "@/entities/MediaPost";
+import { MediaComment } from "@/entities/MediaComment";
 import { formatDistanceToNow } from "date-fns";
 
 export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) {
   const [liked, setLiked] = useState(post.likes?.includes(user?.id));
   const [saved, setSaved] = useState(post.saves?.includes(user?.id));
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
+  const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(() => {
     try {
@@ -21,6 +23,12 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
   const videoRef = useRef(null);
   const cardRef = useRef(null);
   const clickTimeout = useRef(null);
+
+  useEffect(() => {
+    if (post.comments_count === undefined) {
+      MediaComment.filter({ post_id: post.id }).then(res => setCommentsCount(res.length));
+    }
+  }, [post.id, post.comments_count]);
 
   // Track views and auto-play using IntersectionObserver
   useEffect(() => {
@@ -248,7 +256,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
             >
               <MessageCircle className="w-7 h-7 text-white" />
             </button>
-            <span className="text-white text-xs font-bold drop-shadow-md">Comment</span>
+            <span className="text-white text-xs font-bold drop-shadow-md">{commentsCount}</span>
           </div>
         )}
 

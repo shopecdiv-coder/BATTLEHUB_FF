@@ -745,11 +745,42 @@ export default function Support() {
                       />
                     </div>
 
-                    <Alert className="bg-yellow-500/10 border-yellow-500/30">
-                      <AlertDescription className="text-yellow-400 text-sm">
-                        ⚠️ Photo/file uploads are disabled when creating a ticket. Admin will enable it if needed.
-                      </AlertDescription>
-                    </Alert>
+                    <div className="space-y-3">
+                      {attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {attachments.map((url, index) => (
+                            <div key={index} className="relative group">
+                              {url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                                <img src={url} alt="Preview" className="w-16 h-16 object-cover rounded border-2 border-orange-500/50" />
+                              ) : (
+                                <div className="w-16 h-16 bg-gray-800 rounded border-2 border-orange-500/50 flex items-center justify-center">
+                                  <Paperclip className="w-6 h-6 text-orange-400" />
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
+                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100"
+                              >
+                                <X className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 hover:border-gray-600 rounded-lg text-sm text-gray-300 hover:text-white transition-colors">
+                        <Paperclip className="w-4 h-4" />
+                        {uploadingFiles ? "Uploading..." : "Attach Photos/Files"}
+                        <input
+                          type="file"
+                          accept="image/*,video/*,.pdf"
+                          multiple
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          disabled={uploadingFiles || submitting}
+                        />
+                      </label>
+                    </div>
 
                     <div className="flex justify-end gap-3 pt-4">
                       <Button

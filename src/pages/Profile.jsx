@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Shield, Copy, Link2, X, Plus, Trash2, Users, Save, Download, BarChart2 } from "lucide-react";
+import { Trophy, Shield, Copy, Link2, X, Plus, Trash2, Users, Save, Download, BarChart2, Bookmark } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

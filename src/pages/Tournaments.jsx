@@ -17,13 +17,104 @@ import { format } from "date-fns";
 import RegistrationCloseTimer from "../components/RegistrationCloseTimer";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
+const TournamentCard = ({ tournament, registration }) => {
+  const isSFGF = tournament.tournament_type === "Semifinal" || tournament.tournament_type === "Grand Final";
+
+  return (
+    <div className="h-full">
+      <Link to={createPageUrl(`TournamentDetail?id=${tournament.id}`)}>
+        <div className="h-full bg-gray-950 border border-gray-800 hover:border-orange-500/50 rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98] group flex flex-col">
+          {/* Banner */}
+          <div className="h-28 relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex-shrink-0">
+            {tournament.banner_url ? (
+              <img src={tournament.banner_url} alt={tournament.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Trophy className="w-8 h-8 text-orange-500/20" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent" />
+            
+            {/* Registration Overlay if My Matches */}
+            {registration && (
+              <div className="absolute top-1.5 left-1.5 z-10 max-w-[60%] truncate">
+                <Badge className="bg-gray-900/90 text-purple-400 font-bold border border-gray-700 shadow-md px-1.5 py-0.5 text-[9px]">
+                  {registration.status}
+                </Badge>
+              </div>
+            )}
+
+            {/* Status badge */}
+            {!(isSFGF && tournament.status === "Registration Open") && (
+              <div className="absolute top-1.5 right-1.5">
+                <Badge className={`text-[9px] font-bold px-1.5 py-0.5 ${
+                  tournament.status === "Registration Open" ? "bg-emerald-500 text-white" :
+                  tournament.status === "Live" ? "bg-red-500 text-white" :
+                  "bg-gray-700 text-gray-300"
+                }`}>
+                  {tournament.status}
+                </Badge>
+              </div>
+            )}
+            {/* Type Badge */}
+            {tournament.tournament_type && !registration && (
+              <div className="absolute top-1.5 left-1.5">
+                <Badge className="bg-gray-900/80 backdrop-blur-sm text-gray-200 border border-gray-700 text-[9px] px-1.5 py-0.5">
+                  {tournament.tournament_type}
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="p-3 pb-3 flex flex-col flex-grow">
+            <h3 className="text-white font-bold text-sm line-clamp-1 mb-2 group-hover:text-orange-400 transition-colors">{tournament.title}</h3>
+            <div className="flex items-center gap-1 flex-wrap mb-2">
+              <Badge className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] px-1.5 py-0">{tournament.mode}</Badge>
+              {tournament.map && <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] px-1.5 py-0">{tournament.map}</Badge>}
+            </div>
+            
+            <div className="flex flex-col gap-1.5 mt-auto">
+              <div className="flex items-center justify-between text-[10px] text-gray-400">
+                <div className="flex items-center gap-1 min-w-0">
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
+                  <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                    {format(new Date(tournament.date_time), "MMM d, h:mm a")}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-yellow-400 font-bold flex-shrink-0">
+                  <Trophy className="w-3 h-3" />
+                  <span>₹{(tournament.prize_pool || 0).toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between text-[10px] text-gray-400">
+                <div className="flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  <span>{tournament.current_teams || 0}/{tournament.max_teams}</span>
+                </div>
+                {tournament.status === "Registration Open" && !isSFGF && (
+                  <span className="text-orange-400 font-bold text-[10px] px-2 py-0.5 bg-orange-500/10 rounded-sm">JOIN</span>
+                )}
+                {registration && (
+                  <span className="text-orange-400 font-bold text-[10px] flex items-center gap-1">Details <ArrowRight className="w-2.5 h-2.5"/></span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    </div>
+  );
+};
+
 export default function Tournaments() {
   const [tournaments, setTournaments] = useState([]);
   const [filteredTournaments, setFilteredTournaments] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Registration Open");
+  const [statusFilter, setStatusFilter] = useState("upcoming");
   const [modeFilter, setModeFilter] = useState("all");
   const [mapFilter, setMapFilter] = useState("all");
   const [mainTab, setMainTab] = useState("all");
@@ -44,16 +135,27 @@ export default function Tournaments() {
     applyFilters();
   }, [tournaments, searchQuery, statusFilter, modeFilter, mapFilter]);
 
+  const autoCloseTournaments = (tournamentsList) => {
+    const now = new Date();
+    tournamentsList.forEach(t => {
+      if (t.status === "Registration Open" && t.registration_closes && new Date(t.registration_closes) < now) {
+        t.status = "Registration Closed";
+        Tournament.update(t.id, { status: "Registration Closed" }).catch(() => {});
+      }
+    });
+    return tournamentsList;
+  };
+
   const loadData = async () => {
     // Load tournaments immediately - don't wait for user data
     const CACHE_KEY = 'tournaments_list';
     const cached = cacheGet(CACHE_KEY);
     if (cached) {
-      setTournaments(cached);
+      setTournaments(autoCloseTournaments(cached));
       setLoading(false);
     } else {
       Tournament.list("-date_time").then(t => {
-        const data = t || [];
+        const data = autoCloseTournaments(t || []);
         cacheSet(CACHE_KEY, data, 5 * 60 * 1000);
         setTournaments(data);
         setLoading(false);
@@ -84,8 +186,23 @@ export default function Tournaments() {
       );
     }
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(t => t.status === statusFilter);
+    if (statusFilter === "upcoming") {
+      // Only Qualifiers that are Open
+      filtered = filtered.filter(t => 
+        t.status === "Registration Open" && 
+        t.tournament_type !== "Semifinal" && 
+        t.tournament_type !== "Grand Final"
+      );
+    } else if (statusFilter === "live") {
+      filtered = filtered.filter(t => t.status === "Live");
+    } else if (statusFilter === "closed") {
+      // Qualifiers that are Closed + Any Semis/Finals that are Open or Closed
+      filtered = filtered.filter(t => 
+        t.status === "Registration Closed" || 
+        (t.status === "Registration Open" && (t.tournament_type === "Semifinal" || t.tournament_type === "Grand Final"))
+      );
+    } else if (statusFilter === "completed") {
+      filtered = filtered.filter(t => t.status === "Completed");
     }
 
     if (modeFilter !== "all") {
@@ -170,17 +287,17 @@ export default function Tournaments() {
                 </div>
                 <Tabs value={statusFilter} onValueChange={setStatusFilter}>
                   <TabsList className="bg-gray-900 grid grid-cols-4 w-full">
-                    <TabsTrigger value="Upcoming">Upcoming</TabsTrigger>
-                    <TabsTrigger value="Registration Open">Open</TabsTrigger>
-                    <TabsTrigger value="Live">Live</TabsTrigger>
-                    <TabsTrigger value="Completed">Completed</TabsTrigger>
+                    <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                    <TabsTrigger value="live">Live</TabsTrigger>
+                    <TabsTrigger value="closed">Closed</TabsTrigger>
+                    <TabsTrigger value="completed">Completed</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </CardContent>
             </Card>
 
             {loading ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {Array(6).fill(0).map((_, i) => (
                   <Card key={i} className="bg-gray-900/50 border-gray-800">
                     <CardHeader>
@@ -199,78 +316,47 @@ export default function Tournaments() {
                 <h3 className="text-xl font-semibold text-gray-300 mb-2">No Tournaments Found</h3>
                 <p className="text-gray-500">Try adjusting your filters or check back later!</p>
               </Card>
+            ) : statusFilter === "closed" ? (
+              <div className="space-y-6">
+                <div className="bg-gray-900/40 border border-gray-800/80 rounded-2xl p-5">
+                  <h2 className="text-[15px] font-black text-gray-200 tracking-wide uppercase mb-5 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    Qualifiers
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                    {filteredTournaments.filter(t => t.tournament_type === "Qualifier" || !t.tournament_type).slice(0, page * PAGE_SIZE).map((tournament) => (
+                      <TournamentCard key={tournament.id} tournament={tournament} />
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-gray-900/40 border border-gray-800/80 rounded-2xl p-5">
+                  <h2 className="text-[15px] font-black text-gray-200 tracking-wide uppercase mb-5 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    Semifinals
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                    {filteredTournaments.filter(t => t.tournament_type === "Semifinal").slice(0, page * PAGE_SIZE).map((tournament) => (
+                      <TournamentCard key={tournament.id} tournament={tournament} />
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-gray-900/40 border border-gray-800/80 rounded-2xl p-5">
+                  <h2 className="text-[15px] font-black text-gray-200 tracking-wide uppercase mb-5 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                    Grand Finals
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                    {filteredTournaments.filter(t => t.tournament_type === "Grand Final").slice(0, page * PAGE_SIZE).map((tournament) => (
+                      <TournamentCard key={tournament.id} tournament={tournament} />
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
               <>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                   {filteredTournaments.slice(0, page * PAGE_SIZE).map((tournament) => (
-                    <div key={tournament.id}>
-                      <Link to={createPageUrl(`TournamentDetail?id=${tournament.id}`)}>
-                        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 overflow-hidden group h-full">
-                          <div className="h-48 bg-gradient-to-br from-purple-600/20 to-cyan-600/20 relative overflow-hidden">
-                            {tournament.banner_url && (
-                              <img src={tournament.banner_url} alt={tournament.title} className="w-full h-full object-cover" />
-                            )}
-                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
-                            {(() => {
-                              const isSFGF = tournament.tournament_type === "Semifinal" || tournament.tournament_type === "Grand Final";
-                              if (isSFGF && tournament.status === "Registration Open") return null;
-                              return (
-                                <div className="absolute top-4 right-4">
-                                  <Badge className={
-                                    tournament.status === "Live" ? "bg-red-500/90 text-white" :
-                                    tournament.status === "Registration Open" ? "bg-green-500/90 text-white" :
-                                    tournament.status === "Completed" ? "bg-gray-500/90 text-white" :
-                                    "bg-yellow-500/90 text-white"
-                                  }>
-                                    {tournament.status}
-                                  </Badge>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                          <CardHeader className="pb-3">
-                            <h3 className="text-xl font-bold text-gray-100 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-cyan-400 transition-all">
-                              {tournament.title}
-                            </h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
-                              <Badge variant="outline" className="border-purple-500/50 text-purple-400">{tournament.mode}</Badge>
-                              {tournament.tournament_type && tournament.tournament_type !== "Qualifier" && (
-                                <Badge className={tournament.tournament_type === "Grand Final" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" : tournament.tournament_type === "Semifinal" ? "bg-purple-500/20 text-purple-400 border-purple-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}>
-                                  {tournament.tournament_type}
-                                </Badge>
-                              )}
-                              <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
-                                <MapPin className="w-3 h-3 mr-1" />{tournament.map}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="flex items-center gap-2 text-gray-400 text-sm">
-                              <Calendar className="w-4 h-4" />
-                              <span>{new Date(tournament.date_time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })} IST</span>
-                            </div>
-                            {tournament.registration_closes && tournament.status === "Registration Open" && (
-                              <div className="text-xs">
-                                <RegistrationCloseTimer closingDate={tournament.registration_closes} />
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2 text-gray-400">
-                                <Users className="w-4 h-4" />
-                                <span>{tournament.current_teams || 0}/{tournament.max_teams} Teams</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-purple-400 font-semibold">
-                                <Trophy className="w-4 h-4" />
-                                <span>₹{tournament.prize_pool?.toLocaleString() || 0}</span>
-                              </div>
-                            </div>
-                            <Button className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 text-white font-semibold">
-                              View Details
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    </div>
+                    <TournamentCard key={tournament.id} tournament={tournament} />
                   ))}
                 </div>
                 {filteredTournaments.length > page * PAGE_SIZE && (
@@ -296,59 +382,36 @@ export default function Tournaments() {
                 </Button>
               </Card>
             ) : (
-              <div className="space-y-4">
-                {myRegistrations.map((registration) => {
-                  const tournament = myTournamentsMap[registration.tournament_id];
-                  const isCompleted = tournament?.status === "Completed";
-                  return (
-                    <Link key={registration.id} to={createPageUrl(`TournamentDetail?id=${registration.tournament_id}`)}>
-                      <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 hover:border-purple-500/50 transition-all group">
-                        <CardContent className="p-5">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <h3 className="text-lg font-bold text-gray-100 group-hover:text-purple-400 transition-all">
-                                {registration.tournament_title}
-                              </h3>
-                              <p className="text-sm text-gray-400">Team: {registration.team_name}</p>
-                            </div>
-                            <div className="flex flex-col gap-1 items-end">
-                              <Badge className={
-                                registration.status === "Confirmed" ? "bg-green-500/20 text-green-400 border-green-500/50" :
-                                registration.status === "Registered" ? "bg-blue-500/20 text-blue-400 border-blue-500/50" :
-                                "bg-gray-500/20 text-gray-400 border-gray-500/50"
-                              }>
-                                {registration.status}
-                              </Badge>
-                              {isCompleted && (
-                                <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/50 text-xs">Completed</Badge>
-                              )}
-                              {tournament && !isCompleted && (
-                                <Badge className={
-                                  tournament.status === "Live" ? "bg-red-500/20 text-red-400" :
-                                  tournament.status === "Registration Open" ? "bg-green-500/20 text-green-400" :
-                                  "bg-yellow-500/20 text-yellow-400"
-                                }>{tournament.status}</Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              <span>{registration.team_members?.length || 1} Members</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              <span>Registered {format(new Date(registration.created_date), "MMM d, yyyy")}</span>
-                            </div>
-                          </div>
-                          <div className="flex justify-end mt-3">
-                            <span className="text-purple-400 text-sm flex items-center gap-1">View Details <ArrowRight className="w-3 h-3" /></span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
+              <div className="space-y-10">
+                {myRegistrations.filter(r => myTournamentsMap[r.tournament_id]?.status !== "Completed").length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-bold text-orange-400 mb-4 border-b border-gray-800 pb-2 uppercase tracking-wider">Upcoming My Matches</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                      {myRegistrations.filter(r => myTournamentsMap[r.tournament_id]?.status !== "Completed").map((registration) => {
+                        const tournament = myTournamentsMap[registration.tournament_id];
+                        if (!tournament) return null;
+                        return (
+                          <TournamentCard key={registration.id} tournament={tournament} registration={registration} />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {myRegistrations.filter(r => myTournamentsMap[r.tournament_id]?.status === "Completed").length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-500 mb-4 border-b border-gray-800 pb-2 uppercase tracking-wider">Past Matches</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                      {myRegistrations.filter(r => myTournamentsMap[r.tournament_id]?.status === "Completed").map((registration) => {
+                        const tournament = myTournamentsMap[registration.tournament_id];
+                        if (!tournament) return null;
+                        return (
+                          <TournamentCard key={registration.id} tournament={tournament} registration={registration} />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>

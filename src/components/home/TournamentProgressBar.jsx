@@ -45,11 +45,14 @@ function buildJourneys(regs, tournamentsMap) {
 function JourneyBar({ journey, isLatest }) {
   const { qualifierReg, semifinalReg, grandFinalReg } = journey;
 
-  // Determine disqualified: qualifier exists but no semifinal and qualifier tournament is Completed
-  const qCompleted = qualifierReg?.tournament?.status === "Completed";
-  const sfCompleted = semifinalReg?.tournament?.status === "Completed";
-  const disqualified = qCompleted && !semifinalReg && !grandFinalReg;
-  const finished = !!grandFinalReg;
+  const highestReg = grandFinalReg || semifinalReg || qualifierReg;
+  const isHighestCompleted = highestReg?.tournament?.status === "Completed";
+
+  const finished = !!grandFinalReg && grandFinalReg.tournament?.status === "Completed";
+  
+  // Disqualified if highest tournament is completed AND they are NOT qualified for the next stage.
+  // And it's not finished (because if they finished GF, they are done, not disqualified)
+  const disqualified = isHighestCompleted && highestReg?.reg?.status !== "Qualified" && !finished;
 
   const steps = [
     { key: "qualifier", label: "Qualifier", emoji: "🎯", data: qualifierReg, color: "blue" },
@@ -58,7 +61,7 @@ function JourneyBar({ journey, isLatest }) {
   ];
 
   const currentStepIdx = grandFinalReg ? 2 : semifinalReg ? 1 : 0;
-  const progressPercent = disqualified ? 15 : finished ? 100 : currentStepIdx === 0 ? 5 : currentStepIdx === 1 ? 50 : 100;
+  const progressPercent = disqualified ? (currentStepIdx * 50 + 15) : finished ? 100 : currentStepIdx === 0 ? 33 : currentStepIdx === 1 ? 66 : 90;
 
   const colorMap = {
     blue: { ring: "ring-blue-500", bg: "bg-blue-500", text: "text-blue-400", light: "bg-blue-500/15 border-blue-500/30" },
@@ -70,7 +73,7 @@ function JourneyBar({ journey, isLatest }) {
   const activeData = activeStep.data;
 
   return (
-    <div className={`bg-gray-900 border ${isLatest ? 'border-orange-500/30' : 'border-gray-800'} rounded-2xl overflow-hidden mb-3`}>
+    <div className={`bg-gray-900 border ${isLatest ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl overflow-hidden mb-4`}>
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Flame className={`w-4 h-4 ${isLatest ? 'text-orange-400' : 'text-gray-600'}`} />
@@ -88,7 +91,7 @@ function JourneyBar({ journey, isLatest }) {
       </div>
 
       <div className="px-4 mb-3">
-        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-700 ${disqualified ? 'bg-red-500' : 'bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500'}`}
             style={{ width: `${progressPercent}%` }}
@@ -96,7 +99,7 @@ function JourneyBar({ journey, isLatest }) {
         </div>
       </div>
 
-      <div className="px-4 pb-4 grid grid-cols-3 gap-2">
+      <div className="px-4 pb-4 grid grid-cols-3 gap-2.5">
         {steps.map((step, idx) => {
           const c = colorMap[step.color];
           const isActive = idx === currentStepIdx && !disqualified;
@@ -104,15 +107,17 @@ function JourneyBar({ journey, isLatest }) {
           return (
             <div
               key={step.key}
-              className={`rounded-xl border p-2.5 text-center transition-all ${
+              className={`rounded-xl border p-2 flex items-center justify-center gap-2 transition-all ${
                 isActive ? c.light : isPast ? "bg-gray-800/50 border-gray-700/50 opacity-70" : disqualified && idx > 0 ? "bg-gray-800/20 border-gray-800/30 opacity-25" : "bg-gray-800/30 border-gray-800/50 opacity-40"
               }`}
             >
-              <div className={`text-lg mb-0.5 ${!isActive && !isPast ? "grayscale opacity-50" : ""}`}>{step.emoji}</div>
-              <p className={`text-[10px] font-bold ${isActive ? c.text : isPast ? "text-gray-400" : "text-gray-600"}`}>{step.label}</p>
-              {isPast && !disqualified && <CheckCircle className="w-3 h-3 text-emerald-400 mx-auto mt-0.5" />}
-              {disqualified && idx === 0 && <XCircle className="w-3 h-3 text-red-400 mx-auto mt-0.5" />}
-              {isActive && step.data && <p className="text-[9px] text-gray-500 mt-0.5 truncate">{step.data.tournament.title}</p>}
+              <div className={`text-lg ${!isActive && !isPast ? "grayscale opacity-50" : ""}`}>{step.emoji}</div>
+              <div className="text-left">
+                <p className={`text-[11px] font-bold leading-tight ${isActive ? c.text : isPast ? "text-gray-400" : "text-gray-600"}`}>{step.label}</p>
+                {isActive && step.data && <p className="text-[9px] text-gray-500 truncate w-[60px] sm:w-[90px]">{step.data.tournament.title}</p>}
+              </div>
+              {isPast && !disqualified && <CheckCircle className="w-3 h-3 text-emerald-400 ml-auto" />}
+              {disqualified && idx === 0 && <XCircle className="w-3 h-3 text-red-400 ml-auto" />}
             </div>
           );
         })}
@@ -170,18 +175,26 @@ export default function TournamentProgressBar({ user, tournaments }) {
 
   if (loading || journeys.length === 0) return null;
 
-  // On home: only show if the latest journey has at least one non-completed tournament
-  const latest = journeys[0];
-  const hasActiveTournament = latest && (
-    (latest.qualifierReg && latest.qualifierReg.tournament?.status !== "Completed") ||
-    (latest.semifinalReg && latest.semifinalReg.tournament?.status !== "Completed") ||
-    (latest.grandFinalReg && latest.grandFinalReg.tournament?.status !== "Completed")
-  );
-  if (!hasActiveTournament) return null;
+  // On home: find the first journey that has at least one active phase (not fully finished)
+  const activeJourney = journeys.find(j => {
+    const highestReg = j.grandFinalReg || j.semifinalReg || j.qualifierReg;
+    if (!highestReg) return false;
+    
+    // If the highest tournament is not yet completed, the journey is active
+    if (highestReg.tournament?.status !== "Completed") return true;
+
+    // If it IS completed, but they are Qualified (waiting to register for next stage) AND they haven't reached Grand Final yet
+    if (highestReg.reg?.status === "Qualified" && !j.grandFinalReg) return true;
+
+    // Otherwise, it's either disqualified, or they finished the Grand Final (so journey is over)
+    return false;
+  });
+
+  if (!activeJourney) return null;
 
   return (
-    <div className="mx-4 mb-5">
-      <JourneyBar journey={latest} isLatest={true} />
+    <div className="mb-5">
+      <JourneyBar journey={activeJourney} isLatest={true} />
     </div>
   );
 }

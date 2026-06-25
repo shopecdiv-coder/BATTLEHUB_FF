@@ -91,6 +91,37 @@ export default function UserManagement() {
     setLoading(false);
   };
 
+  const removeDuplicates = async () => {
+    if (!window.confirm("Are you sure you want to remove duplicate users?")) return;
+    setLoading(true);
+    try {
+      const allUsers = await User.list("-created_date", 5000).catch(() => []);
+      const emailMap = new Map();
+      const duplicates = [];
+
+      for (const u of allUsers) {
+        if (!u.email) continue;
+        const email = u.email.toLowerCase();
+        if (emailMap.has(email)) {
+          duplicates.push(u);
+        } else {
+          emailMap.set(email, u);
+        }
+      }
+
+      console.log(`Found ${duplicates.length} duplicate users.`);
+      for (const d of duplicates) {
+        await User.delete(d.id).catch(() => {});
+      }
+      alert(`✅ Successfully removed ${duplicates.length} duplicate users!`);
+      loadUsers();
+    } catch (e) {
+      console.error(e);
+      alert("Error removing duplicates");
+    }
+    setLoading(false);
+  };
+
   const selectUser = async (user) => {
     setSelectedUser(user);
     
@@ -433,6 +464,13 @@ export default function UserManagement() {
         >
           <Download className="w-4 h-4 mr-2" />
           Download All Users PDF
+        </Button>
+        <Button
+          onClick={removeDuplicates}
+          className="bg-red-600/80 hover:bg-red-700 text-white"
+        >
+          <Ban className="w-4 h-4 mr-2" />
+          Remove Duplicates
         </Button>
       </div>
 

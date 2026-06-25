@@ -138,6 +138,7 @@ export default function SharedChatInterface({
   const [chatDP, setChatDP] = useState("");
   const [showReactors, setShowReactors] = useState(null); // { emoji, users }
   const [showPinnedFull, setShowPinnedFull] = useState(false);
+  const lastDropdownCloseTime = useRef(0);
   const [ytViewer, setYtViewer] = useState(null); 
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -359,8 +360,9 @@ export default function SharedChatInterface({
         message: filteredMessage,
         message_type: mediaType,
         reply_to_id: replyTo?.id || null,
-        reply_to_text: replyTo?.message?.substring(0, 50) || null,
+        reply_to_text: replyTo?.message_type === 'image' ? replyTo.message : (replyTo?.message?.substring(0, 50) || null),
         reply_to_user: replyTo?.user_ign || null,
+        reply_to_type: replyTo?.message_type || 'text',
         is_deleted: false,
         is_pinned: false,
         reactions: { likes: [], hearts: [], laughs: [], fire: [], claps: [] },
@@ -455,9 +457,9 @@ export default function SharedChatInterface({
 
   const handleTouchMove = (e, msgId) => {
     const diff = e.touches[0].clientX - touchStartRef.current;
-    // Only trigger re-render if the user clearly swipes right (diff > 15)
+    // Only trigger re-render if the user clearly swipes right (diff > 5)
     // This prevents micro-jiggle from freezing the app on long-press
-    if (diff > 15 && diff < 100) {
+    if (diff > 5 && diff < 100) {
       setSwipedMessageId(msgId);
       setSwipeOffset(diff);
     }
@@ -467,7 +469,7 @@ export default function SharedChatInterface({
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
-    if (swipeOffset > 60) {
+    if (swipeOffset > 10) {
       setReplyTo(msg);
       if (navigator.vibrate) navigator.vibrate(30);
     }
@@ -721,7 +723,15 @@ export default function SharedChatInterface({
                   )}
 
                   <div className="flex flex-col min-w-[80px]">
-                    <DropdownMenu open={activeDropdownId === msg.id} onOpenChange={open => !open && setActiveDropdownId(null)}>
+                    <DropdownMenu 
+                      open={activeDropdownId === msg.id} 
+                      onOpenChange={open => {
+                        if (!open) {
+                          lastDropdownCloseTime.current = Date.now();
+                          setActiveDropdownId(null);
+                        }
+                      }}
+                    >
                       <div
                         className={`relative rounded-2xl overflow-visible cursor-pointer transition-transform active:scale-[0.98] ${
                           isAnnouncement
@@ -735,7 +745,9 @@ export default function SharedChatInterface({
                         onClick={(e) => {
                           if (isDeleted) return;
                           if (Math.abs(swipeOffset) > 10) return;
-                          setActiveDropdownId(msg.id);
+                          // If it was closed within the last 150ms, ignore this click to prevent re-opening
+                          if (Date.now() - lastDropdownCloseTime.current < 150) return;
+                          setActiveDropdownId(activeDropdownId === msg.id ? null : msg.id);
                         }}
                       >
                         <DropdownMenuTrigger className="absolute inset-0 z-10 pointer-events-none" />
@@ -760,7 +772,7 @@ export default function SharedChatInterface({
 
                       {msg.reply_to_text && !isDeleted && (
                         <div
-                          className={`rounded-xl p-2 mb-2 border-l-2 cursor-pointer ${isOwn ? 'bg-black/20 border-violet-300/50' : 'bg-black/20 border-cyan-500/50'}`}
+                          className={`rounded-xl p-2 mb-2 border-l-2 cursor-pointer flex items-center gap-2 ${isOwn ? 'bg-black/20 border-violet-300/50' : 'bg-black/20 border-cyan-500/50'}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             const el = document.getElementById(`msg-${msg.reply_to_id}`);
@@ -771,8 +783,15 @@ export default function SharedChatInterface({
                             }
                           }}
                         >
-                          <p className="text-[10px] text-cyan-400 font-semibold">↩ {msg.reply_to_user}</p>
-                          <p className="text-xs text-gray-300 truncate">{msg.reply_to_text}</p>
+                          {(msg.reply_to_type === 'image' || (msg.reply_to_text.startsWith('http') && msg.reply_to_text.includes('res.cloudinary'))) && (
+                            <img src={msg.reply_to_text} alt="Reply" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-cyan-400 font-semibold">↩ {msg.reply_to_user}</p>
+                            <p className="text-xs text-gray-300 truncate">
+                              {(msg.reply_to_type === 'image' || (msg.reply_to_text.startsWith('http') && msg.reply_to_text.includes('res.cloudinary'))) ? '📸 Photo' : msg.reply_to_text}
+                            </p>
+                          </div>
                         </div>
                       )}
 
@@ -954,11 +973,16 @@ export default function SharedChatInterface({
         <div className="relative z-10 flex-shrink-0 bg-gray-950/95 backdrop-blur border-t border-white/5 px-4 py-2.5">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
             <div className="w-0.5 h-8 bg-cyan-500 rounded-full flex-shrink-0" />
+            {replyTo.message_type === 'image' && (
+              <img src={replyTo.message} alt="Preview" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-xs text-cyan-400 font-semibold">↩ {replyTo.user_ign}</p>
-              <p className="text-xs text-gray-400 truncate">{replyTo.message}</p>
+              <p className="text-xs text-gray-400 truncate">
+                {replyTo.message_type === 'image' ? '📸 Photo' : replyTo.message}
+              </p>
             </div>
-            <button onClick={() => setReplyTo(null)} className="text-gray-500 hover:text-white p-1.5 rounded-full hover:bg-white/10">
+            <button onClick={() => setReplyTo(null)} className="text-gray-500 hover:text-white p-1.5 rounded-full hover:bg-white/10 mr-12 flex-shrink-0">
               <X className="w-4 h-4" />
             </button>
           </div>

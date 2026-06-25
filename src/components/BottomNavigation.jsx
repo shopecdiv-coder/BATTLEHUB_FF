@@ -42,36 +42,7 @@ export default function BottomNavigation() {
     loadMyMatches();
   }, []);
 
-  useEffect(() => {
-    if (location.pathname === createPageUrl("GlobalChat")) return;
-    const currentIndex = SWIPE_PAGES.indexOf(location.pathname);
-
-    const handleTouchStart = (e) => {
-      touchStartX.current = e.touches[0].clientX;
-      touchStartY.current = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = (e) => {
-      if (touchStartX.current === null) return;
-      const dx = e.changedTouches[0].clientX - touchStartX.current;
-      const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
-      if (Math.abs(dx) < 60 || dy > Math.abs(dx)) return;
-      if (currentIndex === -1) return;
-      if (dx < 0 && currentIndex < SWIPE_PAGES.length - 1) {
-        navigate(SWIPE_PAGES[currentIndex + 1]);
-      } else if (dx > 0 && currentIndex > 0) {
-        navigate(SWIPE_PAGES[currentIndex - 1]);
-      }
-      touchStartX.current = null;
-    };
-
-    document.addEventListener("touchstart", handleTouchStart, { passive: true });
-    document.addEventListener("touchend", handleTouchEnd, { passive: true });
-    return () => {
-      document.removeEventListener("touchstart", handleTouchStart);
-      document.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [location.pathname, navigate]);
+  // Swipe navigation removed per user request
 
   const navItems = [
     { name: "Home", path: createPageUrl("Home"), icon: Home },

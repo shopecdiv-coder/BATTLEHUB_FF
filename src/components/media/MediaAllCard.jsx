@@ -1,12 +1,20 @@
-import React, { useState } from "react";
-import { Heart, MessageCircle, Bookmark, Share2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Heart, MessageCircle, Bookmark, Share2, Eye } from "lucide-react";
 import { MediaPost } from "@/entities/MediaPost";
+import { MediaComment } from "@/entities/MediaComment";
 import { formatDistanceToNow } from "date-fns";
 
 export default function MediaAllCard({ post, user, onUpdate, onOpenComments }) {
   const [liked, setLiked] = useState(post.likes?.includes(user?.id));
   const [saved, setSaved] = useState(post.saves?.includes(user?.id));
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
+  const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
+
+  useEffect(() => {
+    if (post.comments_count === undefined) {
+      MediaComment.filter({ post_id: post.id }).then(res => setCommentsCount(res.length));
+    }
+  }, [post.id, post.comments_count]);
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -47,7 +55,35 @@ export default function MediaAllCard({ post, user, onUpdate, onOpenComments }) {
   return (
     <div className="bg-gray-900 sm:border border-y border-gray-800 sm:rounded-xl overflow-hidden mb-2 sm:mb-4 shadow-lg flex flex-col">
       
-      {/* 1. Media Area (Top) */}
+      {/* 1. Header & Content (Title/DP Above Video) */}
+      <div className="p-4 flex flex-col gap-3 bg-gray-900">
+        {/* Author Info */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full border border-gray-700 overflow-hidden bg-black flex-shrink-0">
+            <img 
+              src={post.author_avatar || "https://api.dicebear.com/6.x/bottts/svg?seed=BH"} 
+              alt="Author" 
+              className="w-full h-full object-cover" 
+              onError={(e) => { e.target.src = "https://api.dicebear.com/6.x/bottts/svg?seed=BH"; }} 
+            />
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="text-white font-bold text-[14px] flex items-center gap-2 truncate">
+              {post.author_name || "BATTLEHUB FF"}
+              {post.is_pinned && <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full flex-shrink-0">Pinned</span>}
+            </span>
+            <span className="text-gray-400 text-xs truncate">{safeDate}</span>
+          </div>
+        </div>
+
+        {/* Title & Desc */}
+        <div>
+          {post.title && <h3 className="text-white font-bold text-base sm:text-lg mb-1 leading-snug">{post.title}</h3>}
+          {post.description && <p className="text-gray-300 text-sm whitespace-pre-wrap">{post.description}</p>}
+        </div>
+      </div>
+
+      {/* 2. Media Area (Middle) */}
       {post.type !== "text" && post.media_url && (
         <div className="w-full bg-black relative" style={{ maxHeight: post.video_type === 'long' ? '400px' : '650px' }}>
           {post.type === "video" ? (
@@ -70,51 +106,34 @@ export default function MediaAllCard({ post, user, onUpdate, onOpenComments }) {
         </div>
       )}
 
-      {/* 2. Content (Title & Desc) */}
-      <div className="px-4 pt-3 pb-2">
-        {post.title && <h3 className="text-white font-bold text-lg mb-1 leading-snug">{post.title}</h3>}
-        {post.description && <p className="text-gray-300 text-sm whitespace-pre-wrap mb-2">{post.description}</p>}
-      </div>
-
-      {/* 3. Header (Author Info - YouTube Style) */}
-      <div className="px-4 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full border border-gray-700 overflow-hidden bg-black">
-            <img 
-              src={post.author_avatar || "https://api.dicebear.com/6.x/bottts/svg?seed=BH"} 
-              alt="Author" 
-              className="w-full h-full object-cover" 
-              onError={(e) => { e.target.src = "https://api.dicebear.com/6.x/bottts/svg?seed=BH"; }} 
-            />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-white font-bold text-[14px] flex items-center gap-2">
-              {post.author_name || "BATTLEHUB FF"}
-              {post.is_pinned && <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full">Pinned</span>}
-            </span>
-            <span className="text-gray-400 text-xs">{safeDate} • {(post.views || 0).toLocaleString()} views</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Footer Actions */}
-      <div className="px-4 py-3 border-t border-gray-800/50 flex items-center justify-between">
+      {/* 3. Footer Actions (One Line) */}
+      <div className="px-4 py-3 bg-gray-900 border-t border-gray-800/50 flex items-center justify-between">
         <div className="flex items-center gap-6">
+          {/* Like */}
           <button onClick={handleLike} className={`flex items-center gap-1.5 transition-colors ${liked ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}>
             <Heart className={`w-5 h-5 ${liked ? 'fill-red-500' : ''}`} />
             <span className="text-sm font-medium">{likesCount}</span>
           </button>
           
+          {/* Comment */}
           {!post.comments_disabled && (
             <button 
               onClick={() => onOpenComments && onOpenComments(post)}
               className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors"
             >
               <MessageCircle className="w-5 h-5" />
-              <span className="text-sm font-medium">Reply</span>
+              <span className="text-sm font-medium">{commentsCount}</span>
             </button>
           )}
+
+          {/* Views */}
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <Eye className="w-5 h-5" />
+            <span className="text-sm font-medium">{(post.views || 0).toLocaleString()}</span>
+          </div>
         </div>
+
+        {/* Save */}
         <button onClick={handleSave} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
           <Bookmark className={`w-5 h-5 ${saved ? 'text-orange-500 fill-orange-500' : ''}`} />
         </button>

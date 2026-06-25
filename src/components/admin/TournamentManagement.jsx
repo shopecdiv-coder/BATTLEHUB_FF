@@ -36,6 +36,7 @@ export default function TournamentManagement({ tournaments, onUpdate }) {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleteCode, setDeleteCode] = useState("");
   const [lbSearch, setLbSearch] = useState("");
+  const [tournamentSearch, setTournamentSearch] = useState("");
   const [finalizedTournaments, setFinalizedTournaments] = useState(new Set());
   const [isSending, setIsSending] = useState(false);
 
@@ -641,7 +642,19 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
           </Card>
         </div>
       )}
-    {tournaments.map((tournament, index) => (
+
+      {/* Tournament Search */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+        <Input
+          value={tournamentSearch}
+          onChange={(e) => setTournamentSearch(e.target.value)}
+          placeholder="Search tournaments by name or ID..."
+          className="bg-gray-900 border-gray-700 text-white pl-10 h-12 text-md w-full"
+        />
+      </div>
+
+    {tournaments.filter(t => !tournamentSearch || t.title?.toLowerCase().includes(tournamentSearch.toLowerCase()) || t.id?.toLowerCase().includes(tournamentSearch.toLowerCase())).map((tournament, index) => (
         <div key={tournament.id}>
           <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
             <CardHeader>
@@ -709,7 +722,11 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
               <div className="grid grid-cols-4 gap-2 mb-3">
                 <Button
                   onClick={async () => {
-                    await Tournament.update(tournament.id, { status: "Registration Open" });
+                    const updatePayload = { status: "Registration Open" };
+                    if (tournament.registration_closes && new Date(tournament.registration_closes) < new Date()) {
+                      updatePayload.registration_closes = null;
+                    }
+                    await Tournament.update(tournament.id, updatePayload);
                     onUpdate();
                   }}
                   size="sm"
@@ -717,20 +734,33 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                 >
                   Open
                 </Button>
+                {tournament.tournament_type !== "Semifinal" && tournament.tournament_type !== "Grand Final" && (
+                  <Button
+                    onClick={async () => {
+                      await Tournament.update(tournament.id, { status: "Registration Closed" });
+                      onUpdate();
+                    }}
+                    size="sm"
+                    className={`${tournament.status === "Registration Closed" ? "bg-yellow-600" : "bg-gray-700"}`}
+                  >
+                    Closed
+                  </Button>
+                )}>
                 <Button
                   onClick={async () => {
-                    await Tournament.update(tournament.id, { status: "Registration Closed" });
-                    onUpdate();
-                  }}
-                  size="sm"
-                  className={`${tournament.status === "Registration Closed" ? "bg-yellow-600" : "bg-gray-700"}`}
-                >
-                  Closed
-                </Button>
-                <Button
-                  onClick={async () => {
-                    await Tournament.update(tournament.id, { status: "Live" });
-                    onUpdate();
+                    if (tournament.status === "Live") {
+                      const newLink = window.prompt("Update Live/YouTube Link (Optional):", tournament.live_link || "");
+                      if (newLink !== null) {
+                        await Tournament.update(tournament.id, { live_link: newLink.trim() });
+                        onUpdate();
+                      }
+                    } else {
+                      const link = window.prompt("Enter Live/YouTube Link (Optional):");
+                      if (link !== null) {
+                        await Tournament.update(tournament.id, { status: "Live", live_link: link.trim() });
+                        onUpdate();
+                      }
+                    }
                   }}
                   size="sm"
                   className={`${tournament.status === "Live" ? "bg-red-600" : "bg-gray-700"}`}

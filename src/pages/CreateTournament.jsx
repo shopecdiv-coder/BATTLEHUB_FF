@@ -319,7 +319,7 @@ Stay fair. Play hard. Be legendary. 🏆`,
                       <img 
                         src={formData.banner_url} 
                         alt="Tournament Banner" 
-                        className="w-full h-48 object-cover rounded-lg border-2 border-orange-500/50"
+                        className="w-full h-auto rounded-lg border-2 border-orange-500/50"
                       />
                       <button
                         type="button"

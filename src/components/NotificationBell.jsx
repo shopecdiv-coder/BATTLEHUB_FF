@@ -149,7 +149,13 @@ export default function NotificationBell() {
                       className={`p-4 border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer relative ${
                         !notif.read ? "bg-[#00FFFF]/5" : ""
                       }`}
-                      onClick={() => markAsRead(notif)}
+                      onClick={() => {
+                        markAsRead(notif);
+                        if (notif.action_url) {
+                          setShowPanel(false);
+                          navigate(notif.action_url);
+                        }
+                      }}
                     >
                       {!notif.read && (
                         <div className="absolute left-2 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-[#00FFFF] rounded-full"></div>

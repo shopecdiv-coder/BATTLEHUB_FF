@@ -105,6 +105,9 @@ export default function Wallet() {
         setPaymentRequests([]);
         setRedeemCodes([]);
       }
+      
+      // Notify other components (like Header) that wallet balances have changed
+      window.dispatchEvent(new CustomEvent("wallet_updated"));
     } catch (e) {
       console.error("Wallet load error:", e);
       setError("Failed to load wallet. Please refresh the page.");

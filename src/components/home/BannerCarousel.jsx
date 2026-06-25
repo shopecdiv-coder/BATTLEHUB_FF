@@ -55,7 +55,7 @@ export default function BannerCarousel() {
   const currentBanner = banners[currentIndex];
 
   return (
-    <div className="relative w-full h-[300px] md:h-[400px] rounded-2xl overflow-hidden border-2 border-cyan-500/30">
+    <div className="relative w-full h-[180px] sm:h-[220px] md:h-[260px] rounded-xl overflow-hidden border border-gray-800/50">
       {/* All banners stacked, only current one visible - NO animation, instant switch */}
       <div className="relative w-full h-full">
         {banners.map((banner, idx) => (

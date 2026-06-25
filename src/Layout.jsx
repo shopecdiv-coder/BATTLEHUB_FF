@@ -26,7 +26,7 @@ import {
   Shield,
   Menu,
   X,
-  PlusCircle,
+  PlusCircle, Plus,
   BarChart2,
   Wallet,
   LogOut,
@@ -138,7 +138,7 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
 function Header({ user, onLogout, unreadMessages, onLoginClick }) {
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
-  const [diamonds, setDiamonds] = useState(0);
+  const [balances, setBalances] = useState({ diamonds: 0, coins: 0 });
 
   // Reset glass-mode just in case it was applied
   useEffect(() => {
@@ -147,15 +147,25 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      Diamond.filter({ user_id: user.id })
-        .then(accounts => {
-          if (accounts.length > 0) {
-            setDiamonds(accounts[0].diamond_balance || 0);
-          }
-        })
-        .catch(() => {});
-    }
+    const fetchBalances = () => {
+      if (user) {
+        Diamond.filter({ user_id: user.id })
+          .then(accounts => {
+            if (accounts.length > 0) {
+              setBalances({
+                diamonds: accounts[0].diamond_balance || 0,
+                coins: accounts[0].bh_coin_balance || 0
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    fetchBalances();
+
+    window.addEventListener("wallet_updated", fetchBalances);
+    return () => window.removeEventListener("wallet_updated", fetchBalances);
   }, [user]);
 
   return (
@@ -199,23 +209,32 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             {user && (
-              <div 
-                className="flex items-center gap-2 sm:gap-3 bg-gray-900/60 border border-gray-700/50 rounded-full px-2.5 sm:px-3 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors shadow-inner"
-                onClick={() => navigate(createPageUrl("Wallet"))}
-              >
+              <div className="flex items-center gap-4 sm:gap-5 mr-1">
                 {/* Coins */}
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <span className="text-xs sm:text-sm font-bold text-yellow-400">{user.wallet_balance || 0}</span>
-                  <span className="text-[9px] sm:text-[10px] text-yellow-500/80 uppercase font-black tracking-widest mt-0.5">Coin</span>
+                <div 
+                  className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate(createPageUrl("Wallet"))}
+                >
+                  <span className="text-[17px] drop-shadow-md">🪙</span>
+                  <span className="text-sm font-bold text-white tracking-wide drop-shadow-sm">{balances.coins.toLocaleString()}</span>
                 </div>
                 
-                <div className="w-px h-3.5 bg-gray-700"></div>
-
                 {/* Diamonds */}
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <span className="text-xs sm:text-sm font-bold text-purple-400">{diamonds}</span>
-                  <span className="text-[10px] sm:text-xs text-purple-400/80 uppercase font-black tracking-widest drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]">💎</span>
+                <div 
+                  className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate(createPageUrl("Wallet"))}
+                >
+                  <span className="text-[17px] drop-shadow-md">💎</span>
+                  <span className="text-sm font-bold text-white tracking-wide drop-shadow-sm">{balances.diamonds.toLocaleString()}</span>
                 </div>
+
+                {/* Plus Button */}
+                <button 
+                  onClick={() => navigate(createPageUrl("Wallet"))}
+                  className="w-[26px] h-[26px] flex items-center justify-center rounded-[6px] border border-gray-600/60 bg-transparent hover:bg-gray-800 transition-colors ml-[-4px]"
+                >
+                  <Plus className="w-3.5 h-3.5 text-gray-300" />
+                </button>
               </div>
             )}
             {user && <NotificationBell />}
@@ -344,8 +363,10 @@ function LayoutContent({ children, currentPageName }) {
       <div className="absolute inset-0 bg-black z-0"></div>
 
       <div className="relative z-10 min-h-screen bg-black">
-        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
-        <main className="pt-16">
+        {currentPageName !== "GlobalChat" && (
+          <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
+        )}
+        <main className={currentPageName !== "GlobalChat" ? "pt-16" : ""}>
           <div className="max-w-screen-2xl mx-auto px-0 py-2 sm:p-6 lg:p-8">
             {children}
           </div>

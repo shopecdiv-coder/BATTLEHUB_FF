@@ -6,12 +6,16 @@ import { GlobalChat } from "@/entities/GlobalChat";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Target, Gamepad2, Coins, Shield } from "lucide-react";
+import { Trophy, Target, Gamepad2, Coins, Shield, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function UserProfileModal({ userId, onClose }) {
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState({ coins: 0, tournaments: 0 });
   const [loading, setLoading] = useState(true);
+  const [showFriendRequest, setShowFriendRequest] = useState(false);
+  const [friendRequestMsg, setFriendRequestMsg] = useState("");
 
   useEffect(() => {
     if (userId) loadProfile();
@@ -47,6 +51,13 @@ export default function UserProfileModal({ userId, onClose }) {
       setProfile(null);
     }
     setLoading(false);
+  };
+
+  const handleSendFriendRequest = () => {
+    // The user will provide the actual logic later. For now, just alert.
+    alert(`Friend request sent with message: ${friendRequestMsg || "No message"}`);
+    setShowFriendRequest(false);
+    setFriendRequestMsg("");
   };
 
   if (!userId) return null;
@@ -103,6 +114,45 @@ export default function UserProfileModal({ userId, onClose }) {
                 <p className="text-cyan-400 font-mono">{profile.game_uid}</p>
               </div>
             )}
+
+            {/* Friend Request Section */}
+            <div className="pt-4 border-t border-gray-800">
+              {!showFriendRequest ? (
+                <Button 
+                  onClick={() => setShowFriendRequest(true)}
+                  className="w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add Friend
+                </Button>
+              ) : (
+                <div className="space-y-3 text-left">
+                  <p className="text-sm font-medium text-gray-300">Send Friend Request</p>
+                  <Textarea 
+                    placeholder="Add an optional message..." 
+                    value={friendRequestMsg}
+                    onChange={(e) => setFriendRequestMsg(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-white resize-none h-20"
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => { setShowFriendRequest(false); setFriendRequestMsg(""); }}
+                      className="flex-1 text-gray-400 hover:text-white"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSendFriendRequest}
+                      className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
+                    >
+                      Send
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         ) : (
           <p className="text-gray-500 text-center py-8">User not found</p>
