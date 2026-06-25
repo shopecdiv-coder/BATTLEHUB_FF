@@ -3,14 +3,16 @@ import { MediaPost } from "@/entities/MediaPost";
 import { MediaComment as MediaCommentEntity } from "@/entities/MediaComment";
 import { User } from "@/entities/User";
 import MediaPostCard from "@/components/media/MediaPostCard";
-import { Film, TrendingUp, Bookmark, Loader2, X, Send } from "lucide-react";
+import MediaAllCard from "@/components/media/MediaAllCard";
+import { Film, TrendingUp, Bookmark, Loader2, X, Send, LayoutDashboard, MonitorPlay, Smartphone } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
 
 export default function MediaFeed() {
-  const [activeTab, setActiveTab] = useState("latest");
+  const [mainTab, setMainTab] = useState("all"); // "all" | "reels" | "videos"
+  const [reelsTab, setReelsTab] = useState("latest"); // "latest" | "trending" | "saved"
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -28,26 +30,37 @@ export default function MediaFeed() {
 
   useEffect(() => {
     loadPosts();
-  }, [activeTab, user]);
+  }, [mainTab, reelsTab, user]);
 
   const loadPosts = async () => {
     setLoading(true);
     try {
-      let fetchedPosts = [];
-      if (activeTab === "latest") {
-        fetchedPosts = await MediaPost.filter({ status: "published" });
+      let fetchedPosts = await MediaPost.filter({ status: "published" });
+
+      if (mainTab === "all") {
         fetchedPosts.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
-      } else if (activeTab === "trending") {
-        fetchedPosts = await MediaPost.filter({ status: "published" });
-        fetchedPosts.sort((a, b) => ((b.views || 0) + (b.likes?.length || 0)) - ((a.views || 0) + (a.likes?.length || 0)));
-      } else if (activeTab === "saved") {
-        if (!user) {
-          fetchedPosts = [];
-        } else {
-          fetchedPosts = await MediaPost.filter({ status: "published" });
-          fetchedPosts = fetchedPosts.filter(p => p.saves?.includes(user.id));
+      } else if (mainTab === "videos") {
+        fetchedPosts = fetchedPosts.filter(p => p.type === "video" && p.video_type === "long");
+        fetchedPosts.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+      } else if (mainTab === "reels") {
+        // Reels now includes short videos AND images
+        fetchedPosts = fetchedPosts.filter(p => (p.type === "video" && p.video_type !== "long") || p.type === "image");
+        
+        if (reelsTab === "latest") {
+          fetchedPosts.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+        } else if (reelsTab === "trending") {
+          fetchedPosts.sort((a, b) => ((b.views || 0) + (b.likes?.length || 0)) - ((a.views || 0) + (a.likes?.length || 0)));
+        } else if (reelsTab === "saved") {
+          if (!user) fetchedPosts = [];
+          else fetchedPosts = fetchedPosts.filter(p => p.saves?.includes(user.id));
         }
+      } else if (mainTab === "saved") {
+        // Global Saved Tab
+        if (!user) fetchedPosts = [];
+        else fetchedPosts = fetchedPosts.filter(p => p.saves?.includes(user.id));
+        fetchedPosts.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
       }
+
       setPosts(fetchedPosts);
     } catch (e) {
       console.error("Error loading posts", e);
@@ -88,8 +101,8 @@ export default function MediaFeed() {
       const commentData = {
         post_id: selectedPost.id,
         user_id: user.id,
-        username: user.ign || user.full_name?.split(' ')[0],
-        avatar_url: user.avatar_url,
+        username: user.ign || user.full_name?.split(' ')[0] || "User",
+        avatar_url: user.avatar_url || "",
         text: newComment.trim(),
         created_date: new Date().toISOString(),
         is_deleted: false,
@@ -98,7 +111,6 @@ export default function MediaFeed() {
       await MediaCommentEntity.create(commentData);
       setNewComment("");
       
-      // Reload comments
       const fetchedComments = await MediaCommentEntity.filter({ post_id: selectedPost.id, is_deleted: false });
       fetchedComments.sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0));
       setComments(fetchedComments);
@@ -111,61 +123,89 @@ export default function MediaFeed() {
   return (
     <div className="fixed inset-0 bg-black text-white flex flex-col z-50">
       
-      {/* Top Floating Header Tabs */}
-      <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-4 pb-8 pointer-events-none">
-        <div className="flex items-center justify-center gap-4 max-w-md mx-auto pointer-events-auto px-4">
-          <button 
-            onClick={() => setActiveTab("latest")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === "latest" ? "bg-white text-black" : "text-white/70 hover:text-white hover:bg-white/10"}`}
-          >
-            <Film className="w-4 h-4" /> Latest
+      {/* Top Main Navigation (Phase 3 Tabs) */}
+      <div className="flex items-center justify-between px-2 sm:px-4 pt-4 pb-2 bg-gray-950 border-b border-gray-800 z-40">
+        <div className="flex gap-2 sm:gap-4 w-full justify-around sm:justify-start">
+          <button onClick={() => setMainTab("all")} className={`flex flex-col items-center gap-1 ${mainTab === "all" ? "text-orange-500" : "text-gray-400 hover:text-white"}`}>
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">All</span>
           </button>
-          <button 
-            onClick={() => setActiveTab("trending")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === "trending" ? "bg-white text-black" : "text-white/70 hover:text-white hover:bg-white/10"}`}
-          >
-            <TrendingUp className="w-4 h-4" /> Trending
+          <button onClick={() => setMainTab("reels")} className={`flex flex-col items-center gap-1 ${mainTab === "reels" ? "text-orange-500" : "text-gray-400 hover:text-white"}`}>
+            <Smartphone className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Reels</span>
           </button>
-          <button 
-            onClick={() => setActiveTab("saved")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === "saved" ? "bg-white text-black" : "text-white/70 hover:text-white hover:bg-white/10"}`}
-          >
-            <Bookmark className="w-4 h-4" /> Saved
+          <button onClick={() => setMainTab("videos")} className={`flex flex-col items-center gap-1 ${mainTab === "videos" ? "text-orange-500" : "text-gray-400 hover:text-white"}`}>
+            <MonitorPlay className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Videos</span>
+          </button>
+          <button onClick={() => setMainTab("saved")} className={`flex flex-col items-center gap-1 ${mainTab === "saved" ? "text-orange-500" : "text-gray-400 hover:text-white"}`}>
+            <Bookmark className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Saved</span>
           </button>
         </div>
       </div>
 
-      {/* Snap Scrolling Feed Container */}
-      <div className="flex-1 overflow-y-scroll snap-y snap-mandatory scrollbar-hide no-scrollbar relative">
-        {activeTab === "saved" && !user && (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
-            <Bookmark className="w-16 h-16 mb-4 opacity-50" />
-            <p className="text-lg font-bold text-white">Save your favorite clips</p>
-            <p className="mt-2 text-sm">Please login to view saved posts</p>
+      {/* Reels Internal Nav */}
+      {mainTab === "reels" && (
+        <div className="absolute top-[60px] left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-4 pb-8 pointer-events-none">
+          <div className="flex items-center justify-center gap-4 max-w-md mx-auto pointer-events-auto px-4">
+            <button 
+              onClick={() => setReelsTab("latest")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${reelsTab === "latest" ? "bg-white text-black" : "text-white/70 hover:text-white hover:bg-white/10"}`}
+            >
+              <Film className="w-4 h-4" /> Latest
+            </button>
+            <button 
+              onClick={() => setReelsTab("trending")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${reelsTab === "trending" ? "bg-white text-black" : "text-white/70 hover:text-white hover:bg-white/10"}`}
+            >
+              <TrendingUp className="w-4 h-4" /> Trending
+            </button>
+            <button 
+              onClick={() => setReelsTab("saved")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold transition-all ${reelsTab === "saved" ? "bg-white text-black" : "text-white/70 hover:text-white hover:bg-white/10"}`}
+            >
+              <Bookmark className="w-4 h-4" /> Saved
+            </button>
           </div>
-        )}
+        </div>
+      )}
 
+      {/* Content Area */}
+      <div className={`flex-1 overflow-y-auto no-scrollbar relative ${mainTab === "reels" ? "snap-y snap-mandatory bg-black" : "bg-gray-950 pb-24"}`}>
         {loading ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-10 h-10 animate-spin text-white" />
+            <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
           </div>
         ) : posts.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
+          <div className="h-full flex flex-col items-center justify-center text-gray-400 mt-20">
             <Film className="w-16 h-16 mb-4 opacity-30" />
             <p className="text-lg font-bold text-white">No posts found</p>
-            <p className="mt-2 text-sm text-center px-8">Check back later for new highlights and gaming content.</p>
+            <p className="mt-2 text-sm text-center px-8">Check back later for new content.</p>
           </div>
         ) : (
-          posts.map(post => (
-            <div key={post.id} className="h-[100dvh] w-full relative snap-start snap-always">
-              <MediaPostCard 
-                post={post} 
-                user={user} 
-                onUpdate={handleUpdate} 
-                onOpenComments={handleOpenComments}
-              />
-            </div>
-          ))
+          <div className={mainTab !== "reels" ? "max-w-2xl mx-auto sm:p-4" : ""}>
+            {posts.map(post => (
+              mainTab === "reels" ? (
+                <div key={post.id} className="h-[calc(100dvh-60px)] w-full relative snap-start snap-always">
+                  <MediaPostCard 
+                    post={post} 
+                    user={user} 
+                    onUpdate={handleUpdate} 
+                    onOpenComments={handleOpenComments}
+                  />
+                </div>
+              ) : (
+                <MediaAllCard
+                  key={post.id}
+                  post={post}
+                  user={user}
+                  onUpdate={handleUpdate}
+                  onOpenComments={handleOpenComments}
+                />
+              )
+            ))}
+          </div>
         )}
       </div>
 
@@ -178,7 +218,7 @@ export default function MediaFeed() {
             className="absolute inset-0 bg-black/60 z-50 transition-opacity" 
             onClick={handleCloseComments}
           />
-          <div className="absolute bottom-0 left-0 right-0 h-[65dvh] bg-gray-950 rounded-t-3xl z-50 flex flex-col animate-in slide-in-from-bottom-full duration-300">
+          <div className="absolute bottom-0 left-0 right-0 h-[65dvh] bg-gray-950 rounded-t-3xl z-50 flex flex-col animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-gray-800">
             
             {/* Sheet Handle & Header */}
             <div className="flex flex-col items-center pt-3 pb-2 border-b border-gray-800">
@@ -205,7 +245,7 @@ export default function MediaFeed() {
               ) : (
                 comments.map(comment => (
                   <div key={comment.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-800 border border-gray-700">
                       <img 
                         src={comment.avatar_url || `https://api.dicebear.com/6.x/bottts/svg?seed=${comment.user_id}`} 
                         alt="Avatar" 
@@ -216,7 +256,12 @@ export default function MediaFeed() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="font-bold text-sm text-gray-200">{comment.username}</span>
                         <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(comment.created_date || 0), { addSuffix: true })}
+                          {(() => {
+                            try {
+                              const d = new Date(comment.created_date || 0);
+                              return isNaN(d.getTime()) ? 'Unknown' : formatDistanceToNow(d, { addSuffix: true });
+                            } catch(e) { return 'Unknown'; }
+                          })()}
                         </span>
                       </div>
                       <p className="text-sm text-white whitespace-pre-wrap">{comment.text}</p>

@@ -144,17 +144,32 @@ export default function MediaManagement() {
             </div>
             <div className="space-y-2">
               <Label className="text-gray-300">Type</Label>
-              <select 
-                value={formData.type}
-                onChange={e => setFormData({...formData, type: e.target.value})}
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-md h-10 px-3"
-              >
-                <option value="text">Text Only</option>
-                <option value="image">Image</option>
-                <option value="video">Video</option>
-              </select>
+              <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="Content Type" /></SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                  <SelectItem value="text">Text / Announcement</SelectItem>
+                  <SelectItem value="image">Image Post</SelectItem>
+                  <SelectItem value="video">Video Post (File or YouTube)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
+          {formData.type === "video" && (
+            <div className="space-y-2">
+              <Label className="text-gray-300">Video Format</Label>
+              <Select 
+                value={formData.video_type || "short"} 
+                onValueChange={(val) => setFormData({ ...formData, video_type: val })}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="Video Format" /></SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                  <SelectItem value="short">Short (Vertical Reel/Shorts)</SelectItem>
+                  <SelectItem value="long">Long (Horizontal Video)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label className="text-gray-300">Description</Label>
@@ -168,10 +183,19 @@ export default function MediaManagement() {
 
           {formData.type !== "text" && (
             <div className="space-y-2 p-4 border border-dashed border-gray-700 rounded-xl bg-gray-800/50">
-              <Label className="text-gray-300">Upload Media ({formData.type})</Label>
-              {formData.media_url ? (
+              <Label className="text-gray-300">Media Source ({formData.type})</Label>
+              <Input 
+                placeholder={formData.type === "video" ? "Paste YouTube Link or direct URL..." : "Paste Image URL..."}
+                value={formData.media_url || ""} 
+                onChange={e => setFormData({ ...formData, media_url: e.target.value })}
+                className="bg-gray-900 border-gray-700 text-white mb-4"
+              />
+              <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
+                <hr className="flex-1 border-gray-700" /> OR UPLOAD <hr className="flex-1 border-gray-700" />
+              </div>
+              {formData.media_url && formData.media_url.includes("res.cloudinary.com") ? (
                 <div className="mt-2 text-sm text-green-400 flex items-center gap-2">
-                  <Check className="w-4 h-4" /> Media Uploaded Successfully
+                  <Check className="w-4 h-4" /> Cloud Media Uploaded Successfully
                 </div>
               ) : (
                 <div className="flex items-center gap-4 mt-2">
@@ -180,7 +204,7 @@ export default function MediaManagement() {
                     <UploadCloud className="w-4 h-4" /> Choose File
                   </Label>
                   <span className="text-xs text-gray-500">
-                    {formData.type === "video" ? "Upload to Cloudinary via base44 integration" : "Images supported"}
+                    {formData.type === "video" ? "Upload to Cloudinary" : "Images supported"}
                   </span>
                 </div>
               )}
