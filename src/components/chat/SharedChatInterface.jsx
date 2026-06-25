@@ -356,12 +356,7 @@ export default function SharedChatInterface({
         is_pinned: false,
         reactions: { likes: [], hearts: [], laughs: [], fire: [], claps: [] },
         ...(roomType === "tournament" ? { tournament_id: roomId } : {})
-      };
-      if (roomType === "global") {
-        await GlobalChatEntity.create(messageData);
-      } else {
-        await TournamentChatEntity.create(messageData);
-      }
+      });
       playChatSound('send'); 
     } catch (error) {
       console.error("Error sending:", error);
