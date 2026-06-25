@@ -299,8 +299,8 @@ export default function MediaFeed() {
         )}
       </div>
 
-      <BottomNavigation />
-
+      {/* Render BottomNavigation only if comments drawer is closed */}
+      {!selectedPost && <BottomNavigation />}
       {/* Comments Drawer (Modernized) */}
       {selectedPost && (
         <>

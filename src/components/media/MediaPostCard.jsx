@@ -8,10 +8,19 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
   const [saved, setSaved] = useState(post.saves?.includes(user?.id));
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // Default to muted for auto-play compatibility
+  const [isMuted, setIsMuted] = useState(() => {
+    try {
+      const saved = localStorage.getItem('reels_muted');
+      return saved !== null ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [showHeart, setShowHeart] = useState(false);
   const videoRef = useRef(null);
   const cardRef = useRef(null);
+  const clickTimeout = useRef(null);
 
   // Track views and auto-play using IntersectionObserver
   useEffect(() => {
@@ -49,7 +58,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
   }, [post.id, onUpdate]);
 
   const handleLike = async (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (!user) { alert("Please login to like"); return; }
     const originalLiked = liked;
     setLiked(!originalLiked);
@@ -58,27 +67,26 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
     try {
       const isLiked = await MediaPost.toggleLike(post.id, user.id);
       setLiked(isLiked);
-    } catch (e) {
+    } catch (err) {
       setLiked(originalLiked);
       setLikesCount(prev => originalLiked ? prev + 1 : prev - 1);
     }
   };
 
   const handleSave = async (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (!user) { alert("Please login to save"); return; }
     const originalSaved = saved;
     setSaved(!originalSaved);
     try {
       const isSaved = await MediaPost.toggleSave(post.id, user.id);
       setSaved(isSaved);
-    } catch (e) {
+    } catch (err) {
       setSaved(originalSaved);
     }
   };
 
-  const toggleVideoPlayback = (e) => {
-    e.stopPropagation();
+  const toggleVideoPlayback = () => {
     setIsPlaying(!isPlaying);
     if (videoRef.current) {
       if (isPlaying) videoRef.current.pause();
@@ -86,12 +94,48 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
     }
   };
 
+  const handleToggleMute = (e) => {
+    e.stopPropagation();
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    try {
+      localStorage.setItem('reels_muted', JSON.stringify(newMuted));
+    } catch {}
+  };
+
+  const handleInteraction = (e) => {
+    e.stopPropagation();
+    if (clickTimeout.current) {
+      // Double tap
+      clearTimeout(clickTimeout.current);
+      clickTimeout.current = null;
+      setShowHeart(true);
+      setTimeout(() => setShowHeart(false), 1000);
+      if (!liked) {
+        handleLike(e);
+      }
+    } else {
+      // Single tap
+      clickTimeout.current = setTimeout(() => {
+        toggleVideoPlayback();
+        clickTimeout.current = null;
+      }, 250);
+    }
+  };
+
   return (
     <div 
       ref={cardRef} 
       className="relative w-full h-full snap-start bg-black flex items-center justify-center overflow-hidden group"
-      onClick={toggleVideoPlayback}
+      onClick={handleInteraction}
     >
+      {/* Giant Heart Pop-up Animation */}
+      {showHeart && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none animate-in zoom-in duration-300">
+          <Heart className="w-32 h-32 text-red-500 fill-red-500 drop-shadow-2xl" />
+        </div>
+      )}
+
       {/* Media Layer */}
       {post.type === "video" && post.media_url ? (
         <>
@@ -106,7 +150,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
             />
 
           {/* Pause Overlay Icon */}
-          {!isPlaying && (
+          {!isPlaying && !showHeart && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none transition-opacity z-10">
               <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white">
                 <Play className="w-10 h-10 ml-1 fill-white" />
@@ -116,7 +160,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
           
           {/* Mute/Unmute Toggle */}
           <button 
-            onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+            onClick={handleToggleMute}
             className="absolute top-20 right-4 z-20 w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center text-white"
           >
             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
