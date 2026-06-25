@@ -305,10 +305,10 @@ export default function MediaFeed() {
       {selectedPost && (
         <>
           <div 
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 transition-opacity" 
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm z-[60] transition-opacity" 
             onClick={handleCloseComments}
           />
-          <div className="absolute bottom-0 left-0 right-0 h-[75dvh] bg-gray-950 rounded-t-[2rem] z-50 flex flex-col animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] border-t border-gray-800 overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-[75dvh] bg-gray-950 rounded-t-[2rem] z-[60] flex flex-col animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_50px_rgba(0,0,0,0.8)] border-t border-gray-800 overflow-hidden pb-safe">
             
             {/* Header */}
             <div className="flex flex-col items-center pt-4 pb-3 border-b border-gray-800/60 bg-gray-900/50 backdrop-blur-md">

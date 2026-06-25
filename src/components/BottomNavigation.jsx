@@ -75,7 +75,7 @@ export default function BottomNavigation() {
 
   const navItems = [
     { name: "Home", path: createPageUrl("Home"), icon: Home },
-    { name: "Play", path: createPageUrl("Tournaments"), icon: Trophy },
+    { name: "Tournament", path: createPageUrl("Tournaments"), icon: Trophy },
     { name: "Chat", path: createPageUrl("GlobalChat"), icon: MessageCircle },
     { name: "Media", path: createPageUrl("MediaFeed"), icon: Film },
     { name: "Menu", path: createPageUrl("Menu"), icon: Menu }
@@ -100,7 +100,7 @@ export default function BottomNavigation() {
               {item.name === "Chat" && unreadChat > 0 && (
                 <span className="absolute top-1 right-1/4 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
               )}
-              {item.name === "Play" && myMatchCount > 0 && location.pathname === createPageUrl("Tournaments") && (
+              {item.name === "Tournament" && myMatchCount > 0 && location.pathname === createPageUrl("Tournaments") && (
                 <span className="absolute top-1 right-1/4 min-w-[16px] h-4 bg-orange-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-0.5">{myMatchCount}</span>
               )}
               <span className={`text-xs mt-1 font-medium ${isActive ? "font-bold" : ""}`}>

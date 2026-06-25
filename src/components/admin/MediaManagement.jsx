@@ -150,7 +150,7 @@ export default function MediaManagement() {
                 <SelectContent className="bg-gray-800 border-gray-700 text-white">
                   <SelectItem value="text">Text / Announcement</SelectItem>
                   <SelectItem value="image">Image Post</SelectItem>
-                  <SelectItem value="video">Video Post (File or YouTube)</SelectItem>
+                  <SelectItem value="video">Video Post</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -186,7 +186,7 @@ export default function MediaManagement() {
             <div className="space-y-2 p-4 border border-dashed border-gray-700 rounded-xl bg-gray-800/50">
               <Label className="text-gray-300">Media Source ({formData.type})</Label>
               <Input 
-                placeholder={formData.type === "video" ? "Paste YouTube Link or direct URL..." : "Paste Image URL..."}
+                placeholder={formData.type === "video" ? "Paste direct .mp4 video URL..." : "Paste Image URL..."}
                 value={formData.media_url || ""} 
                 onChange={e => setFormData({ ...formData, media_url: e.target.value })}
                 className="bg-gray-900 border-gray-700 text-white mb-4"
@@ -198,10 +198,15 @@ export default function MediaManagement() {
                 <div className="mt-2 text-sm text-green-400 flex items-center gap-2">
                   <Check className="w-4 h-4" /> Cloud Media Uploaded Successfully
                 </div>
+              ) : uploading ? (
+                <div className="flex items-center gap-3 mt-2 text-orange-400 bg-orange-500/10 px-4 py-2 rounded-md w-max border border-orange-500/20">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm font-medium">Uploading to cloud... Please wait</span>
+                </div>
               ) : (
                 <div className="flex items-center gap-4 mt-2">
                   <input type="file" id="media-upload" className="hidden" accept={formData.type === "video" ? "video/*" : "image/*"} onChange={e => handleFileUpload(e, "media_url")} />
-                  <Label htmlFor="media-upload" className="cursor-pointer bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-md text-white flex items-center gap-2 transition-colors">
+                  <Label htmlFor="media-upload" className="cursor-pointer bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-md text-white flex items-center gap-2 transition-colors shadow-sm">
                     <UploadCloud className="w-4 h-4" /> Choose File
                   </Label>
                   <span className="text-xs text-gray-500">

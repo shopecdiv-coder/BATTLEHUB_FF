@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { Heart, MessageCircle, Bookmark, Play, Volume2, VolumeX, ChevronDown, ChevronUp } from "lucide-react";
 import { MediaPost } from "@/entities/MediaPost";
 import { formatDistanceToNow } from "date-fns";
-import ReactPlayer from 'react-player';
 
 export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) {
   const [liked, setLiked] = useState(post.likes?.includes(user?.id));
@@ -14,20 +13,6 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
   const videoRef = useRef(null);
   const cardRef = useRef(null);
 
-  const isYouTube = post.media_url && (post.media_url.includes("youtube.com") || post.media_url.includes("youtu.be"));
-  
-  // Transform shorts URL to standard watch URL to guarantee ReactPlayer compatibility
-  const getSafeVideoUrl = (url) => {
-    if (!url) return url;
-    if (url.includes("youtube.com/shorts/")) {
-      const videoId = url.split("youtube.com/shorts/")[1].split("?")[0];
-      return `https://www.youtube.com/watch?v=${videoId}`;
-    }
-    return url;
-  };
-
-  const safeMediaUrl = getSafeVideoUrl(post.media_url);
-
   // Track views and auto-play using IntersectionObserver
   useEffect(() => {
     if (!cardRef.current) return;
@@ -36,7 +21,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           setIsPlaying(true);
-          if (videoRef.current && !isYouTube) {
+          if (videoRef.current) {
             videoRef.current.play().catch(() => setIsPlaying(false));
           }
           
@@ -52,7 +37,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
           }
         } else {
           setIsPlaying(false);
-          if (videoRef.current && !isYouTube) {
+          if (videoRef.current) {
             videoRef.current.pause();
           }
         }
@@ -61,7 +46,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
 
     observer.observe(cardRef.current);
     return () => observer.disconnect();
-  }, [post.id, onUpdate, isYouTube]);
+  }, [post.id, onUpdate]);
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -95,7 +80,7 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
   const toggleVideoPlayback = (e) => {
     e.stopPropagation();
     setIsPlaying(!isPlaying);
-    if (!isYouTube && videoRef.current) {
+    if (videoRef.current) {
       if (isPlaying) videoRef.current.pause();
       else videoRef.current.play().catch(() => {});
     }
@@ -110,20 +95,6 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
       {/* Media Layer */}
       {post.type === "video" && post.media_url ? (
         <>
-          {isYouTube ? (
-            <div className="absolute w-full h-full flex items-center justify-center pointer-events-none">
-              <ReactPlayer 
-                url={safeMediaUrl}
-                playing={isPlaying}
-                muted={isMuted}
-                loop
-                width="100%"
-                height={post.video_type === 'long' ? "auto" : "100%"}
-                style={post.video_type === 'long' ? { aspectRatio: '16/9' } : {}}
-                config={{ youtube: { playerVars: { controls: 0, showinfo: 0, modestbranding: 1 } } }}
-              />
-            </div>
-          ) : (
             <video 
               ref={videoRef}
               src={post.media_url} 
@@ -133,7 +104,6 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
               playsInline
               muted={isMuted}
             />
-          )}
 
           {/* Pause Overlay Icon */}
           {!isPlaying && (
