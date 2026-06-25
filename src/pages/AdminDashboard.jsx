@@ -69,6 +69,9 @@ import PlayerProfilesManagement from "../components/admin/PlayerProfilesManageme
 import MatchKillTracker from "../components/admin/MatchKillTracker";
 import SupportContactManager from "../components/admin/SupportContactManager";
 
+import MediaManagement from "../components/admin/MediaManagement";
+import MediaAnalytics from "../components/admin/MediaAnalytics";
+
 // ─── Nav Groups ───────────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
@@ -80,6 +83,13 @@ const NAV_GROUPS = [
       { id: "walletoverview", label: "Wallet Overview", icon: Wallet },
       { id: "coinledger", label: "Coin Ledger", icon: Coins },
       { id: "user-history", label: "User History", icon: History },
+    ]
+  },
+  {
+    label: "Media & Social",
+    items: [
+      { id: "media-management", label: "Media Management", icon: Image },
+      { id: "media-analytics", label: "Media Analytics", icon: BarChart2 },
     ]
   },
   {
@@ -326,6 +336,8 @@ export default function AdminDashboard() {
       case "playerprofiles": return <PlayerProfilesManagement />;
       case "killtracker": return <MatchKillTracker onUpdate={loadData} />;
       case "supportcontacts": return <SupportContactManager />;
+      case "media-management": return <MediaManagement />;
+      case "media-analytics": return <MediaAnalytics />;
       default: return <RealTimeAnalytics />;
     }
   };

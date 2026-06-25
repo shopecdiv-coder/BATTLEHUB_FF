@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Trophy, MessageCircle, Wallet, Menu, Gem } from "lucide-react";
+import { Home, Trophy, MessageCircle, Menu, Film } from "lucide-react";
 import { Registration } from "@/entities/Registration";
 import { User } from "@/entities/User";
 
@@ -9,7 +9,7 @@ const SWIPE_PAGES = [
   createPageUrl("Home"),
   createPageUrl("Tournaments"),
   createPageUrl("GlobalChat"),
-  createPageUrl("Wallet"),
+  createPageUrl("MediaFeed"),
   createPageUrl("Menu"),
 ];
 
@@ -77,7 +77,7 @@ export default function BottomNavigation() {
     { name: "Home", path: createPageUrl("Home"), icon: Home },
     { name: "Play", path: createPageUrl("Tournaments"), icon: Trophy },
     { name: "Chat", path: createPageUrl("GlobalChat"), icon: MessageCircle },
-    { name: "Wallet", path: createPageUrl("Wallet"), icon: Wallet },
+    { name: "Media", path: createPageUrl("MediaFeed"), icon: Film },
     { name: "Menu", path: createPageUrl("Menu"), icon: Menu }
   ];
 

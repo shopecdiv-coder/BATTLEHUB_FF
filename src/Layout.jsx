@@ -149,23 +149,25 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
+            <Link to={createPageUrl("Home")} className="flex items-center gap-2">
+              <span className="font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
+                BATTLEHUB FF
+              </span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-4">
+            {user && <NotificationBell />}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="p-0 h-auto hover:bg-transparent flex items-center gap-2 text-left">
-                    <Avatar className="h-9 w-9 border-2 border-orange-400 object-cover">
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10 border-2 border-orange-400 object-cover">
                       <AvatarImage src={user.avatar_url || `https://api.dicebear.com/6.x/bottts/svg?seed=${user.email}`} className="object-cover" />
                       <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-wider text-gray-400 leading-tight">Welcome,</span>
-                      <span className="font-bold text-sm text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 leading-tight truncate max-w-[120px]">
-                        {user.ign || user.full_name?.split(' ')[0]}
-                      </span>
-                    </div>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700 text-white" align="start">
+                <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700 text-white" align="end">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{user.full_name}</p>
@@ -186,16 +188,6 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link to={createPageUrl("Home")} className="flex items-center gap-2">
-                <span className="font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
-                  BATTLEHUB FF
-                </span>
-              </Link>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {user && <NotificationBell />}
-            {!user && (
               <Button onClick={() => navigate(createPageUrl("Login"))} size="sm" className="bg-gradient-to-r from-orange-500 to-red-500">
                 Login
               </Button>

@@ -77,8 +77,9 @@ import TournamentDetail from './pages/TournamentDetail';
 import Tournaments from './pages/Tournaments';
 import Wallet from './pages/Wallet';
 import JourneyHistory from './pages/JourneyHistory';
+import MediaFeed from './pages/MediaFeed';
+import MediaPostDetail from './pages/MediaPostDetail';
 import __Layout from './Layout.jsx';
-
 
 export const PAGES = {
     "AboutUs": AboutUs,
@@ -111,6 +112,8 @@ export const PAGES = {
     "Tournaments": Tournaments,
     "Wallet": Wallet,
     "JourneyHistory": JourneyHistory,
+    "MediaFeed": MediaFeed,
+    "MediaPostDetail": MediaPostDetail,
 }
 
 export const pagesConfig = {

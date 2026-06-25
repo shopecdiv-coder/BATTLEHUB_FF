@@ -408,6 +408,8 @@ export const SupportContact = new FirestoreEntity('support_contacts');
 export const RedeemCode = new FirestoreEntity('redeem_codes');
 export const AdminTask = new FirestoreEntity('admin_tasks');
 export const TaskSubmission = new FirestoreEntity('task_submissions');
+export const MediaPost = new FirestoreEntity('media_posts');
+export const MediaComment = new FirestoreEntity('media_comments');
 
 export const User = new UserEntityClass();
 
