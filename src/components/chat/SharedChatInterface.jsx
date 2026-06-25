@@ -64,6 +64,41 @@ const EMOJIS = [
   '👍','👎','👊','✊','🤛','🤜','🤞','✌️','🤘','🤟','👌','🤏','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🦷','🦴','👀','👁️','👅','👄','💋','🩸'
 ];
 
+const playChatSound = (type) => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    if (type === 'send') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    } else if (type === 'receive') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.2);
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {
+    console.error("Audio play failed", e);
+  }
+};
+
 export default function SharedChatInterface({ 
   roomType = "global", 
   roomId = null, 
@@ -156,10 +191,16 @@ export default function SharedChatInterface({
         const newLastId = reversed[reversed.length - 1]?.id;
         const oldLastId = prev[prev.length - 1]?.id;
         
-        if (isUserScrolledUp.current && newLastId !== oldLastId && prev.length > 0) {
+        if (prev.length > 0) {
           const newMsgs = reversed.filter(m => !prev.some(p => p.id === m.id));
           if (newMsgs.length > 0) {
-            setUnreadCount(c => c + newMsgs.length);
+            const hasReceivedNew = newMsgs.some(m => m.user_id !== user?.id);
+            if (hasReceivedNew) {
+              playChatSound('receive');
+            }
+            if (isUserScrolledUp.current && newLastId !== oldLastId) {
+              setUnreadCount(c => c + newMsgs.length);
+            }
           }
         }
         return reversed;
@@ -315,8 +356,13 @@ export default function SharedChatInterface({
         is_pinned: false,
         reactions: { likes: [], hearts: [], laughs: [], fire: [], claps: [] },
         ...(roomType === "tournament" ? { tournament_id: roomId } : {})
-      });
-      await loadMessages();
+      };
+      if (roomType === "global") {
+        await GlobalChatEntity.create(messageData);
+      } else {
+        await TournamentChatEntity.create(messageData);
+      }
+      playChatSound('send'); 
     } catch (error) {
       console.error("Error sending:", error);
     }
