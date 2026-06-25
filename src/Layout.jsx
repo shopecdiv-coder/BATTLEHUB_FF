@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { User } from "@/entities/User";
+import { Diamond } from "@/entities/Diamond";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -137,12 +138,25 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
 function Header({ user, onLogout, unreadMessages, onLoginClick }) {
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
+  const [diamonds, setDiamonds] = useState(0);
 
   // Reset glass-mode just in case it was applied
   useEffect(() => {
     document.documentElement.classList.remove("glass-mode");
     localStorage.removeItem("glassMode");
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      Diamond.filter({ user_id: user.id })
+        .then(accounts => {
+          if (accounts.length > 0) {
+            setDiamonds(accounts[0].diamond_balance || 0);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
@@ -183,7 +197,27 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
               <div className="w-10 h-10" />
             )}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {user && (
+              <div 
+                className="flex items-center gap-2 sm:gap-3 bg-gray-900/60 border border-gray-700/50 rounded-full px-2.5 sm:px-3 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors shadow-inner"
+                onClick={() => navigate(createPageUrl("Wallet"))}
+              >
+                {/* Coins */}
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-xs sm:text-sm font-bold text-yellow-400">{user.wallet_balance || 0}</span>
+                  <span className="text-[9px] sm:text-[10px] text-yellow-500/80 uppercase font-black tracking-widest mt-0.5">Coin</span>
+                </div>
+                
+                <div className="w-px h-3.5 bg-gray-700"></div>
+
+                {/* Diamonds */}
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-xs sm:text-sm font-bold text-purple-400">{diamonds}</span>
+                  <span className="text-[10px] sm:text-xs text-purple-400/80 uppercase font-black tracking-widest drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]">💎</span>
+                </div>
+              </div>
+            )}
             {user && <NotificationBell />}
             {!user && (
               <Button onClick={() => navigate(createPageUrl("Login"))} size="sm" className="bg-gradient-to-r from-orange-500 to-red-500">
