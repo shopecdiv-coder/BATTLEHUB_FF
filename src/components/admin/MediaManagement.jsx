@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { MediaPost } from "@/entities/MediaPost";
+import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,8 +67,12 @@ export default function MediaManagement() {
       if (editingPost) {
         await MediaPost.update(editingPost.id, formData);
       } else {
+        const user = await User.me().catch(() => null);
         await MediaPost.create({
           ...formData,
+          author_id: user?.id || "system",
+          author_name: user?.ign || user?.full_name?.split(' ')[0] || "Admin",
+          author_avatar: user?.avatar_url || "https://api.dicebear.com/6.x/bottts/svg?seed=Admin",
           created_date: new Date().toISOString(),
           views: 0,
           likes: [],

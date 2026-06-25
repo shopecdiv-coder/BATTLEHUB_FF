@@ -1,36 +1,54 @@
-import React, { useState, useEffect } from "react";
-import { Heart, MessageCircle, Share2, Bookmark, MoreVertical, Flag, Play, Trash } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Heart, MessageCircle, Bookmark, MoreVertical, Play, Volume2, VolumeX } from "lucide-react";
 import { MediaPost } from "@/entities/MediaPost";
-import { MediaComment } from "@/entities/MediaComment";
-import { User } from "@/entities/User";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
-export default function MediaPostCard({ post, user, onUpdate, isDetail = false }) {
+export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) {
   const [liked, setLiked] = useState(post.likes?.includes(user?.id));
   const [saved, setSaved] = useState(post.saves?.includes(user?.id));
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
   const [savesCount, setSavesCount] = useState(post.saves?.length || 0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const navigate = useNavigate();
+  const [isMuted, setIsMuted] = useState(false);
+  const videoRef = useRef(null);
+  const cardRef = useRef(null);
 
-  // Track if this post was already viewed in this session
+  // Track views and auto-play using IntersectionObserver
   useEffect(() => {
-    if (!post || !post.id) return;
-    const viewedPosts = JSON.parse(sessionStorage.getItem("viewed_posts") || "[]");
-    if (!viewedPosts.includes(post.id)) {
-      // Small timeout to simulate "watching" instead of just passing by
-      const timer = setTimeout(() => {
-        MediaPost.incrementView(post.id).catch(console.error);
-        viewedPosts.push(post.id);
-        sessionStorage.setItem("viewed_posts", JSON.stringify(viewedPosts));
-        if (onUpdate) onUpdate(post.id, { views: (post.views || 0) + 1 });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [post.id]);
+    if (!cardRef.current) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          // Play video if visible
+          if (videoRef.current) {
+            videoRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+          }
+          
+          // Increment view logic
+          const viewedPosts = JSON.parse(sessionStorage.getItem("viewed_posts") || "[]");
+          if (!viewedPosts.includes(post.id)) {
+            setTimeout(() => {
+              MediaPost.incrementView(post.id).catch(console.error);
+              viewedPosts.push(post.id);
+              sessionStorage.setItem("viewed_posts", JSON.stringify(viewedPosts));
+              if (onUpdate) onUpdate(post.id, { views: (post.views || 0) + 1 });
+            }, 2000);
+          }
+        } else {
+          // Pause video if out of view
+          if (videoRef.current) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+          }
+        }
+      });
+    }, { threshold: 0.6 }); // 60% of card must be visible
+
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [post.id, onUpdate]);
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -64,125 +82,132 @@ export default function MediaPostCard({ post, user, onUpdate, isDetail = false }
     }
   };
 
-  const handleShare = async (e) => {
+  const toggleVideoPlayback = (e) => {
     e.stopPropagation();
-    const shareUrl = `https://battlehubff.site/media/post/${post.id}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: post.title,
-          text: post.description,
-          url: shareUrl,
-        });
-      } catch (err) {
-        console.error("Error sharing", err);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       }
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      alert("Link copied to clipboard!");
-    }
-  };
-
-  const handleCommentClick = (e) => {
-    e.stopPropagation();
-    if (!isDetail) {
-      navigate(createPageUrl("MediaPostDetail").replace(":id", post.id));
-    }
-  };
-
-  const handleCardClick = () => {
-    if (!isDetail) {
-      navigate(createPageUrl("MediaPostDetail").replace(":id", post.id));
     }
   };
 
   return (
     <div 
-      className={`bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden mb-6 ${!isDetail ? "cursor-pointer transition-transform hover:scale-[1.01]" : ""}`}
-      onClick={handleCardClick}
+      ref={cardRef} 
+      className="relative w-full h-full snap-start bg-black flex items-center justify-center overflow-hidden group"
+      onClick={toggleVideoPlayback}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-800/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center p-[2px]">
-            <img src="/app-logo.png" alt="BATTLEHUB" className="w-full h-full rounded-full object-cover bg-gray-900" onError={(e) => { e.target.src = "https://api.dicebear.com/6.x/bottts/svg?seed=BH"; }} />
+      {/* Media Layer */}
+      {post.type === "video" && post.media_url ? (
+        <>
+          <video 
+            ref={videoRef}
+            src={post.media_url} 
+            poster={post.thumbnail_url}
+            className="absolute w-full h-full object-cover md:object-contain"
+            loop
+            playsInline
+            muted={isMuted}
+          />
+          {/* Pause Overlay Icon */}
+          {!isPlaying && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none transition-opacity">
+              <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white">
+                <Play className="w-10 h-10 ml-1 fill-white" />
+              </div>
+            </div>
+          )}
+          
+          {/* Mute/Unmute Toggle */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+            className="absolute top-20 right-4 z-20 w-10 h-10 bg-black/40 backdrop-blur rounded-full flex items-center justify-center text-white"
+          >
+            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+          </button>
+        </>
+      ) : post.type === "image" && post.media_url ? (
+        <img src={post.media_url} alt={post.title} className="absolute w-full h-full object-cover md:object-contain" loading="lazy" />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black flex items-center justify-center p-8">
+          <p className="text-2xl text-center font-bold text-white leading-tight">{post.title}</p>
+        </div>
+      )}
+
+      {/* Dark Gradient Overlay for text readability */}
+      <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+
+      {/* Info Layer (Bottom Left) */}
+      <div className="absolute bottom-0 left-0 p-4 pb-24 w-[85%] z-10 flex flex-col justify-end pointer-events-auto">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full border-2 border-orange-500 overflow-hidden bg-gray-900">
+            <img 
+              src={post.author_avatar || "/app-logo.png"} 
+              alt="Author" 
+              className="w-full h-full object-cover" 
+              onError={(e) => { e.target.src = "https://api.dicebear.com/6.x/bottts/svg?seed=BH"; }} 
+            />
           </div>
-          <div>
-            <p className="text-white font-bold text-sm">BATTLEHUB FF</p>
-            <p className="text-gray-400 text-xs flex items-center gap-1">
+          <div className="flex flex-col">
+            <span className="text-white font-bold text-[15px] drop-shadow-md flex items-center gap-2">
+              {post.author_name || "BATTLEHUB FF"}
+              {post.is_pinned && <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full">Pinned</span>}
+            </span>
+            <span className="text-gray-300 text-xs drop-shadow-md">
               {formatDistanceToNow(new Date(post.created_date || Date.now()), { addSuffix: true })}
-              {post.is_pinned && <span className="text-orange-400">• Pinned</span>}
-            </p>
+            </span>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white rounded-full">
-          <MoreVertical className="w-5 h-5" />
-        </Button>
-      </div>
 
-      {/* Content */}
-      <div className="p-4">
-        {post.title && <h3 className="text-lg font-bold text-white mb-2 leading-tight">{post.title}</h3>}
+        {post.title && post.type !== "text" && (
+          <h3 className="text-white font-bold text-lg mb-1 drop-shadow-md">{post.title}</h3>
+        )}
+        
         {post.description && (
-          <p className={`text-gray-300 text-sm whitespace-pre-wrap ${!isDetail ? "line-clamp-3" : ""} mb-4`}>
+          <p className="text-gray-200 text-sm line-clamp-2 drop-shadow-md w-[90%]">
             {post.description}
           </p>
         )}
       </div>
 
-      {/* Media */}
-      {post.type === "image" && post.media_url && (
-        <div className="w-full bg-black relative max-h-[500px] flex items-center justify-center overflow-hidden">
-          <img src={post.media_url} alt={post.title} className="w-full h-auto max-h-[500px] object-contain" loading="lazy" />
+      {/* Actions Layer (Bottom Right Vertical Stack) */}
+      <div className="absolute bottom-0 right-0 p-4 pb-24 z-10 flex flex-col items-center justify-end gap-6 pointer-events-auto">
+        
+        <div className="flex flex-col items-center gap-1 group">
+          <button 
+            onClick={handleLike}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${liked ? 'bg-red-500/20' : 'bg-black/40 backdrop-blur'}`}
+          >
+            <Heart className={`w-7 h-7 ${liked ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+          </button>
+          <span className="text-white text-xs font-bold drop-shadow-md">{likesCount}</span>
         </div>
-      )}
 
-      {post.type === "video" && post.media_url && (
-        <div className="w-full bg-black relative max-h-[600px] flex items-center justify-center">
-          <video 
-            src={post.media_url} 
-            poster={post.thumbnail_url}
-            className="w-full h-auto max-h-[600px] object-contain"
-            controls={isDetail || isPlaying}
-            preload="metadata"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsPlaying(true);
-            }}
-          />
-          {!isPlaying && !isDetail && (
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white">
-                <Play className="w-8 h-8 ml-1" />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        {!post.comments_disabled && (
+          <div className="flex flex-col items-center gap-1 group">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onOpenComments(post); }}
+              className="w-12 h-12 rounded-full bg-black/40 backdrop-blur flex items-center justify-center transition-transform hover:scale-110"
+            >
+              <MessageCircle className="w-7 h-7 text-white" />
+            </button>
+            <span className="text-white text-xs font-bold drop-shadow-md">Comment</span>
+          </div>
+        )}
 
-      {/* Action Bar */}
-      <div className="flex items-center justify-between p-2 border-t border-gray-800/50">
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" className={`flex items-center gap-2 rounded-xl px-3 ${liked ? 'text-red-500' : 'text-gray-300 hover:bg-gray-800 hover:text-red-400'}`} onClick={handleLike}>
-            <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
-            <span className="text-sm font-medium">{likesCount}</span>
-          </Button>
-          {!post.comments_disabled && (
-            <Button variant="ghost" className="flex items-center gap-2 rounded-xl px-3 text-gray-300 hover:bg-gray-800 hover:text-white" onClick={handleCommentClick}>
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-sm font-medium">Comment</span>
-            </Button>
-          )}
-          <Button variant="ghost" className="flex items-center gap-2 rounded-xl px-3 text-gray-300 hover:bg-gray-800 hover:text-white" onClick={handleShare}>
-            <Share2 className="w-5 h-5" />
-          </Button>
+        <div className="flex flex-col items-center gap-1 group">
+          <button 
+            onClick={handleSave}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${saved ? 'bg-orange-500/20' : 'bg-black/40 backdrop-blur'}`}
+          >
+            <Bookmark className={`w-7 h-7 ${saved ? 'text-orange-500 fill-orange-500' : 'text-white'}`} />
+          </button>
+          <span className="text-white text-xs font-bold drop-shadow-md">Save</span>
         </div>
-        <div className="flex items-center gap-2 pr-2">
-           <span className="text-xs text-gray-500">{post.views || 0} views</span>
-           <Button variant="ghost" size="icon" className={`rounded-xl ${saved ? 'text-orange-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} onClick={handleSave}>
-             <Bookmark className={`w-5 h-5 ${saved ? 'fill-current' : ''}`} />
-           </Button>
-        </div>
+
       </div>
     </div>
   );

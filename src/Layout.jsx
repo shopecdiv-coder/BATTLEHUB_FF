@@ -149,14 +149,6 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
-            <Link to={createPageUrl("Home")} className="flex items-center gap-2">
-              <span className="font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
-                BATTLEHUB FF
-              </span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            {user && <NotificationBell />}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -167,7 +159,7 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700 text-white" align="end">
+                <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700 text-white" align="start">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{user.full_name}</p>
@@ -188,6 +180,12 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
+              <div className="w-10 h-10" />
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            {user && <NotificationBell />}
+            {!user && (
               <Button onClick={() => navigate(createPageUrl("Login"))} size="sm" className="bg-gradient-to-r from-orange-500 to-red-500">
                 Login
               </Button>

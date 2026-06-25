@@ -28,3 +28,8 @@ dist-ssr
 *.sw?
 
 .env
+
+# Scripts and Data
+*.mjs
+data_import/
+serviceAccountKey.json
