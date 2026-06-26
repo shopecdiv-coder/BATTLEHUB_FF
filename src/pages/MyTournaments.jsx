@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Calendar, Users, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import RegistrationInvoiceDownload from "@/components/tournament/RegistrationInvoiceDownload";
 
 import { format } from "date-fns";
 
@@ -205,7 +206,8 @@ function RegistrationList({ registrations, tournaments, loading }) {
                   </div>
                 </div>
 
-                <div className="flex justify-end mt-4">
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-800">
+                  <RegistrationInvoiceDownload registration={registration} tournament={tournament} />
                   <Button
                     variant="ghost"
                     className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"

@@ -11,6 +11,7 @@ import { UploadFile } from "@/integrations/Core";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import RegistrationSuccessModal from "./RegistrationSuccessModal";
+import RegistrationInvoiceDownload from "./RegistrationInvoiceDownload";
 import SlotPicker from "./SlotPicker";
 import {
   Dialog,
@@ -1184,62 +1185,24 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
             </div>
 
             {/* Download Invoice Button */}
-            <button
-              onClick={() => {
-                const mems = (successData.finalMembers || teamMembers);
-                const membersStr = mems.map((m, i) => `  ${i+1}. ${m.ign} | UID: ${m.uid}${m.isLeader ? " 👑 Leader" : ""}`).join("\n");
-                const content = `🏆 BATTLEHUB FF — ENTRY INVOICE
-═══════════════════════════════════════
-
-✅ REGISTRATION CONFIRMED
-
-Invoice ID  : #${successData.invoiceId}
-Date        : ${new Date().toLocaleString("en-IN", {timeZone:"Asia/Kolkata"})}
-
-═══════════════════════════════════════
-TOURNAMENT DETAILS
-═══════════════════════════════════════
-Tournament  : ${tournament.title}
-Mode        : ${tournament.mode}
-Map         : ${tournament.map || "Bermuda"}
-Match Date  : ${new Date(tournament.date_time).toLocaleString("en-IN", {timeZone:"Asia/Kolkata"})}
-Max Teams   : ${tournament.max_teams}
-
-═══════════════════════════════════════
-TEAM / PLAYER DETAILS
-═══════════════════════════════════════
-Team Name   : ${successData.teamName}
-Phone       : ${phoneNumber}
-
-Members:
-${membersStr}
-
-═══════════════════════════════════════
-PAYMENT
-═══════════════════════════════════════
-Entry Fee   : ${requiredCoins} ${paymentMethod === "Diamond" ? "Diamond 💎" : "BH Coin 🪙"}
-Payment     : ${paymentMethod}
-Status      : PAID & CONFIRMED ✅
-Registered  : ${new Date().toLocaleString("en-IN", {timeZone:"Asia/Kolkata"})}
-
-═══════════════════════════════════════
-⚠️  Room ID & Password will be shared 10 minutes before match.
-🌐  battlehubff.site | 📧 helpbattlehub@gmail.com
-🎮  Good Luck! — BattleHub FF Team
-═══════════════════════════════════════`;
-                const blob = new Blob([content], { type: "text/plain" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `BHFF_Invoice_${successData.invoiceId}.txt`;
-                a.click();
-                URL.revokeObjectURL(url);
+            <RegistrationInvoiceDownload 
+              registration={{
+                id: successData.invoiceId.replace("#BHFF-", ""),
+                team_name: successData.teamName,
+                team_logo: successData.logoUrl,
+                team_members: successData.finalMembers || teamMembers,
+                team_leader_id: user?.id,
+                status: "PAID & CONFIRMED ✅",
+                created_date: new Date().toISOString()
+              }} 
+              tournament={{
+                ...tournament,
+                entry_fee: requiredCoins === 0 ? "Free" : `${requiredCoins} ${(successData?.payMethod || paymentMethod) === "Diamond" ? "💎" : "🪙"}`
               }}
               className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              Download Invoice (.txt)
-            </button>
+              variant="outline"
+              size="lg"
+            />
 
             <button
               onClick={() => { setShowSuccessModal(false); onSuccess(); }}
