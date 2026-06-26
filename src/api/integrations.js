@@ -174,42 +174,6 @@ export const ExtractDataFromUploadedFile = async ({ fileUrl }) => {
   return { success: true, text: "Mock extracted text data" };
 };
 
-// 7. UploadPDFToCloudinary - Fallback for WebView native download support
-export const UploadPDFToCloudinary = async ({ blob, fileName }) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const apiKey = "152364715435361";
-      const apiSecret = "lF9Ql4CAQMo35ScTgmSgvRCAAyc"; 
-      const cloudName = "didrpegpv";
-
-      const timestamp = Math.round(new Date().getTime() / 1000);
-      const signatureString = `timestamp=${timestamp}${apiSecret}`;
-      const signature = CryptoJS.SHA1(signatureString).toString(CryptoJS.enc.Hex);
-
-      const formData = new FormData();
-      formData.append("file", blob, fileName);
-      formData.append("api_key", apiKey);
-      formData.append("timestamp", timestamp);
-      formData.append("signature", signature);
-
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`, {
-        method: "POST",
-        body: formData
-      });
-
-      const result = await response.json();
-      if (result.secure_url) {
-        resolve(result.secure_url);
-      } else {
-        reject(new Error("Cloudinary upload failed"));
-      }
-    } catch (e) {
-      console.error(e);
-      reject(e);
-    }
-  });
-};
-
 // Compatibility export
 export const Core = {
   UploadFile,
@@ -217,6 +181,5 @@ export const Core = {
   InvokeLLM,
   SendSMS,
   GenerateImage,
-  ExtractDataFromUploadedFile,
-  UploadPDFToCloudinary
+  ExtractDataFromUploadedFile
 };

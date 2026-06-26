@@ -2,7 +2,6 @@ import React, { forwardRef, useImperativeHandle, useState, useRef } from 'react'
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
-import { Core } from "@/api/integrations";
 
 import { User } from "@/entities/User";
 import { Notification } from "@/entities/Notification";
@@ -104,18 +103,9 @@ const DataReportGenerator = forwardRef((props, ref) => {
         
         const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.pdf`;
         
-        try {
-          const url = await Core.UploadPDFToCloudinary({ blob, fileName });
-          if (window.AndroidBridge && window.AndroidBridge.downloadUrl) {
-            window.AndroidBridge.downloadUrl(url, fileName);
-          } else {
-            window.open(url, '_blank');
-          }
-          alert(`✅ Report Generated! File Size: ${sizeMB} MB`);
-        } catch (e) {
-          pdf.save(fileName);
-          setTimeout(() => alert(`✅ Report Generated! File Size: ${sizeMB} MB`), 500);
-        }
+        pdf.save(fileName);
+        
+        setTimeout(() => alert(`✅ Report Generated! File Size: ${sizeMB} MB`), 500);
         
         setData(null);
         return true;
