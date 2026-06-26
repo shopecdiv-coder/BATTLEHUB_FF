@@ -2,7 +2,6 @@ import React, { forwardRef, useImperativeHandle, useState, useRef } from 'react'
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 import { User } from "@/entities/User";
 import { Notification } from "@/entities/Notification";
@@ -166,30 +165,43 @@ const DataReportGenerator = forwardRef((props, ref) => {
         <div style={{ marginBottom: '30px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 'bold', borderBottom: '1px solid #e5e7eb', paddingBottom: '5px', marginBottom: '15px' }}>Performance Analysis</h3>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
-            <div style={{ width: '50%', height: '250px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
-              <h4 style={{ textAlign: 'center', fontSize: '14px', marginBottom: '10px' }}>Win/Loss Ratio</h4>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie isAnimationActive={false} data={pieData.length > 0 ? pieData : [{ name: "No Data", value: 1, color: "#d1d5db" }]} cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5} dataKey="value">
-                    {(pieData.length > 0 ? pieData : [{ name: "No Data", value: 1, color: "#d1d5db" }]).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ textAlign: 'center', fontSize: '12px' }}>Total Tournaments: {totalTournaments} | Wins: {totalWins}</div>
+            {/* Simple CSS Win/Loss Bar */}
+            <div style={{ width: '50%', height: '250px', backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <h4 style={{ textAlign: 'center', fontSize: '14px', marginBottom: '20px' }}>Win/Loss Ratio</h4>
+              <div style={{ width: '100%', height: '30px', backgroundColor: '#ef4444', borderRadius: '15px', overflow: 'hidden', display: 'flex', marginBottom: '15px' }}>
+                <div style={{ width: `${totalTournaments > 0 ? (totalWins / totalTournaments) * 100 : 0}%`, backgroundColor: '#22c55e', height: '100%' }}></div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '12px', fontWeight: 'bold' }}>
+                <span style={{ color: '#22c55e' }}>Wins: {totalWins}</span>
+                <span style={{ color: '#ef4444' }}>Losses: {totalLosses}</span>
+              </div>
+              <div style={{ textAlign: 'center', fontSize: '12px', marginTop: '20px', color: '#6b7280' }}>Total Tournaments: {totalTournaments}</div>
             </div>
             
-            <div style={{ width: '50%', height: '250px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
-              <h4 style={{ textAlign: 'center', fontSize: '14px', marginBottom: '10px' }}>Recent Kills History</h4>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={killsData.length > 0 ? killsData : [{ name: 'N/A', kills: 0 }]}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Bar isAnimationActive={false} dataKey="kills" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            {/* Simple CSS Bar Chart for Kills */}
+            <div style={{ width: '50%', height: '250px', backgroundColor: '#f9fafb', padding: '15px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
+              <h4 style={{ textAlign: 'center', fontSize: '14px', marginBottom: '15px' }}>Recent Kills History</h4>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '8px', paddingBottom: '5px', borderBottom: '1px solid #e5e7eb', height: '150px' }}>
+                {killsData.length > 0 ? killsData.map((d, i) => {
+                  const maxKills = Math.max(...killsData.map(k => k.kills)) || 1;
+                  const heightPct = (d.kills / maxKills) * 100;
+                  return (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                      <span style={{ fontSize: '10px', color: '#6b7280', marginBottom: '4px' }}>{d.kills}</span>
+                      <div style={{ width: '100%', height: `${heightPct}%`, backgroundColor: '#3b82f6', borderRadius: '4px 4px 0 0', minHeight: d.kills > 0 ? '5px' : '0' }}></div>
+                    </div>
+                  );
+                }) : (
+                  <div style={{ width: '100%', textAlign: 'center', color: '#9ca3af', fontSize: '12px', alignSelf: 'center' }}>No Data</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '5px' }}>
+                {killsData.map((d, i) => (
+                  <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: '8px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {d.name.substring(0, 4)}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
