@@ -745,7 +745,7 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                   >
                     Closed
                   </Button>
-                )}>
+                )}
                 <Button
                   onClick={async () => {
                     if (tournament.status === "Live") {
