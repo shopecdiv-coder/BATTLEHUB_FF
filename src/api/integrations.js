@@ -179,7 +179,7 @@ export const Core = {
   UploadFile,
   SendEmail,
   InvokeLLM,
-  UpdateData,
-  DeleteData,
+  SendSMS,
+  GenerateImage,
   ExtractDataFromUploadedFile
 };

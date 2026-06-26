@@ -5,7 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
-    <title>Base44 APP</title>
+    <title>Base44 App</title>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        fetch('http://localhost:5173/__log_error', {
+          method: 'POST',
+          body: JSON.stringify({ message, source, lineno, colno, stack: error ? error.stack : '' })
+        }).catch(console.error);
+        console.error("CAUGHT ERROR:", message, error);
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        fetch('http://localhost:5173/__log_error', {
+          method: 'POST',
+          body: JSON.stringify({ message: "Unhandled Promise Rejection", reason: event.reason ? event.reason.stack || event.reason : "Unknown" })
+        }).catch(console.error);
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
