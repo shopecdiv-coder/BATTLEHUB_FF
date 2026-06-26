@@ -45,16 +45,15 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
       
       setGenerating(false);
 
-      setTimeout(async () => {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ title: fileName, files: [file] });
-          } catch (err) {
-            pdf.save(fileName);
-          }
-        } else {
-          pdf.save(fileName);
-        }
+      setTimeout(() => {
+        const dataUri = pdf.output('datauristring');
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
         alert(`✅ PDF Generated! File Size: ${sizeMB} MB`);
       }, 300);
       return;

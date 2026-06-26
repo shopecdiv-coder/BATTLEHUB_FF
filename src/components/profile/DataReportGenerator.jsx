@@ -101,9 +101,19 @@ const DataReportGenerator = forwardRef((props, ref) => {
         const blob = pdf.output('blob');
         const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
         
-        pdf.save(`BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.pdf`);
+        const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.pdf`;
         
-        setTimeout(() => alert(`✅ Report Generated! File Size: ${sizeMB} MB`), 500);
+        setTimeout(() => {
+          const dataUri = pdf.output('datauristring');
+          const link = document.createElement('a');
+          link.href = dataUri;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          alert(`✅ Report Generated! File Size: ${sizeMB} MB`);
+        }, 500);
         
         setData(null);
         return true;
