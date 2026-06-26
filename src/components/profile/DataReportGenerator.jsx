@@ -1,7 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
+import { X, Image as ImageIcon } from "lucide-react";
 
 import { User } from "@/entities/User";
 import { Notification } from "@/entities/Notification";
@@ -18,6 +18,7 @@ import { GlobalChat } from "@/entities/GlobalChat";
 const DataReportGenerator = forwardRef((props, ref) => {
   const [data, setData] = useState(null);
   const containerRef = useRef(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   useImperativeHandle(ref, () => ({
     generatePDF: async () => {
@@ -70,55 +71,36 @@ const DataReportGenerator = forwardRef((props, ref) => {
 
         if (!containerRef.current) return false;
 
-        // Start PDF generation
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        
-        const canvas = await html2canvas(containerRef.current, {
-          scale: 1,
-          useCORS: true,
-          logging: false
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.6);
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
-        }
-
-        const blob = pdf.output('blob');
-        const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-        
-        const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.pdf`;
-        
-        pdf.save(fileName);
-        
-        setTimeout(() => alert(`✅ Report Generated! File Size: ${sizeMB} MB`), 500);
+        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        setPreviewImage(imgData);
         
         setData(null);
         return true;
 
       } catch (error) {
-        console.error("PDF Generation failed:", error);
+        console.error("Image generation failed:", error);
         setData(null);
         return false;
       }
     }
   }));
 
-  if (!data) return null;
+  const handleSaveToPhotos = () => {
+    const currentUser = data?.user || { id: "unknown" };
+    const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.jpg`;
+    
+    if (window.AndroidBridge && window.AndroidBridge.downloadBase64) {
+      window.AndroidBridge.downloadBase64(previewImage, "image/jpeg", fileName);
+      alert("Saving to photos...");
+    } else {
+      const link = document.createElement("a");
+      link.href = previewImage;
+      link.download = fileName;
+      link.click();
+    }
+  };
+
+  if (!data && !previewImage) return null;
 
   const { user, wallet, registrations, payments, redeems, activeUsers, notifications, leaderboardEntries, taskSubmissions, redeemCodes, globalChats } = data;
   
@@ -136,6 +118,7 @@ const DataReportGenerator = forwardRef((props, ref) => {
   }));
 
   return (
+    <>
     <div style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
       <div ref={containerRef} style={{ width: '794px', backgroundColor: 'white', color: 'black', padding: '40px', fontFamily: 'sans-serif' }}>
         
@@ -438,6 +421,28 @@ const DataReportGenerator = forwardRef((props, ref) => {
         </div>
       </div>
     </div>
+
+    {/* Fullscreen Image Preview Modal */}
+    {previewImage && (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        
+        <div style={{ position: 'absolute', top: '15px', left: '15px', right: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100000 }}>
+           <button onClick={() => setPreviewImage(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+             <X size={24} />
+           </button>
+           <button onClick={handleSaveToPhotos} style={{ backgroundColor: '#f97316', color: 'white', fontWeight: 'bold', padding: '10px 15px', borderRadius: '8px', border: 'none', display: 'flex', alignItems: 'center' }}>
+             <ImageIcon size={18} style={{ marginRight: '8px' }} />
+             Save to Photos
+           </button>
+        </div>
+
+        <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '70px 10px 20px 10px' }}>
+          <img src={previewImage} alt="Report Preview" style={{ maxWidth: '100%', maxHeight: 'none', objectFit: 'contain', backgroundColor: 'white' }} />
+        </div>
+
+      </div>
+    )}
+    </>
   );
 });
 

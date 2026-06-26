@@ -1,57 +1,53 @@
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, X, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 
 const LOGO_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y5NzMxNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjQwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJIPC90ZXh0Pjwvc3ZnPg==";
 const SIGNATURE_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iODAiPjx0ZXh0IHg9IjEwMCIgeT0iNTAiIGZvbnQtZmFtaWx5PSInQnJ1c2ggU2NyaXB0IE1UJywgY3Vyc2l2ZSIgZm9udC1zaXplPSIzNSIgZmlsbD0iYmxhY2siIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNoaXZhbSBLdW1hcjwvdGV4dD48L3N2Zz4=";
 
-
 export default function CoinInvoiceDownload({ paymentRequest, user }) {
   const containerRef = useRef(null);
   const [generating, setGenerating] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const generateInvoice = async () => {
     if (!containerRef.current) return;
     setGenerating(true);
     
     try {
-      // Small delay to ensure any fonts/images are loaded if we rely on external ones
       await new Promise(r => setTimeout(r, 200));
       
-      const req = paymentRequest;
-      const invoiceNo = `BHFF-INV-${req.id?.slice(-8).toUpperCase() || Math.random().toString(36).slice(-8).toUpperCase()}`;
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      
       const canvas = await html2canvas(containerRef.current, {
-        scale: 1.5,
+        scale: 2,
         useCORS: true,
         logging: false
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.6);
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
-      
-      const blob = pdf.output('blob');
-      const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-      const fileName = `BHFF-Invoice-${invoiceNo}.pdf`;
-      
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      setPreviewImage(imgData);
       setGenerating(false);
-
-      pdf.save(fileName);
-        
-      setTimeout(() => alert(`✅ Invoice Generated! File Size: ${sizeMB} MB`), 500);
-      return;
     } catch (e) {
-      console.error("PDF generation failed:", e);
-      alert("Failed to generate PDF invoice.");
+      console.error("Image generation failed:", e);
+      alert("Failed to generate invoice image.");
       setGenerating(false);
+    }
+  };
+
+  const handleSaveToPhotos = () => {
+    const req = paymentRequest;
+    const invoiceNo = `BHFF-INV-${req.id?.slice(-8).toUpperCase() || "UNKNOWN"}`;
+    const fileName = `${invoiceNo}.jpg`;
+    
+    if (window.AndroidBridge && window.AndroidBridge.downloadBase64) {
+      window.AndroidBridge.downloadBase64(previewImage, "image/jpeg", fileName);
+      alert("Saving to photos...");
+    } else {
+      const link = document.createElement("a");
+      link.href = previewImage;
+      link.download = fileName;
+      link.click();
     }
   };
 
@@ -67,7 +63,7 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
         onClick={generateInvoice}
         disabled={generating}
         className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 gap-1"
-        title="Download PDF Invoice"
+        title="Download Invoice Image"
       >
         {generating ? <Download className="w-3.5 h-3.5 animate-bounce" /> : <FileText className="w-3.5 h-3.5" />}
         {generating ? "Generating..." : "Invoice"}
@@ -172,6 +168,27 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
           
         </div>
       </div>
+
+      {/* Fullscreen Image Preview Modal */}
+      {previewImage && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          
+          <div style={{ position: 'absolute', top: '15px', left: '15px', right: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100000 }}>
+             <button onClick={() => setPreviewImage(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+               <X size={24} />
+             </button>
+             <Button onClick={handleSaveToPhotos} style={{ backgroundColor: '#f97316', color: 'white', fontWeight: 'bold' }}>
+               <ImageIcon size={18} style={{ marginRight: '8px' }} />
+               Save to Photos
+             </Button>
+          </div>
+
+          <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '70px 10px 20px 10px' }}>
+            <img src={previewImage} alt="Invoice Preview" style={{ maxWidth: '100%', maxHeight: 'none', objectFit: 'contain', backgroundColor: 'white' }} />
+          </div>
+
+        </div>
+      )}
     </>
   );
 }
