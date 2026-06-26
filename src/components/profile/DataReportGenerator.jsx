@@ -135,7 +135,7 @@ const DataReportGenerator = forwardRef((props, ref) => {
   }));
 
   return (
-    <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', zIndex: -9999 }}>
+    <div style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
       <div ref={containerRef} style={{ width: '794px', backgroundColor: 'white', color: 'black', padding: '40px', fontFamily: 'sans-serif' }}>
         
         {/* Header */}
