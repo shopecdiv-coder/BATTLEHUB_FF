@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Trophy, Users, Shield, Star, BookOpen, Bell, HelpCircle,
   Gift, Wallet, MessageCircle, LogOut, User as UserIcon,
-  Settings, FileText, Scale, Lock, Info, RefreshCw, Gem, Share2, Flame
+  Settings, FileText, Scale, Lock, Info, RefreshCw, Gem, Share2, Flame, ChevronRight
 } from "lucide-react";
 
 export default function Menu() {
@@ -105,21 +105,21 @@ export default function Menu() {
 
         {/* Menu Sections */}
         {menuSections.map((section, index) => (
-          <div key={index}>
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 px-2">{section.title}</h3>
-            <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)] overflow-hidden">
+          <div key={index} className="mb-5">
+            <h3 className="text-[11px] uppercase tracking-wider font-bold text-gray-500 mb-2 px-1">{section.title}</h3>
+            <Card className="bg-[#111111]/80 backdrop-blur-md border border-white/5 rounded-xl overflow-hidden shadow-lg">
               <CardContent className="p-0">
                 {section.items.map((item, idx) => (
                   <Link
                     key={idx}
                     to={createPageUrl(item.path)}
-                    className="flex items-center gap-4 p-4 border-b border-white/5 last:border-0 hover:bg-white/10 transition-colors"
+                    className="flex items-center gap-3 p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-all active:bg-white/10"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
-                      <item.icon className="w-5 h-5 text-orange-400" />
+                    <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-white/5 flex items-center justify-center shadow-inner">
+                      <item.icon className="w-4 h-4 text-orange-400 opacity-90" />
                     </div>
-                    <span className="flex-1 text-gray-200 font-medium">{item.name}</span>
-                    <span className="text-gray-500">›</span>
+                    <span className="flex-1 text-gray-300 font-medium text-sm">{item.name}</span>
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
                   </Link>
                 ))}
               </CardContent>
@@ -129,19 +129,19 @@ export default function Menu() {
 
         {/* Admin Dashboard (if admin) */}
         {user?.role === "admin" && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 px-2">Admin</h3>
-            <Card className="bg-red-900/30 border-red-500/30">
+          <div className="mb-5">
+            <h3 className="text-[11px] uppercase tracking-wider font-bold text-red-500/70 mb-2 px-1">Admin</h3>
+            <Card className="bg-[#1a0f0f]/80 backdrop-blur-md border border-red-500/20 rounded-xl overflow-hidden shadow-lg">
               <CardContent className="p-0">
                 <Link
                   to={createPageUrl("AdminDashboard")}
-                  className="flex items-center gap-4 p-4 hover:bg-red-900/40 transition-colors"
+                  className="flex items-center gap-3 p-3 hover:bg-red-500/10 transition-all active:bg-red-500/20"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-red-400" />
+                  <div className="w-8 h-8 rounded-md bg-red-950/50 border border-red-500/20 flex items-center justify-center shadow-inner">
+                    <Shield className="w-4 h-4 text-red-400" />
                   </div>
-                  <span className="flex-1 text-red-400 font-bold">Admin Dashboard</span>
-                  <span className="text-red-500">›</span>
+                  <span className="flex-1 text-red-400 font-semibold text-sm">Admin Dashboard</span>
+                  <ChevronRight className="w-4 h-4 text-red-500/50" />
                 </Link>
               </CardContent>
             </Card>
@@ -151,7 +151,7 @@ export default function Menu() {
         {/* Logout Button */}
         <Button
           onClick={handleLogout}
-          className="w-full bg-red-600 hover:bg-red-700 text-white py-6 text-lg font-bold"
+          className="w-full bg-red-600/90 hover:bg-red-600 text-white py-5 text-base font-bold rounded-xl shadow-lg mt-2"
         >
           <LogOut className="w-5 h-5 mr-2" />
           Logout
