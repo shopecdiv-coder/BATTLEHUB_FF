@@ -41,21 +41,12 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
       const blob = pdf.output('blob');
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
       const fileName = `BHFF-Invoice-${invoiceNo}.pdf`;
-      const file = new File([blob], fileName, { type: 'application/pdf' });
       
       setGenerating(false);
 
-      setTimeout(() => {
-        const dataUri = pdf.output('datauristring');
-        const link = document.createElement('a');
-        link.href = dataUri;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      pdf.save(fileName);
         
-        alert(`✅ PDF Generated! File Size: ${sizeMB} MB`);
-      }, 300);
+      setTimeout(() => alert(`✅ Invoice Generated! File Size: ${sizeMB} MB`), 500);
       return;
     } catch (e) {
       console.error("PDF generation failed:", e);
