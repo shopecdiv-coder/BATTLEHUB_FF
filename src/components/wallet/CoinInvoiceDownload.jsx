@@ -37,26 +37,13 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
-      
       const blob = pdf.output('blob');
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-      const fileName = `BHFF-Invoice-${invoiceNo}.pdf`;
-      const file = new File([blob], fileName, { type: 'application/pdf' });
+      
+      pdf.save(`BHFF-Invoice-${invoiceNo}.pdf`);
       
       setGenerating(false);
-
-      setTimeout(async () => {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ title: fileName, files: [file] });
-          } catch (err) {
-            pdf.save(fileName);
-          }
-        } else {
-          pdf.save(fileName);
-        }
-        alert(`✅ PDF Generated! File Size: ${sizeMB} MB`);
-      }, 300);
+      setTimeout(() => alert(`✅ PDF Generated! File Size: ${sizeMB} MB`), 300);
       return;
     } catch (e) {
       console.error("PDF generation failed:", e);
@@ -76,12 +63,20 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
         variant="outline"
         onClick={generateInvoice}
         disabled={generating}
-        className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 gap-1"
-        title="Download PDF Invoice"
+        className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 gap-1 mt-2"
+        title="Download Invoice"
       >
-        {generating ? <Download className="w-3.5 h-3.5 animate-bounce" /> : <FileText className="w-3.5 h-3.5" />}
+        {generating ? <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
         {generating ? "Generating..." : "Invoice"}
       </Button>
+
+      {generating && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          <div style={{ width: '48px', height: '48px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }}></div>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Generating Invoice...</h2>
+        </div>
+      )}
 
       {/* Hidden PDF Template */}
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', zIndex: -9999 }}>
