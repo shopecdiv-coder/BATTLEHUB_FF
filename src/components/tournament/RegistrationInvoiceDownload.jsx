@@ -76,10 +76,13 @@ export default function RegistrationInvoiceDownload({ registration, tournament, 
 
       <div style={{ position: 'fixed', top: '-9999px', left: '-9999px', zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
         <div ref={containerRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: 'white', color: '#111827', padding: '40px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0', textDecoration: 'underline', color: '#111827' }}>BATTLEHUB FF</h1>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e5e7eb', paddingBottom: '20px', marginBottom: '30px' }}>
             <div>
-              <img src={LOGO_BASE64} alt="BattleHub Logo" style={{ height: '60px', marginBottom: '10px' }} />
-              <p style={{ margin: '0', fontSize: '12px', color: '#4b5563' }}>BattleHub FF Official</p>
+              <p style={{ margin: '0', fontSize: '12px', color: '#4b5563', fontWeight: 'bold' }}>Greater Noida, Gautam Buddha Nagar</p>
+              <p style={{ margin: '0', fontSize: '12px', color: '#4b5563' }}>Uttar Pradesh, India</p>
               <p style={{ margin: '0', fontSize: '12px', color: '#4b5563' }}>Email: helpbattlehub@gmail.com</p>
             </div>
             <div style={{ textAlign: 'right' }}>

@@ -74,10 +74,12 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
         <div ref={containerRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: 'white', color: '#111827', padding: '40px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
           
           {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0', textDecoration: 'underline', color: '#111827' }}>BATTLEHUB FF</h1>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e5e7eb', paddingBottom: '20px', marginBottom: '30px' }}>
             <div>
-              <img src={LOGO_BASE64} alt="BattleHub Logo" style={{ height: '60px', marginBottom: '10px' }} />
-              <p style={{ margin: '0', fontSize: '12px', color: '#4b5563' }}>Greater Noida, Gautam Buddha Nagar</p>
+              <p style={{ margin: '0', fontSize: '12px', color: '#4b5563', fontWeight: 'bold' }}>Greater Noida, Gautam Buddha Nagar</p>
               <p style={{ margin: '0', fontSize: '12px', color: '#4b5563' }}>Uttar Pradesh, India</p>
               <p style={{ margin: '0', fontSize: '12px', color: '#4b5563' }}>Email: helpbattlehub@gmail.com</p>
             </div>
@@ -177,10 +179,6 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
              <button onClick={() => setPreviewImage(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                <X size={24} />
              </button>
-             <Button onClick={handleSaveToPhotos} style={{ backgroundColor: '#f97316', color: 'white', fontWeight: 'bold' }}>
-               <ImageIcon size={18} style={{ marginRight: '8px' }} />
-               Save to Photos
-             </Button>
           </div>
 
           <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '70px 10px 20px 10px' }}>

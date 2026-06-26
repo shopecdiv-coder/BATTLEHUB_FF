@@ -124,7 +124,7 @@ const DataReportGenerator = forwardRef((props, ref) => {
         
         {/* Header */}
         <div style={{ textAlign: 'center', borderBottom: '2px solid #e5e7eb', paddingBottom: '20px', marginBottom: '30px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0 0 10px 0', color: '#111827' }}>BATTLEHUB FF</h1>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0 0 10px 0', textDecoration: 'underline', color: '#111827' }}>BATTLEHUB FF</h1>
           <h2 style={{ fontSize: '20px', color: '#4b5563', margin: '0' }}>Complete User Data Report</h2>
           <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '10px' }}>Generated on: {format(new Date(), 'dd MMM yyyy, hh:mm:ss a')}</p>
         </div>
