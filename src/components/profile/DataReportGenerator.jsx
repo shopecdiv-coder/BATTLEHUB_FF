@@ -18,13 +18,11 @@ import { GlobalChat } from "@/entities/GlobalChat";
 
 const DataReportGenerator = forwardRef((props, ref) => {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
   const containerRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
     generatePDF: async () => {
       try {
-        setLoading(true);
         const currentUser = await User.me();
         if (!currentUser) throw new Error("Not logged in");
 
@@ -106,25 +104,18 @@ const DataReportGenerator = forwardRef((props, ref) => {
         
         pdf.save(`BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.pdf`);
         
-        setData(null);
-        setLoading(false);
         setTimeout(() => alert(`✅ Report Generated! File Size: ${sizeMB} MB`), 500);
+        
+        setData(null);
         return true;
 
       } catch (error) {
         console.error("PDF Generation failed:", error);
         setData(null);
-        setLoading(false);
         return false;
       }
     }
   }));
-
-  if (loading) return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.9)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold' }}>
-      Generating Report...
-    </div>
-  );
 
   if (!data) return null;
 

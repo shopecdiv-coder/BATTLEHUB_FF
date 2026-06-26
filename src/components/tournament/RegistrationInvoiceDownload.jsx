@@ -37,13 +37,26 @@ export default function RegistrationInvoiceDownload({ registration, tournament, 
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight);
+      
       const blob = pdf.output('blob');
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-      
-      pdf.save(`BHFF-Reg-${invoiceNo}.pdf`);
+      const fileName = `BHFF-Reg-${invoiceNo}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
       
       setGenerating(false);
-      setTimeout(() => alert(`✅ Registration Invoice Generated! File Size: ${sizeMB} MB`), 300);
+
+      setTimeout(async () => {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ title: fileName, files: [file] });
+          } catch (err) {
+            pdf.save(fileName);
+          }
+        } else {
+          pdf.save(fileName);
+        }
+        alert(`✅ Registration Invoice Generated! File Size: ${sizeMB} MB`);
+      }, 300);
       return;
     } catch (err) {
       console.error("PDF generation failed:", err);
@@ -59,23 +72,16 @@ export default function RegistrationInvoiceDownload({ registration, tournament, 
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <Button
-        variant={variant || "outline"}
         size={size || "sm"}
+        variant={variant || "outline"}
         onClick={generateInvoice}
         disabled={generating}
-        className={`${className || "border-purple-500/50 text-purple-400 hover:bg-purple-500/10 gap-1 mt-2"} flex items-center justify-center gap-2`}
+        className={className || "border-purple-500/50 text-purple-400 hover:bg-purple-500/10 gap-1 mt-2"}
+        title="Download Registration Receipt"
       >
-        {generating ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <FileText className="w-4 h-4" />}
+        {generating ? <Download className="w-3.5 h-3.5 animate-bounce" /> : <FileText className="w-3.5 h-3.5" />}
         {generating ? "Generating..." : "Download Receipt"}
       </Button>
-
-      {generating && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          <div style={{ width: '48px', height: '48px', border: '4px solid #a855f7', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }}></div>
-          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Generating Receipt...</h2>
-        </div>
-      )}
 
       {/* Hidden PDF Template */}
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', zIndex: -9999 }}>

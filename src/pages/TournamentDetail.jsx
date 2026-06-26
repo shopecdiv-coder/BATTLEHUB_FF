@@ -22,6 +22,7 @@ import { format } from "date-fns";
 
 
 import StepByStepRegistration from "../components/tournament/StepByStepRegistration";
+import RegistrationInvoiceDownload from "../components/tournament/RegistrationInvoiceDownload";
 import MatchList from "../components/tournament/MatchList";
 import RegistrationCloseTimer from "../components/RegistrationCloseTimer";
 import TournamentChat from "../components/tournament/TournamentChat";
@@ -530,6 +531,15 @@ export default function TournamentDetail() {
                               <p className="text-center text-xs text-cyan-400 mt-1 font-mono">
                                 Your Unique ID: <span className="font-bold">{user.unique_id || `BH${user.id.substring(0,6).toUpperCase()}`}</span>
                               </p>
+                            )}
+                            {userRegistration && (
+                              <div className="mt-4 pt-4 border-t border-green-500/20">
+                                <RegistrationInvoiceDownload 
+                                  registration={userRegistration} 
+                                  tournament={tournament} 
+                                  className="w-full bg-green-600 hover:bg-green-700 text-white" 
+                                />
+                              </div>
                             )}
                           </div>
                           <div className="p-4 bg-gray-800/50 rounded-lg space-y-3">
