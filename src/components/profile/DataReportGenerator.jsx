@@ -53,15 +53,15 @@ const DataReportGenerator = forwardRef((props, ref) => {
         const allData = {
           user: currentUser,
           wallet: diamonds[0] || null,
-          registrations: registrations || [],
-          payments: payments || [],
-          redeems: redeems || [],
+          registrations: (registrations || []).slice(0, 20),
+          payments: (payments || []).slice(0, 20),
+          redeems: (redeems || []).slice(0, 20),
           activeUsers: activeUsers || [],
-          notifications: notifications || [],
-          leaderboardEntries: leaderboardEntries || [],
-          taskSubmissions: tasks || [],
-          redeemCodes: codes || [],
-          globalChats: chats || []
+          notifications: (notifications || []).slice(0, 20),
+          leaderboardEntries: (leaderboardEntries || []).slice(0, 20),
+          taskSubmissions: (tasks || []).slice(0, 20),
+          redeemCodes: (codes || []).slice(0, 20),
+          globalChats: (chats || []).slice(0, 20)
         };
 
         setData(allData);
@@ -77,7 +77,7 @@ const DataReportGenerator = forwardRef((props, ref) => {
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
         const canvas = await html2canvas(containerRef.current, {
-          scale: 1.5,
+          scale: 1,
           useCORS: true,
           logging: false
         });
