@@ -4,6 +4,7 @@ import { FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { Core } from "@/api/integrations";
 
 const LOGO_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y5NzMxNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjQwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJIPC90ZXh0Pjwvc3ZnPg==";
 const SIGNATURE_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iODAiPjx0ZXh0IHg9IjEwMCIgeT0iNTAiIGZvbnQtZmFtaWx5PSInQnJ1c2ggU2NyaXB0IE1UJywgY3Vyc2l2ZSIgZm9udC1zaXplPSIzNSIgZmlsbD0iYmxhY2siIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNoaXZhbSBLdW1hcjwvdGV4dD48L3N2Zz4=";
@@ -44,9 +45,18 @@ export default function RegistrationInvoiceDownload({ registration, tournament, 
       
       setGenerating(false);
 
-      pdf.save(fileName);
-        
-      setTimeout(() => alert(`✅ Invoice Generated! File Size: ${sizeMB} MB`), 500);
+      try {
+        const url = await Core.UploadPDFToCloudinary({ blob, fileName });
+        if (window.AndroidBridge && window.AndroidBridge.downloadUrl) {
+          window.AndroidBridge.downloadUrl(url, fileName);
+        } else {
+          window.open(url, '_blank');
+        }
+        alert(`✅ Invoice Generated! File Size: ${sizeMB} MB`);
+      } catch (e) {
+        pdf.save(fileName);
+        setTimeout(() => alert(`✅ Invoice Generated! File Size: ${sizeMB} MB`), 500);
+      }
       return;
     } catch (err) {
       console.error("PDF generation failed:", err);
