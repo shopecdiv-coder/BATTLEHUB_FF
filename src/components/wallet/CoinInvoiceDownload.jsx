@@ -40,15 +40,29 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
       
       const blob = pdf.output('blob');
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+      const fileName = `BHFF-Invoice-${invoiceNo}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
       
-      pdf.save(`BHFF-Invoice-${invoiceNo}.pdf`);
-      
-      setTimeout(() => alert(`✅ PDF Generated! File Size: ${sizeMB} MB`), 500);
+      setGenerating(false);
+
+      setTimeout(async () => {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ title: fileName, files: [file] });
+          } catch (err) {
+            pdf.save(fileName);
+          }
+        } else {
+          pdf.save(fileName);
+        }
+        alert(`✅ PDF Generated! File Size: ${sizeMB} MB`);
+      }, 300);
+      return;
     } catch (e) {
       console.error("PDF generation failed:", e);
       alert("Failed to generate PDF invoice.");
+      setGenerating(false);
     }
-    setGenerating(false);
   };
 
   const req = paymentRequest;
@@ -68,15 +82,6 @@ export default function CoinInvoiceDownload({ paymentRequest, user }) {
         {generating ? <Download className="w-3.5 h-3.5 animate-bounce" /> : <FileText className="w-3.5 h-3.5" />}
         {generating ? "Generating..." : "Invoice"}
       </Button>
-
-      {generating && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          <div style={{ width: '64px', height: '64px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }}></div>
-          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Generating Invoice...</h2>
-          <p style={{ color: '#9ca3af' }}>Please wait while we compress the PDF.</p>
-        </div>
-      )}
 
       {/* Hidden PDF Template */}
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', zIndex: -9999 }}>

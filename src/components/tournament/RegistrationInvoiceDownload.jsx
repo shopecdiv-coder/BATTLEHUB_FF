@@ -40,14 +40,29 @@ export default function RegistrationInvoiceDownload({ registration, tournament, 
       
       const blob = pdf.output('blob');
       const sizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+      const fileName = `BHFF-Reg-${invoiceNo}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
       
-      pdf.save(`BHFF-Reg-${invoiceNo}.pdf`);
-      setTimeout(() => alert(`✅ Registration Invoice Generated! File Size: ${sizeMB} MB`), 500);
+      setGenerating(false);
+
+      setTimeout(async () => {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ title: fileName, files: [file] });
+          } catch (err) {
+            pdf.save(fileName);
+          }
+        } else {
+          pdf.save(fileName);
+        }
+        alert(`✅ Registration Invoice Generated! File Size: ${sizeMB} MB`);
+      }, 300);
+      return;
     } catch (err) {
       console.error("PDF generation failed:", err);
       alert("Failed to generate PDF.");
+      setGenerating(false);
     }
-    setGenerating(false);
   };
 
   const invoiceNo = `REG-${registration.id?.slice(-8).toUpperCase() || "UNKNOWN"}`;
@@ -67,15 +82,6 @@ export default function RegistrationInvoiceDownload({ registration, tournament, 
         {generating ? <Download className="w-3.5 h-3.5 animate-bounce" /> : <FileText className="w-3.5 h-3.5" />}
         {generating ? "Generating..." : "Download Receipt"}
       </Button>
-
-      {generating && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          <div style={{ width: '64px', height: '64px', border: '4px solid #a855f7', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }}></div>
-          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Generating Receipt...</h2>
-          <p style={{ color: '#9ca3af' }}>Please wait while we compress the PDF.</p>
-        </div>
-      )}
 
       {/* Hidden PDF Template */}
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', zIndex: -9999 }}>

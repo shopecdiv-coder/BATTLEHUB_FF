@@ -448,16 +448,6 @@ export default function Profile() {
           </div>
         </div>{/* end grid */}
 
-        {/* Download My Data Modal */}
-        {generatingPdf && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-            <div style={{ width: '64px', height: '64px', border: '4px solid #06b6d4', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }}></div>
-            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Generating Report...</h2>
-            <p style={{ color: '#9ca3af' }}>Please wait while we compile your data.</p>
-          </div>
-        )}
-
         {/* Saved Squads Section */}
         <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
           <CardHeader>
