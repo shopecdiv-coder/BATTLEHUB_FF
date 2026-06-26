@@ -72,9 +72,8 @@ export default function Profile() {
     
     setUser(currentUser);
     setFormData({
-      ign: currentUser.ign || "",
+      full_name: currentUser.full_name || "",
       game_uid: currentUser.game_uid || "",
-      rank: currentUser.rank || "Bronze",
       phone: currentUser.phone || "",
       bio: currentUser.bio || ""
     });
@@ -272,7 +271,7 @@ export default function Profile() {
 
                 <div className="text-center space-y-2">
                   <h3 className="text-xl font-bold text-gray-100">
-                    {user.ign || user.full_name || 'Player'}
+                    {formData.full_name || user.full_name || 'Player'}
                   </h3>
                   
                   <div className="flex items-center justify-center gap-2 mt-2">
@@ -294,9 +293,6 @@ export default function Profile() {
                   </div>
                   
                   <div className="flex flex-wrap gap-2 justify-center">
-                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/50">
-                      {user.rank || 'Unranked'}
-                    </Badge>
                     {user.is_verified && (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
                         <Shield className="w-3 h-3 mr-1" />
@@ -335,22 +331,13 @@ export default function Profile() {
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ign" className="text-gray-300">In-Game Name (IGN)</Label>
+                    <Label htmlFor="full_name" className="text-gray-300">Your Name</Label>
                     <Input
-                      id="ign"
-                      value={formData.ign}
-                      onChange={(e) => setFormData({ ...formData, ign: e.target.value })}
+                      id="full_name"
+                      value={formData.full_name || ""}
+                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                       className="bg-gray-800 border-gray-700 text-gray-100"
-                      placeholder="Enter your IGN"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-gray-300">Your Name</Label>
-                    <Input
-                      value={user.full_name || ""}
-                      disabled
-                      className="bg-gray-800 border-gray-700 text-gray-400"
+                      placeholder="Enter your name"
                     />
                   </div>
 
@@ -358,7 +345,7 @@ export default function Profile() {
                     <Label htmlFor="game_uid" className="text-gray-300">Game UID (Free Fire)</Label>
                     <Input
                       id="game_uid"
-                      value={formData.game_uid}
+                      value={formData.game_uid || ""}
                       onChange={(e) => setFormData({ ...formData, game_uid: e.target.value })}
                       className="bg-gray-800 border-gray-700 text-gray-100"
                       placeholder="Enter your Free Fire UID"
@@ -366,31 +353,14 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="rank" className="text-gray-300">Current Rank</Label>
-                    <Select value={formData.rank} onValueChange={(value) => setFormData({ ...formData, rank: value })}>
-                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-100">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Heroic", "Grandmaster"].map((rank) => (
-                          <SelectItem key={rank} value={rank}>{rank}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="phone" className="text-gray-300">Phone Number</Label>
                     <Input
                       id="phone"
-                      value={formData.phone}
+                      value={formData.phone || ""}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="bg-gray-800 border-gray-700 text-gray-100"
                       placeholder="+91 XXXXXXXXXX"
                     />
-                    <p className="text-xs text-green-400 bg-green-500/10 p-2 rounded border border-green-500/30">
-                      💬 WhatsApp notification ke liye apna number yahan dale
-                    </p>
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -403,26 +373,6 @@ export default function Profile() {
                       placeholder="Tell us a bit about yourself..."
                       rows={3}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-gray-300">Email</Label>
-                    <Input
-                      value={user.email}
-                      disabled
-                      className="bg-gray-800 border-gray-700 text-gray-400"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-gray-300">Wallet Balance</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={`₹${user.wallet_balance || 0}`}
-                        disabled
-                        className="bg-gray-800 border-gray-700 text-gray-400"
-                      />
-                    </div>
                   </div>
                 </div>
 

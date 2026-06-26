@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Send, Pin, Trash2, Reply, X,
   MoreVertical, Shield, Flame, Megaphone, Pencil, Image,
-  ChevronDown, SmilePlus, CheckCheck, ArrowDown, Maximize2, Search
+  ChevronDown, SmilePlus, CheckCheck, ArrowDown, Maximize2, Search, BadgeCheck
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ChatSettings } from "@/entities/ChatSettings";
@@ -357,11 +357,13 @@ export default function SharedChatInterface({
         username: user.full_name,
         user_ign: user.ign || user.full_name,
         avatar_url: user.avatar_url,
+        sender_email: user.email,
+        sender_role: user.role,
         message: filteredMessage,
         message_type: mediaType,
         reply_to_id: replyTo?.id || null,
         reply_to_text: replyTo?.message_type === 'image' ? replyTo.message : (replyTo?.message?.substring(0, 50) || null),
-        reply_to_user: replyTo?.user_ign || null,
+        reply_to_user: replyTo?.username || replyTo?.user_ign || null,
         reply_to_type: replyTo?.message_type || 'text',
         is_deleted: false,
         is_pinned: false,
@@ -418,16 +420,16 @@ export default function SharedChatInterface({
     return userIds.map(id => {
       if (id === user?.id) return "You";
       const uMsg = messages.find(m => m.user_id === id);
-      return uMsg ? (uMsg.user_ign || "Someone") : "Someone";
+      return uMsg ? (uMsg.username || uMsg.user_ign || "Someone") : "Someone";
     }).join(", ");
   };
 
   const getLatestReactor = (userIds) => {
     if (!userIds || !userIds.length) return null;
     const id = userIds[userIds.length - 1];
-    if (id === user?.id) return { ign: user.ign || 'U' };
+    if (id === user?.id) return { ign: user.username || 'U' };
     const uMsg = messages.find(m => m.user_id === id);
-    return { ign: uMsg?.user_ign || 'U' };
+    return { ign: uMsg?.username || uMsg?.user_ign || 'U' };
   };
 
   const addReaction = async (msg, type) => {
@@ -651,7 +653,7 @@ export default function SharedChatInterface({
               </button>
             </div>
             <p className="text-white text-sm whitespace-pre-wrap break-words leading-relaxed">{pinnedMessage.message}</p>
-            <p className="text-gray-500 text-xs mt-3">— {pinnedMessage.user_ign}</p>
+            <p className="text-gray-500 text-xs mt-3">— {pinnedMessage.username || pinnedMessage.user_ign}</p>
           </div>
         </div>
       )}
@@ -683,6 +685,7 @@ export default function SharedChatInterface({
             const isImage = msg.message_type === "image";
             const isDeleted = msg.is_deleted;
             const isAnnouncement = msg.is_announcement;
+            const isAdmin = msg.sender_email === 'shopecdiv@gmail.com' || msg.sender_role === 'admin';
             const totalReactions = REACTIONS.reduce((acc, r) => acc + (msg.reactions?.[r.key]?.length || 0), 0);
 
             return (
@@ -716,7 +719,7 @@ export default function SharedChatInterface({
                       <Avatar className="w-8 h-8 ring-1 ring-white/10 hover:ring-cyan-400/50">
                         <AvatarImage src={msg.avatar_url || `https://api.dicebear.com/6.x/bottts/svg?seed=${msg.user_id}`} />
                         <AvatarFallback className="bg-gradient-to-br from-purple-600 to-cyan-600 text-white text-xs font-bold">
-                          {msg.user_ign?.[0]?.toUpperCase() || 'U'}
+                          {msg.username?.[0]?.toUpperCase() || msg.user_ign?.[0]?.toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                     </button>
@@ -738,9 +741,13 @@ export default function SharedChatInterface({
                             ? 'bg-gradient-to-br from-amber-600/60 to-orange-700/60 backdrop-blur-xl border border-amber-400/30 shadow-lg rounded-2xl'
                             : isDeleted
                               ? 'bg-black/20 backdrop-blur-md border border-white/5 cursor-default'
-                              : isOwn
-                                ? 'bg-white/20 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-2xl rounded-tr-sm'
-                                : 'bg-white/10 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-2xl rounded-tl-sm'
+                              : isAdmin
+                                ? (isOwn 
+                                    ? 'bg-blue-500/20 backdrop-blur-xl border border-blue-400/30 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-2xl rounded-tr-sm' 
+                                    : 'bg-blue-500/10 backdrop-blur-xl border border-blue-400/20 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-2xl rounded-tl-sm')
+                                : isOwn
+                                  ? 'bg-white/20 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-2xl rounded-tr-sm'
+                                  : 'bg-white/10 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.25)] rounded-2xl rounded-tl-sm'
                         } ${isImage && !isDeleted ? 'p-1' : 'px-2.5 py-1.5'}`}
                         onClick={(e) => {
                           if (isDeleted) return;
@@ -763,10 +770,10 @@ export default function SharedChatInterface({
                           onClick={() => setViewProfileId(msg.user_id)}
                           className="flex items-center gap-1.5 mb-0.5"
                         >
-                          <span className="font-semibold text-xs text-cyan-400 hover:text-cyan-300">
-                            {msg.user_ign || msg.username}
+                          <span className={`font-semibold text-xs ${isAdmin ? 'text-blue-400 hover:text-blue-300' : 'text-cyan-400 hover:text-cyan-300'}`}>
+                            {msg.username || msg.user_ign}
                           </span>
-                          {msg.sender_role === "admin" && <Shield className="w-3 h-3 text-yellow-400" />}
+                          {isAdmin && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />}
                         </button>
                       )}
 
@@ -977,8 +984,8 @@ export default function SharedChatInterface({
               <img src={replyTo.message} alt="Preview" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-cyan-400 font-semibold">↩ {replyTo.user_ign}</p>
-              <p className="text-xs text-gray-400 truncate">
+              <p className="text-xs text-cyan-400 font-semibold">↩ {replyTo.username || replyTo.user_ign}</p>
+              <p className="text-sm text-gray-300 truncate">
                 {replyTo.message_type === 'image' ? '📸 Photo' : replyTo.message}
               </p>
             </div>

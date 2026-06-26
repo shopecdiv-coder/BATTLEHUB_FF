@@ -74,12 +74,15 @@ export default function UserProfileModal({ userId, onClose }) {
             <Avatar className="w-24 h-24 mx-auto ring-4 ring-cyan-500">
               <AvatarImage src={profile.avatar_url || `https://api.dicebear.com/6.x/bottts/svg?seed=${profile.id}`} />
               <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-purple-500 text-white text-2xl">
-                {profile.ign?.[0]?.toUpperCase() || profile.full_name?.[0]?.toUpperCase() || 'U'}
+                {profile.full_name?.[0]?.toUpperCase() || profile.ign?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             
             <div>
-              <h3 className="text-xl font-bold text-white">{profile.ign || profile.full_name}</h3>
+              <h3 className="text-xl font-bold text-white">{profile.full_name || profile.ign || 'Player'}</h3>
+              <div className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/50">
+                 {profile.unique_id || `BH${profile.id.replace(/-/g,'').slice(-8).toUpperCase()}`}
+              </div>
               {profile.bio && (
                 <p className="text-sm text-gray-400 mt-2 italic">"{profile.bio}"</p>
               )}
@@ -102,18 +105,11 @@ export default function UserProfileModal({ userId, onClose }) {
                 <p className="text-xl font-bold text-purple-400">{stats.tournaments}</p>
                 <p className="text-xs text-gray-500">Tournaments</p>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <p className="text-xl font-bold text-cyan-400">{profile.rank || 'Unranked'}</p>
-                <p className="text-xs text-gray-500">Rank</p>
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center flex flex-col justify-center">
+                <p className="text-sm font-bold text-cyan-400 font-mono break-all">{profile.game_uid || 'N/A'}</p>
+                <p className="text-xs text-gray-500 mt-1">FF UID</p>
               </div>
             </div>
-
-            {profile.game_uid && (
-              <div className="pt-2 border-t border-gray-800">
-                <p className="text-xs text-gray-500">Game UID</p>
-                <p className="text-cyan-400 font-mono">{profile.game_uid}</p>
-              </div>
-            )}
 
             {/* Friend Request Section */}
             <div className="pt-4 border-t border-gray-800">
