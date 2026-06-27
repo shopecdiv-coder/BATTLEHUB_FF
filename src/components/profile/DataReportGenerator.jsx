@@ -432,26 +432,6 @@ const DataReportGenerator = forwardRef((props, ref) => {
       </div>
     </div>
 
-    {/* Fullscreen Image Preview Modal */}
-    {previewImage && (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 99999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        
-        <div style={{ position: 'absolute', top: '15px', left: '15px', right: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100000 }}>
-           <button onClick={() => setPreviewImage(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-             <X size={24} />
-           </button>
-           <button onClick={handleSaveToPhotos} style={{ backgroundColor: '#f97316', color: 'white', fontWeight: 'bold', padding: '10px 15px', borderRadius: '8px', border: 'none', display: 'flex', alignItems: 'center' }}>
-             <ImageIcon size={18} style={{ marginRight: '8px' }} />
-             Save to Photos
-           </button>
-        </div>
-
-        <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '70px 10px 20px 10px' }}>
-          <img src={previewImage} alt="Report Preview" style={{ maxWidth: '100%', maxHeight: 'none', objectFit: 'contain', backgroundColor: 'white' }} />
-        </div>
-
-      </div>
-    )}
     </>
   );
 });
