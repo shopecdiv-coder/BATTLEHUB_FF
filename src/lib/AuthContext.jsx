@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }) => {
       // We wrap it in a fetch call to our custom API. Using absolute URL for APK support.
       const apiUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('10.') || window.location.hostname.includes('192.')
         ? '/api/sendPasswordReset' 
-        : 'https://battlehubff.site/api/sendPasswordReset';
+        : 'https://battlehub-ff.vercel.app/api/sendPasswordReset';
         
       let response;
       try {
