@@ -166,28 +166,7 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async (email) => {
     try {
-      // We wrap it in a fetch call to our custom API. Using absolute URL for APK support.
-      const apiUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('10.') || window.location.hostname.includes('192.')
-        ? '/api/sendPasswordReset' 
-        : 'https://battlehub-ff.vercel.app/api/sendPasswordReset';
-        
-      let response;
-      try {
-        response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-      } catch (err) {
-        console.warn("Fetch failed, falling back to default Firebase email:", err);
-      }
-
-      if (!response || !response.ok) {
-        // Fallback to default Firebase reset if API fails
-        console.warn("Custom email API failed or not found, falling back to default Firebase email.");
-        await sendPasswordResetEmail(auth, email);
-      }
-      
+      await sendPasswordResetEmail(auth, email);
       return true;
     } catch (e) {
       console.error("Reset password error:", e);

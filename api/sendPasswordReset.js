@@ -115,6 +115,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, message: 'Password reset link sent successfully via Brevo.' });
   } catch (error) {
     console.error('Error in sendPasswordReset:', error);
-    return res.status(500).json({ error: 'Error sending reset email', details: error.message });
+    return res.status(500).json({ error: 'Error sending reset email', details: error.message, stack: error.stack });
   }
 }
