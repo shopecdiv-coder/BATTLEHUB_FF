@@ -26,8 +26,11 @@ export default function UserPerformanceDashboard({ user, userRegistrations, user
   const monthlyData = useMemo(() => {
     const map = {};
     (userRegistrations || []).forEach(reg => {
-      const month = format(new Date(reg.created_date), "MMM yy");
-      map[month] = (map[month] || 0) + 1;
+      if (!reg.created_date) return;
+      try {
+        const month = format(new Date(reg.created_date), "MMM yy");
+        map[month] = (map[month] || 0) + 1;
+      } catch (e) {}
     });
     return Object.entries(map).slice(-6).map(([month, count]) => ({ month, tournaments: count }));
   }, [userRegistrations]);
@@ -53,8 +56,11 @@ export default function UserPerformanceDashboard({ user, userRegistrations, user
     (userDiamond?.transactions || [])
       .filter(t => t.type === "Win" || t.type === "Diamond Earned")
       .forEach(t => {
-        const month = format(new Date(t.timestamp), "MMM yy");
-        map[month] = (map[month] || 0) + (t.amount || 0);
+        if (!t.timestamp) return;
+        try {
+          const month = format(new Date(t.timestamp), "MMM yy");
+          map[month] = (map[month] || 0) + (t.amount || 0);
+        } catch(e) {}
       });
     return Object.entries(map).slice(-6).map(([month, earned]) => ({ month, earned }));
   }, [userDiamond]);

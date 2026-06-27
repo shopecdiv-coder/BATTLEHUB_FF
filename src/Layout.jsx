@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import MenuPage from "./pages/Menu";
 import { createPageUrl } from "@/utils";
 import { User } from "@/entities/User";
 import { Diamond } from "@/entities/Diamond";
@@ -134,7 +135,7 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
   );
 }
 
-function Header({ user, onLogout, unreadMessages, onLoginClick }) {
+function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setIsMenuOpen }) {
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
   const [balances, setBalances] = useState({ diamonds: 0, coins: 0 });
@@ -168,42 +169,32 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
   }, [user]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 flex-shrink-0 cursor-pointer">
-                    <Avatar className="h-10 w-10 border-2 border-orange-400">
-                      <AvatarImage src={user.avatar_url || ''} alt="Profile" className="object-cover" />
-                      <AvatarFallback className="bg-gradient-to-br from-purple-600 to-pink-600 text-white font-bold text-lg">
-                        {user?.ign?.[0]?.toUpperCase() || user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'P'}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700 text-white" align="start">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.full_name}</p>
-                      <p className="text-xs leading-none text-gray-400">{user.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-gray-700" />
-                  <DropdownMenuItem onClick={() => navigate(createPageUrl("Profile"))} className="hover:bg-gray-800 focus:bg-gray-800">
-                    <UserIcon className="mr-2 h-4 w-4" /> Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate(createPageUrl("Wallet"))} className="hover:bg-gray-800 focus:bg-gray-800">
-                    <Wallet className="mr-2 h-4 w-4" /> Wallet
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-gray-700" />
-                  <DropdownMenuItem onClick={onLogout} className="text-red-400 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-300">
-                    <LogOut className="mr-2 h-4 w-4" /> Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button 
+                type="button"
+                onClick={() => {
+                  if (isMenuOpen) {
+                    window.dispatchEvent(new Event("close-menu"));
+                  } else {
+                    setIsMenuOpen(true);
+                  }
+                }}
+                className="relative p-1 flex flex-shrink-0 items-center justify-center cursor-pointer hover:text-white text-gray-300 transition-all duration-200 bg-transparent border-none outline-none"
+              >
+                {isMenuOpen ? (
+                  <X className="w-8 h-8 text-white transition-transform duration-200 rotate-90" strokeWidth={2.5} />
+                ) : (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 transition-transform duration-200 hover:scale-105">
+                    <line x1="3" y1="7" x2="16" y2="7"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="17" x2="11" y2="17"></line>
+                  </svg>
+                )}
+              </button>
             ) : (
               <div className="w-10 h-10" />
             )}
@@ -253,6 +244,7 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
 
 function LayoutContent({ children, currentPageName }) {
   const [user, setUser] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user: authUser, logout: authLogout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -354,13 +346,18 @@ function LayoutContent({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-black text-white pb-20 lg:pb-0" style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}>
+      
       {/* Top Loading Bar */}
       <LoadingBar />
 
       <div className="absolute inset-0 bg-black z-0"></div>
 
-      <div className="relative z-10 min-h-screen bg-black">
-        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
+      <div className="relative z-10 min-h-screen">
+        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+        
+        {/* The actual Menu Component */}
+        <MenuPage isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
         <main className="pt-16">
           <div className="max-w-screen-2xl mx-auto px-0 py-2 sm:p-6 lg:p-8">
             {children}
@@ -372,7 +369,6 @@ function LayoutContent({ children, currentPageName }) {
       {user && <BottomNavigation />}
       
       {/* Global Modals */}
-
       <GlobalMatchCredentials />
       <GlobalInviteManager />
       <WelcomeBonusHandler />

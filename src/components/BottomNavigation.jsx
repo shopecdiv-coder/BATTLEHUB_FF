@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Trophy, MessageCircle, Menu, Film, Users } from "lucide-react";
+import { Home, Trophy, MessageCircle, Menu, Film, Users, User as UserIcon } from "lucide-react";
 import { Registration } from "@/entities/Registration";
 import { User } from "@/entities/User";
 
@@ -10,7 +10,7 @@ const SWIPE_PAGES = [
   createPageUrl("Tournaments"),
   createPageUrl("GlobalChat"),
   createPageUrl("MediaFeed"),
-  createPageUrl("Menu"),
+  createPageUrl("Profile"),
 ];
 
 export default function BottomNavigation() {
@@ -35,6 +35,7 @@ export default function BottomNavigation() {
     const loadMyMatches = async () => {
       try {
         const user = await User.me();
+        
         const regs = await Registration.filter({ team_leader_id: user.id });
         const validRegs = regs.filter(r => r.status !== "Withdrawn" && r.status !== "Disqualified");
         let activeCount = 0;
@@ -57,7 +58,7 @@ export default function BottomNavigation() {
     { name: "Tournament", path: createPageUrl("Tournaments"), icon: Trophy },
     { name: "Community", path: createPageUrl("Community"), icon: Users },
     { name: "Media", path: createPageUrl("MediaFeed"), icon: Film },
-    { name: "Menu", path: createPageUrl("Menu"), icon: Menu }
+    { name: "Profile", path: createPageUrl("Profile"), icon: UserIcon }
   ];
 
   return (

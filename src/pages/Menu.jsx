@@ -11,14 +11,32 @@ import {
   Settings, FileText, Scale, Lock, Info, RefreshCw, Gem, Share2, Flame, ChevronRight, BarChart2
 } from "lucide-react";
 
-export default function Menu() {
+export default function Menu({ isOpen = true, onClose }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isClosing, setIsClosing] = useState(false);
   const navigate = useNavigate();
+  const [renderMenu, setRenderMenu] = useState(isOpen);
 
   useEffect(() => {
-    loadUser();
-  }, []);
+    if (isOpen) {
+      setRenderMenu(true);
+      setIsClosing(false);
+      loadUser();
+    } else {
+      setIsClosing(true);
+      const timer = setTimeout(() => {
+        setRenderMenu(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    
+    const handleCloseEvent = () => {
+      if (onClose) onClose();
+    };
+    window.addEventListener("close-menu", handleCloseEvent);
+    return () => window.removeEventListener("close-menu", handleCloseEvent);
+  }, [isOpen, onClose]);
 
   const loadUser = async () => {
     try {
@@ -30,12 +48,19 @@ export default function Menu() {
     setLoading(false);
   };
 
+  const handleClose = () => {
+    if (onClose) onClose();
+    else navigate(-1);
+  };
+
   const handleLogout = async () => {
     if (confirm("Are you sure you want to logout?")) {
       await User.logout();
       navigate(createPageUrl("Home"));
     }
   };
+
+
 
   const menuSections = [
     {
@@ -89,18 +114,22 @@ export default function Menu() {
     }
   ];
 
+  if (!renderMenu) return null;
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="fixed inset-0 z-40 min-h-screen bg-black flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black p-4 pb-24">
+    <div 
+      id="menu-page-container" 
+      className={`fixed inset-0 z-40 min-h-screen bg-black p-4 pt-20 pb-24 overflow-y-auto ${isClosing ? 'animate-out slide-out-to-left fade-out' : 'animate-in slide-in-from-left fade-in'} duration-300`}
+    >
       <div className="max-w-2xl mx-auto space-y-6">
-
 
         {/* Menu Sections */}
         {menuSections.map((section, index) => (
@@ -112,6 +141,7 @@ export default function Menu() {
                   <Link
                     key={idx}
                     to={createPageUrl(item.path)}
+                    onClick={handleClose}
                     className="flex items-center gap-3 p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-all active:bg-white/10"
                   >
                     <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-white/5 flex items-center justify-center shadow-inner">
@@ -134,6 +164,7 @@ export default function Menu() {
               <CardContent className="p-0">
                 <Link
                   to={createPageUrl("AdminDashboard")}
+                  onClick={handleClose}
                   className="flex items-center gap-3 p-3 hover:bg-red-500/10 transition-all active:bg-red-500/20"
                 >
                   <div className="w-8 h-8 rounded-md bg-red-950/50 border border-red-500/20 flex items-center justify-center shadow-inner">

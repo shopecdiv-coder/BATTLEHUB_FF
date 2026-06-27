@@ -59,30 +59,20 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
-    <Routes>
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
-      <Route path="/auth/login" element={
-        <LayoutWrapper currentPageName="Login">
-          <Login />
-        </LayoutWrapper>
-      } />
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    <LayoutWrapper currentPageName={location.pathname.replace(/^\//, '') || mainPageKey}>
+      <Routes>
+        <Route path="/" element={<MainPage />} />
+        <Route path="/auth/login" element={<Login />} />
+        {Object.entries(Pages).map(([path, Page]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={<Page />}
+          />
+        ))}
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </LayoutWrapper>
   );
 };
 

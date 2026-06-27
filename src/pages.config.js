@@ -78,6 +78,7 @@ import Tournaments from './pages/Tournaments';
 import Wallet from './pages/Wallet';
 import JourneyHistory from './pages/JourneyHistory';
 import MediaFeed from './pages/MediaFeed';
+import ResetPassword from './pages/ResetPassword';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -112,6 +113,7 @@ export const PAGES = {
     "Wallet": Wallet,
     "JourneyHistory": JourneyHistory,
     "MediaFeed": MediaFeed,
+    "ResetPassword": ResetPassword,
 }
 
 export const pagesConfig = {
