@@ -52,7 +52,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import CreateTournament from './pages/CreateTournament';
 import EarnDiamonds from './pages/EarnDiamonds';
 import FAQs from './pages/FAQs';
-import GlobalChat from './pages/GlobalChat';
+import Community from './pages/Community';
 import Home from './pages/Home';
 import Leaderboard from './pages/Leaderboard';
 import MatchDetail from './pages/MatchDetail';
@@ -86,7 +86,7 @@ export const PAGES = {
     "CreateTournament": CreateTournament,
     "EarnDiamonds": EarnDiamonds,
     "FAQs": FAQs,
-    "GlobalChat": GlobalChat,
+    "Community": Community,
     "Home": Home,
     "Leaderboard": Leaderboard,
     "MatchDetail": MatchDetail,

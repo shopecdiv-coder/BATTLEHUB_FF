@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Report } from "@/entities/Report";
 import { BanRecord } from "@/entities/BanRecord";
 import { User } from "@/entities/User";
+import { CommunityPost } from "@/entities/CommunityPost";
+import { Notification } from "@/entities/Notification";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,30 +23,69 @@ export default function ReportsManagement({ reports, onUpdate }) {
   const handleResolve = async (report, action) => {
     setProcessing(true);
     try {
-      if (action === "ban") {
-        const currentUser = await User.me();
-        const durationDays = banSeverity === "Permanent" ? 0 : parseInt(banDuration);
-        const startDate = new Date();
-        const endDate = durationDays > 0 ? new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000) : null;
+      if (report.type === 'community_post') {
+        if (action === "ban") {
+          await CommunityPost.delete(report.target_id);
+          
+          if (report.reported_user_id && report.reported_user_id !== 'unknown') {
+            await Notification.create({
+              recipient_id: report.reported_user_id,
+              title: "Post Removed",
+              message: `Your community post was removed due to violating our policies. Reason: ${report.reason}.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
 
-        await BanRecord.create({
-          user_id: report.reported_user_id,
-          user_ign: report.reported_ign,
-          reason: report.reason + " - " + report.description,
-          severity: banSeverity,
-          duration_days: durationDays,
-          start_date: startDate.toISOString(),
-          end_date: endDate?.toISOString(),
-          evidence_urls: report.evidence_urls,
-          banned_by: currentUser.id
-        });
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Report Resolved",
+              message: `Thank you for your report against ${report.reported_ign}. The post has been reviewed and removed.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        } else if (action === "dismiss") {
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Report Reviewed",
+              message: `Your report against ${report.reported_ign}'s post was reviewed and was found not to violate our policies.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        }
+      } else {
+        if (action === "ban") {
+          const currentUser = await User.me();
+          const durationDays = banSeverity === "Permanent" ? 0 : parseInt(banDuration);
+          const startDate = new Date();
+          const endDate = durationDays > 0 ? new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000) : null;
 
-        if (banSeverity === "Permanent" || durationDays > 0) {
-          await User.update(report.reported_user_id, {
-            is_banned: true,
-            ban_reason: report.reason,
-            ban_until: endDate?.toISOString()
+          await BanRecord.create({
+            user_id: report.reported_user_id,
+            user_ign: report.reported_ign,
+            reason: report.reason + " - " + report.description,
+            severity: banSeverity,
+            duration_days: durationDays,
+            start_date: startDate.toISOString(),
+            end_date: endDate?.toISOString(),
+            evidence_urls: report.evidence_urls,
+            banned_by: currentUser.id
           });
+
+          if (banSeverity === "Permanent" || durationDays > 0) {
+            await User.update(report.reported_user_id, {
+              is_banned: true,
+              ban_reason: report.reason,
+              ban_until: endDate?.toISOString()
+            });
+          }
         }
       }
 
@@ -157,37 +198,48 @@ export default function ReportsManagement({ reports, onUpdate }) {
 
                 <div>
                   <p className="text-sm text-gray-400">Description</p>
-                  <p className="text-gray-300">{selectedReport.description}</p>
+                  <p className="text-gray-300 whitespace-pre-wrap">{selectedReport.description}</p>
                 </div>
 
                 {selectedReport.evidence_urls && selectedReport.evidence_urls.length > 0 && (
                   <div>
                     <p className="text-sm text-gray-400 mb-2">Evidence</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {selectedReport.evidence_urls.map((url, i) => (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                          <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-32 object-cover rounded border border-gray-700 hover:border-purple-500/50" />
-                        </a>
-                      ))}
+                      {selectedReport.evidence_urls.map((url, i) => {
+                        const isVideo = url.match(/\.(mp4|webm|ogg)$/i) || selectedReport.type === 'media_post';
+                        return (
+                          <div key={i} className="relative w-full h-40 bg-black rounded border border-gray-700 hover:border-purple-500/50 overflow-hidden">
+                            {isVideo ? (
+                              <video src={url} controls className="w-full h-full object-contain" />
+                            ) : (
+                              <a href={url} target="_blank" rel="noopener noreferrer">
+                                <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-contain" />
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Ban Severity</label>
-                  <Select value={banSeverity} onValueChange={setBanSeverity}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-100">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Warning">Warning (No Ban)</SelectItem>
-                      <SelectItem value="Temporary">Temporary Ban</SelectItem>
-                      <SelectItem value="Permanent">Permanent Ban</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {selectedReport.type !== 'community_post' && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Ban Severity</label>
+                    <Select value={banSeverity} onValueChange={setBanSeverity}>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-100">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Warning">Warning (No Ban)</SelectItem>
+                        <SelectItem value="Temporary">Temporary Ban</SelectItem>
+                        <SelectItem value="Permanent">Permanent Ban</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-                {banSeverity === "Temporary" && (
+                {selectedReport.type !== 'community_post' && banSeverity === "Temporary" && (
                   <div className="space-y-2">
                     <label className="text-sm text-gray-400">Ban Duration (Days)</label>
                     <Select value={banDuration} onValueChange={setBanDuration}>
@@ -232,7 +284,7 @@ export default function ReportsManagement({ reports, onUpdate }) {
                   className="bg-red-500 hover:bg-red-600 text-white"
                 >
                   <Check className="w-4 h-4 mr-2" />
-                  {banSeverity === "Warning" ? "Resolve with Warning" : "Issue Ban"}
+                  {selectedReport.type === 'community_post' ? "Delete Post" : (banSeverity === "Warning" ? "Resolve with Warning" : "Issue Ban")}
                 </Button>
               </div>
             </motion.div>

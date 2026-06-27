@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Registration } from "@/entities/Registration";
 import { Tournament } from "@/entities/Tournament";
+import { User } from "@/entities/User";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Send, CheckCircle, Clock, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
+import { sendBrevoEmail } from "@/utils/brevoEmail";
 
 export default function TournamentEmailHistory({ tournaments }) {
   const [registrations, setRegistrations] = useState([]);
@@ -34,62 +36,74 @@ export default function TournamentEmailHistory({ tournaments }) {
     setSendingEmail(reg.id);
     try {
       const matchDate = tournament?.date_time ? new Date(tournament.date_time).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "TBD";
+      let toEmail = reg.created_by;
+      if (toEmail === 'shopecdiv@gmail.com' || toEmail === 'helpbattlehub@gmail.com') {
+        try {
+          const actualUser = await User.filter({ unique_id: reg.team_leader_uid });
+          if (actualUser && actualUser.length > 0 && actualUser[0].email) {
+            toEmail = actualUser[0].email;
+          }
+        } catch(err) { console.error("Could not fetch user email", err); }
+      }
+
       const invoiceId = `BHFF-${reg.id?.slice(-8)?.toUpperCase() || "00000000"}`;
       const membersList = reg.team_members?.map((m, i) => `  ${i+1}. ${m.ign} (UID: ${m.uid})${m.isLeader ? " [Team Head]" : ""}`).join("\n") || `  1. ${reg.team_leader_ign} (UID: ${reg.team_leader_uid})`;
 
-      await base44.integrations.Core.SendEmail({
-        to: reg.created_by,
-        subject: `✅ Registration Confirmed — ${tournament?.title} | BattleHub FF`,
-        body: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🏆 BATTLEHUB FF — REGISTRATION CONFIRMED
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const isQualified = /semi|final|grand/i.test(tournament?.title || '');
+      const headerTitle = isQualified ? "🌟 QUALIFICATION CONFIRMED" : "🏆 REGISTRATION CONFIRMED";
+      const greetingText = isQualified 
+        ? `Congratulations! Your team has officially qualified for <strong>${tournament?.title || 'Tournament'}</strong>!`
+        : `You have successfully registered for <strong>${tournament?.title || 'Tournament'}</strong>!`;
 
-Dear ${reg.team_leader_ign},
+      const htmlBody = `
+<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);">
+  <div style="background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%); padding: 40px 20px; text-align: center;">
+    <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68ee96b6cabd2c2d7af587d0/08567b05d_bf31fa0a1_logo.png" alt="BATTLEHUB FF" style="width: 90px; height: 90px; object-fit: cover; margin-bottom: 15px; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.2);" />
+    <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.4); text-transform: uppercase;">BATTLEHUB FF</h1>
+    <p style="margin: 12px 0 0 0; color: #e0f2fe; font-size: 17px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">${headerTitle}</p>
+  </div>
+  <div style="padding: 35px 25px;">
+    <p style="font-size: 17px; line-height: 1.6; margin-top: 0; color: #e2e8f0;">Hi <strong style="color: #38bdf8;">${reg.team_leader_ign || 'Player'}</strong>,</p>
+    <p style="font-size: 16px; line-height: 1.6; color: #cbd5e1;">${greetingText}</p>
+    <div style="background-color: #1e293b; border-radius: 10px; padding: 25px; margin: 30px 0; border-left: 5px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <h3 style="margin: 0 0 15px 0; color: #38bdf8; font-size: 19px; border-bottom: 1px solid #334155; padding-bottom: 12px; display: flex; align-items: center;">📋 Official Entry Invoice</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+        <tr><td style="padding: 10px 0; color: #94a3b8; width: 40%;">Invoice No:</td><td style="padding: 10px 0; font-weight: 600; color: #f8fafc;">${invoiceId}</td></tr>
+        <tr><td style="padding: 10px 0; color: #94a3b8;">Match Date:</td><td style="padding: 10px 0; font-weight: 600; color: #f8fafc;">${matchDate}</td></tr>
+        <tr><td style="padding: 10px 0; color: #94a3b8;">Game Mode:</td><td style="padding: 10px 0; font-weight: 600; color: #f8fafc;">${tournament?.mode || 'N/A'}</td></tr>
+        <tr><td style="padding: 10px 0; color: #94a3b8;">Team Name:</td><td style="padding: 10px 0; font-weight: 600; color: #f8fafc;">${reg.team_name || 'N/A'}</td></tr>
+      </table>
+    </div>
+    <div style="background-color: #1e293b; border-radius: 10px; padding: 25px; margin: 30px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <h3 style="margin: 0 0 15px 0; color: #a78bfa; font-size: 19px; border-bottom: 1px solid #334155; padding-bottom: 12px;">👥 Registered Squad</h3>
+      <pre style="font-family: inherit; margin: 0; color: #cbd5e1; white-space: pre-wrap; font-size: 15px; line-height: 1.7;">${membersList}</pre>
+    </div>
+    <div style="background-color: #451a03; border-radius: 10px; padding: 20px; border: 1px solid #78350f; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">
+      <p style="margin: 0; color: #fde047; font-size: 15px; font-weight: 700; display: flex; align-items: center;">⚠️ IMPORTANT GUIDELINES:</p>
+      <ul style="margin: 12px 0 0 0; padding-left: 20px; color: #fef08a; font-size: 14px; line-height: 1.6;">
+        <li><strong>Room ID & Password</strong> will be shared via app pop-up <strong>10 minutes</strong> before the match.</li>
+        <li>Ensure your in-game IGN exactly matches the registered IGN. Any mismatch will result in kicking from the room.</li>
+      </ul>
+    </div>
+  </div>
+  <div style="background-color: #020617; padding: 25px; text-align: center; color: #64748b; font-size: 14px; border-top: 1px solid #1e293b;">
+    <p style="margin: 0;">© ${new Date().getFullYear()} <strong style="color: #94a3b8;">BattleHub FF</strong>. All rights reserved.</p>
+    <p style="margin: 6px 0 0 0;">India's Premium Esports Tournament Platform</p>
+  </div>
+</div>`;
 
-Your registration has been confirmed. Below are your tournament details and entry invoice.
-
-──────────────────────────────────────
-  📋 TOURNAMENT INFORMATION
-──────────────────────────────────────
-  Tournament   : ${tournament?.title || "N/A"}
-  Mode         : ${tournament?.mode || "N/A"}
-  Map          : ${tournament?.map || "Bermuda"}
-  Match Date   : ${matchDate}
-  Team Name    : ${reg.team_name}
-
-──────────────────────────────────────
-  👥 REGISTERED PLAYERS
-──────────────────────────────────────
-${membersList}
-
-──────────────────────────────────────
-  🧾 ENTRY INVOICE  [${invoiceId}]
-──────────────────────────────────────
-  Invoice No.  : ${invoiceId}
-  Date         : ${format(new Date(reg.created_date), "dd MMM yyyy, hh:mm a")}
-  Player       : ${reg.team_leader_ign}
-  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-  Entry Fee    : ${tournament?.entry_fee || 0} ${reg.payment_method === "Diamond" ? "Diamond 💎" : "BH Coin 🪙"}
-  Payment Mode : In-App Wallet (${reg.payment_method || "N/A"})
-  Status       : PAID ✅
-──────────────────────────────────────
-
-📌 IMPORTANT NOTES:
-  • Room ID & Password will be shared via pop-up 5 minutes before match.
-  • Keep notifications ON.
-  • IGN mismatch may lead to disqualification.
-
-🎮 Good luck and play fair!
-
-──────────────────────────────────────
-BattleHub FF | Official Tournament Platform
-──────────────────────────────────────
-`
+      await sendBrevoEmail({
+        to_email: toEmail,
+        to_name: reg.team_leader_ign || 'Player',
+        subject: `${headerTitle} — ${tournament?.title || 'Tournament'} | BattleHub FF`,
+        htmlContent: htmlBody
       });
+
       setSentEmails(prev => new Set([...prev, reg.id]));
       alert(`✅ Email sent to ${reg.created_by}`);
     } catch (e) {
-      alert("❌ Failed to send email: " + (e.message || "Unknown error"));
+      console.error(e);
+      alert("❌ Failed to send email: " + (e.text || e.message || "Unknown error"));
     }
     setSendingEmail(null);
   };

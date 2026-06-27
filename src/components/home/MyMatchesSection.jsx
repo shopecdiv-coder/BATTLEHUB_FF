@@ -112,7 +112,7 @@ export default function MyMatchesSection() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <Link to={createPageUrl("MyTournaments")}>
+        <Link to={createPageUrl("Tournaments") + "?tab=my"}>
           <div className="glass-card border-2 border-cyan-500/30 rounded-2xl p-6 hover:border-cyan-500 transition-all cursor-pointer">
             <div className="flex items-center justify-between mb-4">
               <div className="w-14 h-14 rounded-full bg-cyan-500/20 flex items-center justify-center">
@@ -125,7 +125,7 @@ export default function MyMatchesSection() {
           </div>
         </Link>
 
-        <Link to={createPageUrl("MyTournaments")}>
+        <Link to={createPageUrl("Tournaments") + "?tab=my"}>
           <div className="glass-card border-2 border-blue-500/30 rounded-2xl p-6 hover:border-blue-500 transition-all cursor-pointer">
             <div className="flex items-center justify-between mb-4">
               <div className="w-14 h-14 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -138,7 +138,7 @@ export default function MyMatchesSection() {
           </div>
         </Link>
 
-        <Link to={createPageUrl("MyTournaments")}>
+        <Link to={createPageUrl("Tournaments") + "?tab=my"}>
           <div className="glass-card border-2 border-green-500/30 rounded-2xl p-6 hover:border-green-500 transition-all cursor-pointer">
             <div className="flex items-center justify-between mb-4">
               <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">

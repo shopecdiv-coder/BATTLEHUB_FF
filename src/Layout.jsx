@@ -51,7 +51,6 @@ import WelcomeBonusHandler from "./components/WelcomeBonusHandler";
 import ChatUnreadTracker from "./components/ChatUnreadTracker";
 import LoadingBar from "./components/LoadingBar";
 import PhoneNumberModal from "./components/PhoneNumberModal";
-import PolicyAcceptanceModal from "./components/PolicyAcceptanceModal";
 import { useAuth } from "@/lib/AuthContext";
 
 
@@ -176,10 +175,12 @@ function Header({ user, onLogout, unreadMessages, onLoginClick }) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10 border-2 border-orange-400 object-cover">
-                      <AvatarImage src={user.avatar_url || `https://api.dicebear.com/6.x/bottts/svg?seed=${user.email}`} className="object-cover" />
-                      <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 flex-shrink-0 cursor-pointer">
+                    <Avatar className="h-10 w-10 border-2 border-orange-400">
+                      <AvatarImage src={user.avatar_url || ''} alt="Profile" className="object-cover" />
+                      <AvatarFallback className="bg-gradient-to-br from-purple-600 to-pink-600 text-white font-bold text-lg">
+                        {user?.ign?.[0]?.toUpperCase() || user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'P'}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
@@ -265,7 +266,7 @@ function LayoutContent({ children, currentPageName }) {
   const baseNavItems = [
     { name: "Home", href: createPageUrl("Home"), icon: Home },
     { name: "Tournaments", href: createPageUrl("Tournaments"), icon: Trophy },
-    { name: "My Tournaments", href: createPageUrl("MyTournaments"), icon: Star },
+    { name: "My Tournaments", href: createPageUrl("Tournaments") + "?tab=my", icon: Star },
     { name: "Past Tournaments", href: createPageUrl("PastTournaments"), icon: BookOpen },
     { name: "Leaderboard", href: createPageUrl("Leaderboard"), icon: BarChart2 },
     { name: "Ratings", href: createPageUrl("Ratings"), icon: Star },
@@ -317,10 +318,6 @@ function LayoutContent({ children, currentPageName }) {
         
         setUser(currentUser);
         
-        if (!currentUser.phone && !currentUser.mobile_number) {
-          setShowPhoneModal(true);
-        }
-        
         const activeUsers = await ActiveUser.filter({ user_id: currentUser.id }).catch(() => []);
         if (activeUsers.length > 0) {
           await ActiveUser.update(activeUsers[0].id, { last_active: new Date().toISOString() });
@@ -363,10 +360,8 @@ function LayoutContent({ children, currentPageName }) {
       <div className="absolute inset-0 bg-black z-0"></div>
 
       <div className="relative z-10 min-h-screen bg-black">
-        {currentPageName !== "GlobalChat" && (
-          <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
-        )}
-        <main className={currentPageName !== "GlobalChat" ? "pt-16" : ""}>
+        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} />
+        <main className="pt-16">
           <div className="max-w-screen-2xl mx-auto px-0 py-2 sm:p-6 lg:p-8">
             {children}
           </div>
@@ -377,17 +372,7 @@ function LayoutContent({ children, currentPageName }) {
       {user && <BottomNavigation />}
       
       {/* Global Modals */}
-      {user && showPhoneModal && (
-        <PhoneNumberModal 
-          user={user} 
-          onComplete={async () => {
-            setShowPhoneModal(false);
-            const updatedUser = await User.me();
-            setUser(updatedUser);
-          }} 
-        />
-      )}
-      {user && !showPhoneModal && <PolicyAcceptanceModal />}
+
       <GlobalMatchCredentials />
       <GlobalInviteManager />
       <WelcomeBonusHandler />

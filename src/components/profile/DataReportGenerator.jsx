@@ -1,7 +1,8 @@
 import React, { forwardRef, useImperativeHandle, useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { format } from 'date-fns';
-import { X, Image as ImageIcon } from "lucide-react";
+import { X, Download as DownloadIcon } from "lucide-react";
 
 import { User } from "@/entities/User";
 import { Notification } from "@/entities/Notification";
@@ -18,7 +19,6 @@ import { GlobalChat } from "@/entities/GlobalChat";
 const DataReportGenerator = forwardRef((props, ref) => {
   const [data, setData] = useState(null);
   const containerRef = useRef(null);
-  const [previewImage, setPreviewImage] = useState(null);
 
   useImperativeHandle(ref, () => ({
     generatePDF: async () => {
@@ -71,8 +71,33 @@ const DataReportGenerator = forwardRef((props, ref) => {
 
         if (!containerRef.current) return false;
 
-        const imgData = canvas.toDataURL('image/jpeg', 0.9);
-        setPreviewImage(imgData);
+        const canvas = await html2canvas(containerRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        
+        let position = 0;
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        let leftHeight = pdfHeight - pageHeight;
+
+        while (leftHeight > 0) {
+          position = position - pageHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+          leftHeight -= pageHeight;
+        }
+
+        const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id?.substring(0, 6)}.pdf`;
+        
+        pdf.save(fileName);
         
         setData(null);
         return true;
@@ -85,22 +110,7 @@ const DataReportGenerator = forwardRef((props, ref) => {
     }
   }));
 
-  const handleSaveToPhotos = () => {
-    const currentUser = data?.user || { id: "unknown" };
-    const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id.substring(0, 6)}.jpg`;
-    
-    if (window.AndroidBridge && window.AndroidBridge.downloadBase64) {
-      window.AndroidBridge.downloadBase64(previewImage, "image/jpeg", fileName);
-      alert("Saving to photos...");
-    } else {
-      const link = document.createElement("a");
-      link.href = previewImage;
-      link.download = fileName;
-      link.click();
-    }
-  };
-
-  if (!data && !previewImage) return null;
+  if (!data) return null;
 
   const { user, wallet, registrations, payments, redeems, activeUsers, notifications, leaderboardEntries, taskSubmissions, redeemCodes, globalChats } = data;
   

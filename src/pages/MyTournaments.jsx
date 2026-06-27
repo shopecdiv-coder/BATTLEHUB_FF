@@ -169,55 +169,50 @@ function RegistrationList({ registrations, tournaments, loading }) {
         return (
           <div key={registration.id}>
             <Link to={createPageUrl(`TournamentDetail?id=${registration.tournament_id}`)}>
-              <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 group">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-100 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-cyan-400 transition-all mb-2">
+              <Card className="bg-gray-900/40 border border-gray-800 hover:border-cyan-500/30 transition-all duration-300 overflow-hidden group rounded-xl">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-12 h-12 rounded-lg bg-gray-800/80 border border-gray-700 flex items-center justify-center shrink-0 group-hover:border-cyan-500/50 transition-colors">
+                      <Trophy className="w-6 h-6 text-cyan-400 group-hover:text-cyan-300" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base font-bold text-gray-100 truncate group-hover:text-cyan-400 transition-colors">
                         {registration.tournament_title}
                       </h3>
-                      <p className="text-sm text-gray-400">Team: {registration.team_name}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3 text-purple-400" /> {registration.team_name}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-purple-400" /> {format(new Date(registration.created_date), "MMM d")}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-2 items-end">
-                      <Badge className={
-                        registration.status === "Confirmed" ? "bg-green-500/20 text-green-400 border-green-500/50" :
-                        registration.status === "Registered" ? "bg-blue-500/20 text-blue-400 border-blue-500/50" :
-                        registration.status === "Disqualified" ? "bg-red-500/20 text-red-400 border-red-500/50" :
-                        "bg-gray-500/20 text-gray-400 border-gray-500/50"
-                      }>
-                        {registration.status}
+                  </div>
+                  
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 mt-2 sm:mt-0">
+                    <div className="flex flex-col items-start sm:items-end gap-1">
+                      <Badge variant="outline" className={`text-[10px] uppercase tracking-wider px-2 py-0.5 h-auto ${
+                        registration.status === "Confirmed" ? "bg-green-500/10 text-green-400 border-green-500/20" :
+                        registration.status === "Registered" ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" :
+                        registration.status === "Disqualified" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                        "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                      }`}>
+                        {isCompleted ? "COMPLETED" : registration.status}
                       </Badge>
-                      {isCompleted && (
-                        <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/50">
-                          Tournament Completed
-                        </Badge>
-                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <RegistrationInvoiceDownload registration={registration} tournament={tournament} />
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-gray-800/80 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-cyan-400" />
+                      </div>
                     </div>
                   </div>
-
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    <span>{registration.team_members?.length || 1} Members</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>Registered {format(new Date(registration.created_date), "MMM d, yyyy")}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-800">
-                  <RegistrationInvoiceDownload registration={registration} tournament={tournament} />
-                  <Button
-                    variant="ghost"
-                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
-                  >
-                    View Details
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
           </Link>
         </div>
       );

@@ -201,19 +201,14 @@ export class FirestoreEntity {
     const cached = cacheGet(cacheKey);
     if (cached) return cached;
 
-    try {
-      const docRef = doc(db, this.collectionName, id);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() };
-        cacheSet(cacheKey, data, 2 * 60 * 1000);
-        return data;
-      }
-      return null;
-    } catch (e) {
-      console.error(`Error getting ${this.collectionName}:`, e);
-      return null;
+    const docRef = doc(db, this.collectionName, id);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = { id: snap.id, ...snap.data() };
+      cacheSet(cacheKey, data, 2 * 60 * 1000);
+      return data;
     }
+    return null;
   }
 
   // create(data)
@@ -415,6 +410,7 @@ export const User = new UserEntityClass();
 
 // Additional entities used across the app
 export const GlobalChat = new FirestoreEntity('global_chats');
+export const CommunityPost = new FirestoreEntity('community_posts');
 export const PlayerMessage = new FirestoreEntity('player_messages');
 export const LegalContent = new FirestoreEntity('legal_contents');
 export const FAQ = new FirestoreEntity('faqs');

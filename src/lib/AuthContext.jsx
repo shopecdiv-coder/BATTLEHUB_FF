@@ -20,18 +20,28 @@ export const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const docSnap = await getDoc(userDocRef);
-          
           let profileData = {
             id: firebaseUser.uid,
             email: firebaseUser.email,
             full_name: firebaseUser.displayName || '',
-            role: 'user',
+            avatar_url: firebaseUser.photoURL || '',
+            role: firebaseUser.email === 'shopecdiv@gmail.com' ? 'admin' : 'user',
             created_date: new Date().toISOString()
           };
+          
+          setUser(profileData);
+          setIsAuthenticated(true);
+
+          const docSnap = await getDoc(userDocRef);
 
           if (docSnap.exists()) {
             profileData = { ...profileData, ...docSnap.data() };
+            
+            if (!profileData.avatar_url && firebaseUser.photoURL) {
+              profileData.avatar_url = firebaseUser.photoURL;
+              await setDoc(userDocRef, { avatar_url: firebaseUser.photoURL }, { merge: true });
+            }
+
             if (profileData.email === 'shopecdiv@gmail.com' && profileData.role !== 'admin') {
               profileData.role = 'admin';
               await setDoc(userDocRef, { role: 'admin' }, { merge: true });
@@ -72,6 +82,7 @@ export const AuthProvider = ({ children }) => {
           
           setUser(profileData);
           setIsAuthenticated(true);
+          setIsLoadingAuth(false);
         } catch (e) {
           console.error("Error loading user profile:", e);
           setAuthError({
@@ -82,8 +93,8 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setIsLoadingAuth(false);
       }
-      setIsLoadingAuth(false);
     });
 
     return () => unsubscribe();
@@ -155,7 +166,25 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async (email) => {
     try {
-      await sendPasswordResetEmail(auth, email);
+      // For localhost, the Vercel API might not work without 'vercel dev', 
+      // but in production it will hit the Serverless Function.
+      // We wrap it in a fetch call to our custom API. Using absolute URL for APK support.
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? '/api/sendPasswordReset' 
+        : 'https://battlehubff.site/api/sendPasswordReset';
+        
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      if (!response.ok) {
+        // Fallback to default Firebase reset if API fails (e.g. running on localhost without vercel)
+        console.warn("Custom email API failed or not found, falling back to default Firebase email.");
+        await sendPasswordResetEmail(auth, email);
+      }
+      
       return true;
     } catch (e) {
       console.error("Reset password error:", e);
@@ -166,6 +195,19 @@ export const AuthProvider = ({ children }) => {
   const navigateToLogin = () => {
     // If auth is required, redirect to login page
     window.location.href = '/auth/login';
+  };
+
+  const reloadUser = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      const docSnap = await getDoc(userDocRef);
+      if (docSnap.exists()) {
+        setUser(prev => ({ ...prev, ...docSnap.data() }));
+      }
+    } catch (e) {
+      console.error("Failed to reload user", e);
+    }
   };
 
   const checkAppState = async () => {
@@ -185,7 +227,9 @@ export const AuthProvider = ({ children }) => {
       checkAppState,
       login,
       register,
-      resetPassword
+      resetPassword,
+      setUser,
+      reloadUser
     }}>
       {children}
     </AuthContext.Provider>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Tournament } from "@/entities/Tournament";
 import { Registration } from "@/entities/Registration";
 import { User } from "@/entities/User";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,10 @@ const TournamentCard = ({ tournament, registration }) => {
 };
 
 export default function Tournaments() {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const defaultTab = searchParams.get("tab") || "all";
+
   const [tournaments, setTournaments] = useState([]);
   const [filteredTournaments, setFilteredTournaments] = useState([]);
   const [user, setUser] = useState(null);
@@ -117,7 +121,7 @@ export default function Tournaments() {
   const [statusFilter, setStatusFilter] = useState("upcoming");
   const [modeFilter, setModeFilter] = useState("all");
   const [mapFilter, setMapFilter] = useState("all");
-  const [mainTab, setMainTab] = useState("all");
+  const [mainTab, setMainTab] = useState(defaultTab);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [myTournamentsMap, setMyTournamentsMap] = useState({});
   const [page, setPage] = useState(1);
@@ -182,7 +186,7 @@ export default function Tournaments() {
 
     if (searchQuery) {
       filtered = filtered.filter(t => 
-        t.title.toLowerCase().includes(searchQuery.toLowerCase())
+        String(t.title || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 

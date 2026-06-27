@@ -6,16 +6,43 @@ import { GlobalChat } from "@/entities/GlobalChat";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Target, Gamepad2, Coins, Shield, UserPlus } from "lucide-react";
+import { Trophy, Target, Gamepad2, Coins, Shield, UserPlus, Copy, Check, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { TournamentLeaderboard } from "@/entities/TournamentLeaderboard";
 
 export default function UserProfileModal({ userId, onClose }) {
   const [profile, setProfile] = useState(null);
-  const [stats, setStats] = useState({ coins: 0, tournaments: 0 });
+  const [stats, setStats] = useState({ coins: 0, tournaments: 0, kills: 0, wins: 0 });
+  const [copiedId, setCopiedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFriendRequest, setShowFriendRequest] = useState(false);
   const [friendRequestMsg, setFriendRequestMsg] = useState("");
+
+  const handleCopy = (text, id) => {
+    if (!text) return;
+    
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      // Fallback for non-HTTPS or mobile LAN testing
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error("Copy failed", err);
+      }
+      document.body.removeChild(textArea);
+    }
+    
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   useEffect(() => {
     if (userId) loadProfile();
@@ -34,14 +61,24 @@ export default function UserProfileModal({ userId, onClose }) {
         setProfile(foundUser);
         
         // Load stats
-        const [diamonds, regs] = await Promise.all([
+        const [diamonds, regs, leaderboards] = await Promise.all([
           Diamond.filter({ user_id: userId }).catch(() => []),
-          Registration.filter({ team_leader_id: userId }).catch(() => [])
+          Registration.filter({ team_leader_id: userId }).catch(() => []),
+          TournamentLeaderboard.filter({ user_id: userId }).catch(() => [])
         ]);
         
+        let total_kills = 0;
+        let total_wins = 0;
+        (leaderboards || []).forEach(lb => {
+          total_kills += (lb.kills || 0);
+          if (lb.wins > 0) total_wins += 1;
+        });
+
         setStats({
           coins: diamonds.length > 0 ? diamonds[0].amount : 0,
-          tournaments: regs.length
+          tournaments: regs.length,
+          kills: total_kills,
+          wins: total_wins
         });
       } else {
         setProfile(null);
@@ -79,9 +116,19 @@ export default function UserProfileModal({ userId, onClose }) {
             </Avatar>
             
             <div>
-              <h3 className="text-xl font-bold text-white">{profile.full_name || profile.ign || 'Player'}</h3>
-              <div className="inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/50">
-                 {profile.unique_id || `BH${profile.id.replace(/-/g,'').slice(-8).toUpperCase()}`}
+              <h3 className="text-xl font-bold text-white flex items-center justify-center gap-1.5">
+                {profile.full_name || profile.ign || 'Player'}
+                {(profile.role === 'admin' || profile.email === 'shopecdiv@gmail.com' || profile.ign?.toUpperCase().includes('ADMIN') || profile.full_name?.toUpperCase().includes('ADMIN') || profile.ign?.toUpperCase().includes('BATTLEHUB')) && (
+                  <BadgeCheck className="w-5 h-5 text-blue-500 fill-white drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+                )}
+              </h3>
+              <div className="flex justify-center items-center gap-2 mt-1">
+                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/50">
+                   {profile.unique_id || `BH${profile.id.replace(/-/g,'').slice(-8).toUpperCase()}`}
+                </div>
+                <button onClick={() => handleCopy(profile.unique_id || `BH${profile.id.replace(/-/g,'').slice(-8).toUpperCase()}`, 'bhid')} className="p-1 rounded bg-gray-800 hover:bg-gray-700 transition-colors" title="Copy BattleHub ID">
+                  {copiedId === 'bhid' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+                </button>
               </div>
               {profile.bio && (
                 <p className="text-sm text-gray-400 mt-2 italic">"{profile.bio}"</p>
@@ -92,12 +139,12 @@ export default function UserProfileModal({ userId, onClose }) {
             <div className="grid grid-cols-2 gap-3 pt-4">
               <div className="bg-gray-800/50 rounded-lg p-3 text-center">
                 <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
-                <p className="text-xl font-bold text-yellow-400">{profile.total_wins || 0}</p>
+                <p className="text-xl font-bold text-yellow-400">{stats.wins || 0}</p>
                 <p className="text-xs text-gray-500">Wins</p>
               </div>
               <div className="bg-gray-800/50 rounded-lg p-3 text-center">
                 <Target className="w-5 h-5 text-red-400 mx-auto mb-1" />
-                <p className="text-xl font-bold text-red-400">{profile.total_kills || 0}</p>
+                <p className="text-xl font-bold text-red-400">{stats.kills || 0}</p>
                 <p className="text-xs text-gray-500">Kills</p>
               </div>
               <div className="bg-gray-800/50 rounded-lg p-3 text-center">
@@ -105,9 +152,16 @@ export default function UserProfileModal({ userId, onClose }) {
                 <p className="text-xl font-bold text-purple-400">{stats.tournaments}</p>
                 <p className="text-xs text-gray-500">Tournaments</p>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center flex flex-col justify-center">
+              <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col justify-center items-center">
                 <p className="text-sm font-bold text-cyan-400 font-mono break-all">{profile.game_uid || 'N/A'}</p>
-                <p className="text-xs text-gray-500 mt-1">FF UID</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <p className="text-xs text-gray-500">FF UID</p>
+                  {profile.game_uid && (
+                    <button onClick={() => handleCopy(profile.game_uid, 'ffuid')} className="p-0.5 rounded hover:bg-gray-700 transition-colors" title="Copy FF UID">
+                      {copiedId === 'ffuid' ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-gray-400" />}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -149,7 +149,7 @@ export default function Home() {
 
       {/* News Modal */}
       <Dialog open={newsModalOpen} onOpenChange={setNewsModalOpen}>
-        <DialogContent className="bg-gray-950 border-gray-800 text-white sm:max-w-md w-[90vw] max-h-[85vh] overflow-y-auto z-[200]">
+        <DialogContent className="bg-gray-950 border-gray-800 text-white sm:max-w-md w-[90vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-orange-400 font-bold uppercase tracking-wider text-xs border-b border-gray-800 pb-2">Latest Announcements</DialogTitle>
           </DialogHeader>

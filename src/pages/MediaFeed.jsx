@@ -5,6 +5,7 @@ import { MediaPost } from "@/entities/MediaPost";
 import { MediaComment as MediaCommentEntity } from "@/entities/MediaComment";
 import { Notification } from "@/entities/Notification";
 import { User } from "@/entities/User";
+import { containsProfanity } from '@/utils/profanityFilter';
 import MediaPostCard from "@/components/media/MediaPostCard";
 import MediaAllCard from "@/components/media/MediaAllCard";
 import UserProfileModal from "@/components/chat/UserProfileModal";
@@ -45,6 +46,7 @@ export default function MediaFeed({ isSavedView = false }) {
   const [dialRotation, setDialRotation] = useState(isSavedView ? 90 : 0);
   const [isDragging, setIsDragging] = useState(false);
   const navTimeoutRef = useRef(null);
+  const scrollRef = useRef(null);
   const dragStartRef = useRef({ x: 0, y: 0, rotation: 0 });
 
   // Free Dragging FAB state with Persistence
@@ -124,7 +126,19 @@ export default function MediaFeed({ isSavedView = false }) {
         fetchedPosts.sort((a, b) => parseDate(b.created_date) - parseDate(a.created_date));
       }
 
+      // Sort pinned posts to the top while preserving the underlying order
+      fetchedPosts.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return 0;
+      });
+
       setPosts(fetchedPosts);
+      
+      // Reset scroll position to top when switching tabs
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = 0;
+      }
     } catch (e) {
       console.error("Error loading posts", e);
     }
@@ -327,6 +341,11 @@ export default function MediaFeed({ isSavedView = false }) {
     e.preventDefault();
     if (!user) { alert("Please login to comment"); return; }
     if (!newComment.trim() || sendingComment || !selectedPost) return;
+
+    if (containsProfanity(newComment)) {
+      alert("Inappropriate language detected. Please modify your text.");
+      return;
+    }
     
     setSendingComment(true);
     try {
@@ -427,7 +446,7 @@ export default function MediaFeed({ isSavedView = false }) {
       )}
 
       {/* Content Area */}
-      <div className={`flex-1 overflow-y-auto no-scrollbar relative ${mainTab === "reels" ? "snap-y snap-mandatory bg-black" : "bg-gray-950 pb-24"}`}>
+      <div ref={scrollRef} className={`flex-1 overflow-y-auto no-scrollbar relative ${mainTab === "reels" ? "snap-y snap-mandatory bg-black" : "bg-gray-950 pb-24"}`}>
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <Loader2 className="w-10 h-10 animate-spin text-orange-500" />

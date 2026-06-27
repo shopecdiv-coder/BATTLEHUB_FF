@@ -74,12 +74,18 @@ export default function TournamentRegistrations() {
       return lines.length > 0 ? "\n🏆 *PRIZE POOL*\n" + lines.join("\n") : "";
     })();
 
+    const isQualified = /semi|final|grand|quarter|stage/i.test(tournament.title);
+    const headerStatus = isQualified ? "🌟 *QUALIFICATION CONFIRMED*" : "✅ *REGISTRATION CONFIRMED*";
+    const greeting = isQualified 
+      ? `Congratulations *${reg.team_leader_ign}*! Your team has officially qualified for the next stage.`
+      : `Hello *${reg.team_leader_ign}*! Your registration is confirmed.`;
+
     return `🏆 *BATTLEHUB FF — MATCH CONFIRMATION* 🏆
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ *REGISTRATION CONFIRMED*
+${headerStatus}
 
-Hello *${reg.team_leader_ign}*! Your registration is confirmed.
+${greeting}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 📋 *TOURNAMENT INFO*

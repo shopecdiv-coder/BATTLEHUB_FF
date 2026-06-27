@@ -37,10 +37,11 @@ export default function PastTournaments() {
     let filtered = tournaments;
 
     if (searchQuery) {
+      const lowerQuery = String(searchQuery).toLowerCase();
       filtered = filtered.filter(t => 
-        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.tournament_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.winners?.some(w => w.uid.includes(searchQuery))
+        String(t.title || "").toLowerCase().includes(lowerQuery) ||
+        String(t.tournament_id || "").toLowerCase().includes(lowerQuery) ||
+        t.winners?.some(w => String(w.uid || "").toLowerCase().includes(lowerQuery))
       );
     }
 

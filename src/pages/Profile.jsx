@@ -8,6 +8,7 @@ import { Diamond } from "@/entities/Diamond";
 import { GlobalChat } from "@/entities/GlobalChat";
 import { ActiveUser } from "@/entities/ActiveUser";
 import { TaskSubmission } from "@/entities/TaskSubmission";
+import { TournamentLeaderboard } from "@/entities/TournamentLeaderboard";
 import { UploadFile } from "@/integrations/Core";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserPerformanceDashboard from "@/components/admin/UserPerformanceDashboard";
 import DataReportGenerator from "@/components/profile/DataReportGenerator";
+import { useAuth } from "@/lib/AuthContext";
 
 const LOGO_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y5NzMxNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjQwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJIPC90ZXh0Pjwvc3ZnPg==";
 
@@ -29,6 +31,7 @@ import { format } from "date-fns";
 import { ProfileSkeleton } from "@/components/SkeletonLoader";
 
 export default function Profile() {
+  const { user: authUser, reloadUser } = useAuth();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,8 +84,24 @@ export default function Profile() {
     setSavedSquads(currentUser.saved_squads || []);
 
     // Load performance data in background
-    Registration.filter({ team_leader_id: currentUser.id }).then(regs => setUserRegistrations(regs || [])).catch(() => {});
+    Registration.filter({ team_leader_id: currentUser.id }).then(regs => {
+      const r = regs || [];
+      setUserRegistrations(r);
+      setUser(prev => prev ? { ...prev, total_tournaments: r.length } : prev);
+    }).catch(() => {});
+    
     Diamond.filter({ user_id: currentUser.id }).then(d => setUserDiamond(d?.[0] || null)).catch(() => {});
+
+    TournamentLeaderboard.filter({ user_id: currentUser.id }).then(leaderboards => {
+      if (!leaderboards) return;
+      let total_kills = 0;
+      let total_wins = 0;
+      leaderboards.forEach(lb => {
+        total_kills += (lb.kills || 0);
+        if (lb.wins > 0) total_wins += 1;
+      });
+      setUser(prev => prev ? { ...prev, total_kills, total_wins } : prev);
+    }).catch(() => {});
 
     setLoading(false);
   };
@@ -208,12 +227,15 @@ export default function Profile() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col items-center gap-3">
-                  <Avatar className="w-32 h-32 ring-4 ring-purple-500">
-                    <AvatarImage src={user.avatar_url} />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-cyan-500 text-white text-5xl font-bold">
-                      {user.ign?.[0]?.toUpperCase() || user.full_name?.[0]?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="w-32 h-32 rounded-full ring-4 ring-purple-500 flex items-center justify-center overflow-hidden">
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="bg-gradient-to-br from-purple-500 to-cyan-500 text-white text-5xl font-bold w-full h-full flex items-center justify-center">
+                        {user?.ign?.[0]?.toUpperCase() || user?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'P'}
+                      </div>
+                    )}
+                  </div>
                   {!showAvatarInput ? (
                     <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-400" onClick={() => setShowAvatarInput(true)}>
                       <Link2 className="w-3 h-3 mr-1" />
@@ -251,6 +273,7 @@ export default function Profile() {
                         <Button size="sm" className="flex-1 bg-purple-600" onClick={async () => {
                           await User.updateMyUserData({ avatar_url: avatarUrl });
                           await loadUser();
+                          await reloadUser();
                           setShowAvatarInput(false);
                         }}>Save</Button>
                         {user.avatar_url && (
@@ -258,6 +281,7 @@ export default function Profile() {
                             setAvatarUrl("");
                             await User.updateMyUserData({ avatar_url: "" });
                             await loadUser();
+                            await reloadUser();
                             setShowAvatarInput(false);
                           }}>
                             <X className="w-3 h-3" />

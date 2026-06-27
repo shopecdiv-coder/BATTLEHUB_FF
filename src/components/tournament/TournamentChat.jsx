@@ -9,7 +9,7 @@ export default function TournamentChat({ tournament, user, isRegistered, onExpan
         roomId={tournament.id}
         roomTitle={tournament.title}
         isClosed={tournament.status === "Completed" || tournament.status === "Cancelled"}
-        isRegistered={isRegistered}
+        isRegistered={isRegistered || user?.role === 'admin' || user?.email === 'shopecdiv@gmail.com'}
         onExpand={onExpand}
         user={user}
       />

@@ -8,7 +8,7 @@ export default function ChatUnreadTracker() {
   useEffect(() => {
     const checkNewChats = async () => {
       // Don't run if on chat page
-      if (window.location.pathname === createPageUrl("GlobalChat")) {
+      if (window.location.pathname === createPageUrl("Community")) {
         return;
       }
 

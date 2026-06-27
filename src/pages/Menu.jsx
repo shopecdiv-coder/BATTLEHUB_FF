@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Trophy, Users, Shield, Star, BookOpen, Bell, HelpCircle,
   Gift, Wallet, MessageCircle, LogOut, User as UserIcon,
-  Settings, FileText, Scale, Lock, Info, RefreshCw, Gem, Share2, Flame, ChevronRight
+  Settings, FileText, Scale, Lock, Info, RefreshCw, Gem, Share2, Flame, ChevronRight, BarChart2
 } from "lucide-react";
 
 export default function Menu() {
@@ -49,7 +49,7 @@ export default function Menu() {
       title: "Tournaments",
       items: [
         { name: "Tournaments", icon: Trophy, path: "Tournaments" },
-        { name: "My Tournaments", icon: Star, path: "MyTournaments" },
+        { name: "My Tournaments", icon: Star, path: "Tournaments?tab=my" },
         { name: "Tournament Journey", icon: Flame, path: "JourneyHistory" },
         { name: "Past Tournaments", icon: BookOpen, path: "PastTournaments" }
       ]
@@ -57,8 +57,8 @@ export default function Menu() {
     {
       title: "Community",
       items: [
-        { name: "Leaderboard", icon: Users, path: "Leaderboard" },
-        { name: "Global Chat", icon: MessageCircle, path: "GlobalChat" },
+        { name: "Leaderboard", icon: BarChart2, path: "Leaderboard" },
+        { name: "Community", icon: Users, path: "Community" },
         { name: "Ratings", icon: Star, path: "Ratings" }
       ]
     },
@@ -67,7 +67,6 @@ export default function Menu() {
       items: [
         { name: "Earn Diamonds", icon: Gem, path: "EarnDiamonds" },
         { name: "Referrals", icon: Gift, path: "Referrals" },
-        { name: "Notices", icon: Bell, path: "Notices" },
         { name: "Support", icon: HelpCircle, path: "Support" }
       ]
     },

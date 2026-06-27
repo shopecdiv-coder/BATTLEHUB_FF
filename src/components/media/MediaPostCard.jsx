@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Heart, MessageCircle, Bookmark, Play, Volume2, VolumeX, ChevronDown, ChevronUp } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Play, Volume2, VolumeX, ChevronDown, ChevronUp, Flag, Pin, BadgeCheck } from "lucide-react";
 import { MediaPost } from "@/entities/MediaPost";
 import { MediaComment } from "@/entities/MediaComment";
+import { Report } from "@/entities/Report";
 import { formatDistanceToNow } from "date-fns";
 
 export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) {
+  const isAdmin = user?.role === 'admin' || user?.email === 'shopecdiv@gmail.com';
   const [liked, setLiked] = useState(post.likes?.includes(user?.id));
   const [saved, setSaved] = useState(post.saves?.includes(user?.id));
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
@@ -131,10 +133,50 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
     }
   };
 
+  const handleReport = async (e) => {
+    e.stopPropagation();
+    if (!user) {
+      alert("Please login to report this post");
+      return;
+    }
+    const reason = window.prompt("Why are you reporting this media post?");
+    if (!reason || !reason.trim()) return;
+
+    try {
+      await Report.create({
+        type: 'media_post',
+        target_id: post.id,
+        reporter_id: user.id,
+        reporter_ign: user.ign || user.full_name || 'User',
+        reported_user_id: post.author_id || 'unknown',
+        reported_ign: post.author_name || 'Unknown User',
+        reason: "Media Post Violation",
+        description: `Reason: ${reason.trim()}\nPost Title: ${post.title || 'Untitled'}`,
+        evidence_urls: post.media_url ? [post.media_url] : [],
+        status: 'Pending',
+        created_date: new Date().toISOString()
+      });
+      alert("Post reported to admins for review.");
+    } catch (err) {
+      console.error("Failed to report", err);
+    }
+  };
+
+  const handlePin = async (e) => {
+    e.stopPropagation();
+    if (!isAdmin) return;
+    try {
+      await MediaPost.update(post.id, { is_pinned: !post.is_pinned });
+      if (onUpdate) onUpdate(post.id, { is_pinned: !post.is_pinned });
+    } catch(err) {
+      console.error("Failed to pin", err);
+    }
+  };
+
   return (
     <div 
       ref={cardRef} 
-      className="relative w-full h-full snap-start bg-black flex items-center justify-center overflow-hidden group"
+      className={`relative w-full h-full snap-start bg-black flex items-center justify-center overflow-hidden group ${post.is_pinned ? 'ring-2 ring-inset ring-blue-400 bg-gradient-to-t from-blue-900/40 to-transparent' : ''}`}
       onClick={handleInteraction}
     >
       {/* Giant Heart Pop-up Animation */}
@@ -197,9 +239,12 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
             />
           </div>
           <div className="flex flex-col">
-            <span className="text-white font-bold text-[15px] drop-shadow-md flex items-center gap-2">
+            <span className="text-white font-bold text-[15px] drop-shadow-md flex items-center gap-1.5">
               {post.author_name || "BATTLEHUB FF"}
-              {post.is_pinned && <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full">Pinned</span>}
+              {(post.author_role === 'admin' || post.author_name?.includes("BATTLEHUB") || post.author_id === 'shopecdiv@gmail.com') && (
+                <BadgeCheck className="w-4 h-4 text-blue-500 fill-white" />
+              )}
+              {post.is_pinned && <span className="text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded-full ml-1 shadow-[0_0_10px_rgba(59,130,246,0.6)]">Pinned</span>}
             </span>
           </div>
         </div>
@@ -269,6 +314,28 @@ export default function MediaPostCard({ post, user, onUpdate, onOpenComments }) 
           </button>
           <span className="text-white text-xs font-bold drop-shadow-md">Save</span>
         </div>
+
+        <div className="flex flex-col items-center gap-1 group">
+          <button 
+            onClick={handleReport}
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 bg-black/40 backdrop-blur"
+          >
+            <Flag className="w-6 h-6 text-white hover:text-red-500 transition-colors" />
+          </button>
+          <span className="text-white text-xs font-bold drop-shadow-md">Report</span>
+        </div>
+
+        {isAdmin && (
+          <div className="flex flex-col items-center gap-1 group">
+            <button 
+              onClick={handlePin}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${post.is_pinned ? 'bg-blue-500/40 border border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-black/40 backdrop-blur'}`}
+            >
+              <Pin className={`w-6 h-6 ${post.is_pinned ? 'text-blue-400 fill-blue-400' : 'text-white'}`} />
+            </button>
+            <span className="text-white text-xs font-bold drop-shadow-md">Pin</span>
+          </div>
+        )}
 
       </div>
     </div>

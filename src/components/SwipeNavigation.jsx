@@ -5,7 +5,7 @@ import { createPageUrl } from "@/utils";
 const PAGES = [
   createPageUrl("Home"),
   createPageUrl("Tournaments"),
-  createPageUrl("GlobalChat"),
+  createPageUrl("Community"),
   createPageUrl("Wallet"),
   createPageUrl("Menu"),
 ];
@@ -19,7 +19,7 @@ export default function SwipeNavigation({ children }) {
   const currentIndex = PAGES.indexOf(location.pathname);
 
   useEffect(() => {
-    if (location.pathname === createPageUrl("GlobalChat")) return;
+    if (location.pathname === createPageUrl("Community")) return;
 
     const handleTouchStart = (e) => {
       touchStartX.current = e.touches[0].clientX;

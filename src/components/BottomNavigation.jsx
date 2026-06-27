@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Trophy, MessageCircle, Menu, Film } from "lucide-react";
+import { Home, Trophy, MessageCircle, Menu, Film, Users } from "lucide-react";
 import { Registration } from "@/entities/Registration";
 import { User } from "@/entities/User";
 
@@ -36,7 +36,15 @@ export default function BottomNavigation() {
       try {
         const user = await User.me();
         const regs = await Registration.filter({ team_leader_id: user.id });
-        setMyMatchCount(regs.filter(r => r.status !== "Withdrawn" && r.status !== "Disqualified").length);
+        const validRegs = regs.filter(r => r.status !== "Withdrawn" && r.status !== "Disqualified");
+        let activeCount = 0;
+        for (const r of validRegs) {
+           const tourneys = await Tournament.filter({ id: r.tournament_id });
+           if (tourneys.length > 0 && tourneys[0].status !== "Completed") {
+              activeCount++;
+           }
+        }
+        setMyMatchCount(activeCount);
       } catch {}
     };
     loadMyMatches();
@@ -47,7 +55,7 @@ export default function BottomNavigation() {
   const navItems = [
     { name: "Home", path: createPageUrl("Home"), icon: Home },
     { name: "Tournament", path: createPageUrl("Tournaments"), icon: Trophy },
-    { name: "Chat", path: createPageUrl("GlobalChat"), icon: MessageCircle },
+    { name: "Community", path: createPageUrl("Community"), icon: Users },
     { name: "Media", path: createPageUrl("MediaFeed"), icon: Film },
     { name: "Menu", path: createPageUrl("Menu"), icon: Menu }
   ];
