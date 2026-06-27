@@ -406,6 +406,16 @@ export const TaskSubmission = new FirestoreEntity('task_submissions');
 export const MediaPost = new FirestoreEntity('media_posts');
 export const MediaComment = new FirestoreEntity('media_comments');
 
+// Social System Entities
+export const Friendship = new FirestoreEntity('friendships');
+export const Follower = new FirestoreEntity('followers');
+export const Party = new FirestoreEntity('parties');
+export const DirectMessage = new FirestoreEntity('direct_messages');
+export const Reputation = new FirestoreEntity('reputations');
+export const UserAchievement = new FirestoreEntity('user_achievements');
+export const SocialStat = new FirestoreEntity('social_stats');
+
+
 export const User = new UserEntityClass();
 
 // Additional entities used across the app

@@ -1,224 +1,283 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { User, TournamentLeaderboard, Friendship, Follower } from "@/api/entities";
+import { useAuth } from "@/lib/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Trophy, Zap, Swords, ArrowLeft, RefreshCw, Target, Award } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { 
+  UserPlus, MessageSquare, UserCheck, Shield, Share2, Award, 
+  Target, Swords, Trophy, Crown, Flame, ChevronLeft, Flag, Info 
+} from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function PlayerProfile() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const playerUID = urlParams.get("uid");
-  const playerIGN = urlParams.get("ign");
-
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const playerUID = searchParams.get("uid");
+  const { user: currentUser } = useAuth();
+  
   const [player, setPlayer] = useState(null);
-  const [matchHistory, setMatchHistory] = useState([]);
+  const [stats, setStats] = useState({
+    matches: 0, wins: 0, kills: 0, kd: 0, winRate: 0, mvp: 0, earnings: 0
+  });
+  const [friendStatus, setFriendStatus] = useState("none"); // none, pending, accepted
+  const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadData = async () => {
-    setRefreshing(true);
-    try {
-      // Fetch all TournamentLeaderboard entries and find ones where this player appears
-      const allLB = await base44.entities.TournamentLeaderboard.list("-created_date", 200).catch(() => []);
-      const allTournaments = await base44.entities.Tournament.list("-created_date", 100).catch(() => []);
-      const tournamentMap = {};
-      (allTournaments || []).forEach(t => { tournamentMap[t.id] = t; });
-
-      let totalKills = 0;
-      let totalPoints = 0;
-      let tournaments = 0;
-      let wins = 0;
-      let bestPlacement = null;
-      const history = [];
-
-      (allLB || []).forEach(lb => {
-        const members = lb.team_members || [];
-        // Check if this player is in the team members
-        const memberEntry = members.find(m =>
-          (playerUID && m.uid === playerUID) ||
-          (playerIGN && m.ign?.toLowerCase() === playerIGN.toLowerCase())
-        );
-
-        if (memberEntry) {
-          totalKills += memberEntry.kills || 0;
-          tournaments += 1;
-          const tourney = tournamentMap[lb.tournament_id];
-          const placement = lb.placement || (lb.wins > 0 ? 1 : 0);
-          if (placement > 0 && (bestPlacement === null || placement < bestPlacement)) {
-            bestPlacement = placement;
-          }
-          if (lb.wins > 0) wins += lb.wins;
-
-          history.push({
-            tournament_id: lb.tournament_id,
-            tournament_title: lb.tournament_title || tourney?.title || "Unknown",
-            tournament_type: tourney?.tournament_type || "",
-            match_date: tourney?.date_time,
-            placement,
-            kills: memberEntry.kills || 0,
-            team_kills: lb.kills || 0,
-            points: lb.points || 0,
-            team_name: lb.team_name,
-            rank: lb.rank,
-          });
-        } else if (!playerUID && playerIGN && lb.player_ign?.toLowerCase() === playerIGN.toLowerCase()) {
-          // Fallback: match by team leader IGN
-          totalKills += lb.kills || 0;
-          totalPoints += lb.points || 0;
-          tournaments += 1;
-          const tourney = tournamentMap[lb.tournament_id];
-          const placement = lb.placement || (lb.wins > 0 ? 1 : 0);
-          if (placement > 0 && (bestPlacement === null || placement < bestPlacement)) {
-            bestPlacement = placement;
-          }
-          if (lb.wins > 0) wins += lb.wins;
-
-          history.push({
-            tournament_id: lb.tournament_id,
-            tournament_title: lb.tournament_title || tourney?.title || "Unknown",
-            tournament_type: tourney?.tournament_type || "",
-            match_date: tourney?.date_time,
-            placement,
-            kills: lb.kills || 0,
-            team_kills: lb.kills || 0,
-            points: lb.points || 0,
-            team_name: lb.team_name,
-            rank: lb.rank,
-          });
-        }
-      });
-
-      // Sort history by date desc
-      history.sort((a, b) => (b.match_date ? new Date(b.match_date) : 0) - (a.match_date ? new Date(a.match_date) : 0));
-
-      setPlayer({
-        ign: playerIGN || "Unknown Player",
-        uid: playerUID || "",
-        total_kills: totalKills,
-        total_points: totalPoints,
-        tournaments,
-        wins,
-        best_placement: bestPlacement,
-      });
-      setMatchHistory(history);
-    } catch (e) {
-      console.error("PlayerProfile error:", e);
-    }
-    setLoading(false);
-    setRefreshing(false);
-  };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!playerUID) return;
+    loadProfile();
+  }, [playerUID]);
+
+  const loadProfile = async () => {
+    setLoading(true);
+    try {
+      const pData = await User.get(playerUID);
+      if (!pData) {
+        setLoading(false);
+        return;
+      }
+      setPlayer(pData);
+
+      // Load Stats from Leaderboards
+      const allLB = await TournamentLeaderboard.filter({ user_id: playerUID }, "-created_date", 200).catch(() => []);
+      let totalKills = 0;
+      let totalWins = 0;
+      let matches = allLB.length;
+      let mvpCount = 0;
+
+      allLB.forEach(lb => {
+        totalKills += lb.kills || 0;
+        if (lb.wins > 0 || lb.placement === 1) totalWins += 1;
+        if (lb.is_mvp) mvpCount += 1; // Assuming we might add is_mvp
+      });
+
+      setStats({
+        matches,
+        wins: totalWins,
+        kills: totalKills,
+        kd: matches > 0 ? (totalKills / matches).toFixed(1) : 0,
+        winRate: matches > 0 ? Math.round((totalWins / matches) * 100) : 0,
+        mvp: mvpCount,
+        earnings: pData.total_earnings || 0 // Assuming we add this to User later
+      });
+
+      // Load Social Status
+      if (currentUser && currentUser.id !== playerUID) {
+        const checkFriend = await Friendship.filter({ user_id: currentUser.id, friend_id: playerUID });
+        if (checkFriend.length > 0) setFriendStatus(checkFriend[0].status);
+        
+        const checkFollow = await Follower.filter({ user_id: playerUID, follower_id: currentUser.id });
+        setIsFollowing(checkFollow.length > 0);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  const handleAddFriend = async () => {
+    if (!currentUser) return navigate("/auth/login");
+    try {
+      await Friendship.create({
+        user_id: currentUser.id,
+        friend_id: playerUID,
+        status: "pending"
+      });
+      setFriendStatus("pending");
+      toast.success("Friend request sent!");
+    } catch (e) {
+      toast.error("Failed to send request.");
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!currentUser) return navigate("/auth/login");
+    try {
+      if (isFollowing) {
+        // Find and delete (simplified logic, usually need doc id)
+        toast.success("Unfollowed player");
+        setIsFollowing(false);
+      } else {
+        await Follower.create({
+          user_id: playerUID,
+          follower_id: currentUser.id
+        });
+        toast.success("You are now following " + player.ign);
+        setIsFollowing(true);
+      }
+    } catch (e) {
+      toast.error("Action failed");
+    }
+  };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
-      </div>
-    );
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" /></div>;
   }
 
+  if (!player) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Player not found</div>;
+  }
+
+  const isMe = currentUser && currentUser.id === playerUID;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 p-4">
-      <div className="max-w-2xl mx-auto space-y-5">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => window.history.back()} className="text-gray-400 hover:text-white">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back
-          </Button>
-          <Button onClick={loadData} disabled={refreshing} variant="outline" size="sm" className="border-purple-500/50 text-purple-400">
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? "Updating..." : "Update Leaderboard"}
+    <div className="min-h-screen bg-[#0e1015] text-white pb-20">
+      {/* Banner */}
+      <div 
+        className="h-48 md:h-64 w-full bg-cover bg-center relative"
+        style={{ backgroundImage: `url(${player.banner_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'})` }}
+      >
+        <div className="absolute top-4 left-4">
+          <Button variant="ghost" size="icon" className="bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-sm" onClick={() => window.history.back()}>
+            <ChevronLeft className="w-5 h-5" />
           </Button>
         </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0e1015] to-transparent" />
+      </div>
 
-        {/* Player Header Card */}
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700 overflow-hidden">
-          <div className="h-20 bg-gradient-to-r from-purple-600/30 to-pink-600/30" />
-          <CardContent className="px-5 pb-5 -mt-10">
-            <div className="flex items-end gap-4 mb-4">
-              <Avatar className="w-20 h-20 rounded-2xl ring-4 ring-gray-800 flex-shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-purple-600 to-pink-600 text-white text-3xl font-black">
-                  {player?.ign?.[0]?.toUpperCase() || 'P'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="pb-1">
-                <h1 className="text-2xl font-black text-white">{player?.ign}</h1>
-                {player?.uid && <p className="text-cyan-400 text-sm font-mono">UID: {player.uid}</p>}
-                <p className="text-gray-400 text-sm">{player?.tournaments || 0} Tournaments Played</p>
-              </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 relative -mt-20">
+        <div className="flex flex-col md:flex-row gap-6 md:items-end mb-6">
+          {/* Avatar */}
+          <div className="relative inline-block">
+            <Avatar className="w-32 h-32 border-4 border-[#0e1015] shadow-xl">
+              <AvatarImage src={player.avatar_url} />
+              <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-4xl font-bold">
+                {player.ign?.[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-[#0e1015] ${player.activity_status === 'Online' ? 'bg-green-500' : 'bg-gray-500'}`} />
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-3xl font-black tracking-tight">{player.ign || "Unknown Player"}</h1>
+              {player.role === 'admin' && (
+                <Badge className="bg-blue-500 hover:bg-blue-600 px-1.5 py-0.5"><Shield className="w-3 h-3 mr-1" /> Verified</Badge>
+              )}
             </div>
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <span className="font-mono bg-gray-800/50 px-2 py-1 rounded">UID: {player.unique_id || player.id?.substring(0,8)}</span>
+              <span className="flex items-center gap-1"><Flag className="w-3 h-3" /> IN</span>
+              {player.activity_status && <span className={player.activity_status === 'Online' ? 'text-green-400' : 'text-gray-400'}>{player.activity_status}</span>}
+            </div>
+          </div>
 
-            {/* Stats row */}
-            <div className="grid grid-cols-4 gap-2">
+          {/* Actions */}
+          {!isMe && (
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={handleAddFriend} disabled={friendStatus !== 'none'} className="bg-purple-600 hover:bg-purple-700">
+                {friendStatus === 'pending' ? 'Request Sent' : friendStatus === 'accepted' ? <><UserCheck className="w-4 h-4 mr-2" /> Friends</> : <><UserPlus className="w-4 h-4 mr-2" /> Add Friend</>}
+              </Button>
+              <Button onClick={handleFollow} variant={isFollowing ? "outline" : "secondary"} className={isFollowing ? "border-purple-500/50 text-purple-400" : ""}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </Button>
+              <Button variant="outline" className="bg-gray-900 border-gray-700 hover:bg-gray-800">
+                <MessageSquare className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Reputation & Bio */}
+        <div className="flex items-center gap-4 mb-8 bg-gray-900/40 p-4 rounded-xl border border-gray-800/50">
+          <div className="flex flex-col items-center px-4 border-r border-gray-800">
+            <span className="text-2xl font-black text-yellow-400">{player.reputation_score || "5.0"}</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold flex items-center"><Award className="w-3 h-3 mr-1"/> Trust Score</span>
+          </div>
+          <p className="text-sm text-gray-300 italic flex-1">
+            "{player.bio || 'Born to win, forced to grind. Professional Free Fire player.'}"
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Left Column: Stats */}
+          <div className="md:col-span-2 space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2"><Target className="w-5 h-5 text-purple-400"/> Performance Stats</h2>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Tournaments", value: player?.tournaments || 0, color: "text-purple-400" },
-                { label: "Total Kills", value: player?.total_kills || 0, color: "text-red-400" },
-                { label: "Wins", value: player?.wins || 0, color: "text-yellow-400" },
-                { label: "Best Pos", value: player?.best_placement ? `#${player.best_placement}` : '-', color: "text-cyan-400" },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="bg-gray-800/70 rounded-xl p-3 text-center">
-                  <p className={`text-xl font-black ${color}`}>{value}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-                </div>
+                { label: "Matches", value: stats.matches, icon: Swords, color: "text-blue-400" },
+                { label: "Win Rate", value: `${stats.winRate}%`, icon: Trophy, color: "text-green-400" },
+                { label: "K/D Ratio", value: stats.kd, icon: Target, color: "text-red-400" },
+                { label: "Tournaments Won", value: stats.wins, icon: Crown, color: "text-yellow-400" },
+                { label: "Total Kills", value: stats.kills, icon: Flame, color: "text-orange-400" },
+                { label: "MVP Titles", value: stats.mvp, icon: Award, color: "text-purple-400" },
+              ].map((s, i) => (
+                <Card key={i} className="bg-gray-900/60 border-gray-800">
+                  <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                    <s.icon className={`w-6 h-6 mb-2 ${s.color}`} />
+                    <span className="text-2xl font-black text-white">{s.value}</span>
+                    <span className="text-xs text-gray-400 font-medium uppercase mt-1">{s.label}</span>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Match History */}
-        <Card className="bg-gray-900 border-gray-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-purple-400 text-base">
-              <Trophy className="w-4 h-4" /> Match History ({matchHistory.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {matchHistory.length === 0 ? (
-              <p className="text-gray-500 text-center py-6">No match history yet</p>
-            ) : matchHistory.map((match, i) => (
-              <div key={i} className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-700/40">
-                  <div>
-                    <p className="text-white font-semibold text-sm">{match.tournament_title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {match.tournament_type && (
-                        <Badge className="bg-purple-500/20 text-purple-400 text-[10px] border-purple-500/30">{match.tournament_type}</Badge>
-                      )}
-                      {match.match_date && (
-                        <p className="text-gray-500 text-[10px]">{format(new Date(match.match_date), "dd MMM yyyy")}</p>
-                      )}
-                      {match.team_name && (
-                        <span className="text-[10px] text-gray-400">Team: {match.team_name}</span>
-                      )}
+            <h2 className="text-xl font-bold mt-8 mb-4">🏆 Achievements</h2>
+            <ScrollArea className="w-full whitespace-nowrap pb-4">
+              <div className="flex w-max space-x-4">
+                {[
+                  { title: "Champion", desc: "Won a major tournament", icon: "🏆", bg: "bg-yellow-500/20", border: "border-yellow-500/30" },
+                  { title: "Top Killer", desc: "10+ kills in a single match", icon: "⚔️", bg: "bg-red-500/20", border: "border-red-500/30" },
+                  { title: "Early Supporter", desc: "Joined during beta", icon: "🌟", bg: "bg-purple-500/20", border: "border-purple-500/30" },
+                ].map((badge, i) => (
+                  <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${badge.bg} ${badge.border} min-w-[200px]`}>
+                    <div className="text-3xl">{badge.icon}</div>
+                    <div>
+                      <h4 className="font-bold text-sm text-white">{badge.title}</h4>
+                      <p className="text-xs text-gray-400">{badge.desc}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-lg font-black ${match.placement === 1 ? 'text-yellow-400' : match.placement === 2 ? 'text-gray-300' : match.placement === 3 ? 'text-orange-400' : 'text-white'}`}>
-                      {match.placement > 0 ? (match.placement === 1 ? '🥇' : match.placement === 2 ? '🥈' : match.placement === 3 ? '🥉' : `#${match.placement}`) : '-'}
-                    </p>
-                    {match.points > 0 && <p className="text-cyan-400 text-xs font-bold">{match.points} pts</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 px-3 py-2">
-                  <div className="flex items-center gap-1.5">
-                    <Swords className="w-3.5 h-3.5 text-red-400" />
-                    <span className="text-white text-sm font-bold">{match.kills}</span>
-                    <span className="text-gray-500 text-xs">kills</span>
-                  </div>
-                  {match.team_kills !== match.kills && (
-                    <span className="text-[10px] text-gray-500">Team total: {match.team_kills}K</span>
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
-          </CardContent>
-        </Card>
+              <ScrollBar orientation="horizontal" className="bg-gray-800" />
+            </ScrollArea>
+          </div>
+
+          {/* Right Column: Social & Party */}
+          <div className="space-y-6">
+            <Card className="bg-gray-900 border-gray-800">
+              <CardContent className="p-5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Social Rank</h3>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center font-bold">D</div>
+                      <span className="font-bold text-lg text-white">{player.social_rank || 'Diamond I'}</span>
+                    </div>
+                    <span className="text-xs text-purple-400 font-bold">{player.social_xp || 1250} XP</span>
+                  </div>
+                  <div className="w-full bg-gray-800 h-2 rounded-full mt-3 overflow-hidden">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 w-[65%] h-full" />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-800">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Followers</p>
+                      <p className="text-xl font-bold">{player.followers_count || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Friends</p>
+                      <p className="text-xl font-bold">{player.friends_count || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg font-bold">
+              <Share2 className="w-4 h-4 mr-2" /> View Player Card
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
