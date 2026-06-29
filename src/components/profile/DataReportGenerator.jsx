@@ -1,6 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useState, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import html2pdf from 'html2pdf.js';
 import { format } from 'date-fns';
 import { X, Download as DownloadIcon } from "lucide-react";
 
@@ -43,7 +42,7 @@ const DataReportGenerator = forwardRef((props, ref) => {
           PaymentRequest.filter({ user_id: currentUser.id }).catch(() => []),
           RedeemRequest.filter({ user_id: currentUser.id }).catch(() => []),
           ActiveUser.filter({ user_id: currentUser.id }).catch(() => []),
-          Notification.filter({ recipient_id: currentUser.id }, "-created_date", 100).catch(() => []),
+          Notification.filter({ recipient_id: currentUser.id }, "-created_date", 1000).catch(() => []),
           TournamentLeaderboard.filter({ user_id: currentUser.id }, "-created_date", 50).catch(() => []),
           TaskSubmission.filter({ user_id: currentUser.id }, "-created_date").catch(() => []),
           RedeemCode.filter({ user_id: currentUser.id }, "-created_date").catch(() => []),
@@ -53,15 +52,15 @@ const DataReportGenerator = forwardRef((props, ref) => {
         const allData = {
           user: currentUser,
           wallet: diamonds[0] || null,
-          registrations: (registrations || []).slice(0, 20),
-          payments: (payments || []).slice(0, 20),
-          redeems: (redeems || []).slice(0, 20),
+          registrations: (registrations || []),
+          payments: (payments || []),
+          redeems: (redeems || []),
           activeUsers: activeUsers || [],
-          notifications: (notifications || []).slice(0, 20),
-          leaderboardEntries: (leaderboardEntries || []).slice(0, 20),
-          taskSubmissions: (tasks || []).slice(0, 20),
-          redeemCodes: (codes || []).slice(0, 20),
-          globalChats: (chats || []).slice(0, 20)
+          notifications: (notifications || []),
+          leaderboardEntries: (leaderboardEntries || []),
+          taskSubmissions: (tasks || []),
+          redeemCodes: (codes || []),
+          globalChats: (chats || [])
         };
 
         setData(allData);
@@ -71,33 +70,39 @@ const DataReportGenerator = forwardRef((props, ref) => {
 
         if (!containerRef.current) return false;
 
-        const canvas = await html2canvas(containerRef.current, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff'
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        
-        let position = 0;
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-        let leftHeight = pdfHeight - pageHeight;
-
-        while (leftHeight > 0) {
-          position = position - pageHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-          leftHeight -= pageHeight;
-        }
-
         const fileName = `BattleHub_MyData_${currentUser.unique_id || currentUser.id?.substring(0, 6)}.pdf`;
         
-        pdf.save(fileName);
+        const opt = {
+          margin:       10,
+          filename:     fileName,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, logging: false },
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        await html2pdf().set(opt).from(containerRef.current).toPdf().get('pdf').then(function (pdf) {
+          const totalPages = pdf.internal.getNumberOfPages();
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            
+            if (pdf.GState) {
+              pdf.saveGraphicsState();
+              pdf.setGState(new pdf.GState({ opacity: 0.15 }));
+            }
+            
+            pdf.setFontSize(45);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text("BATTLEHUB FF REPORT", pdfWidth / 2, pdfHeight / 2, { angle: 45, align: "center" });
+            
+            if (pdf.GState) {
+              pdf.restoreGraphicsState();
+            }
+          }
+        }).save();
         
         setData(null);
         return true;

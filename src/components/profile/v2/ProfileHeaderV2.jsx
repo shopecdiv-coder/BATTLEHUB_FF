@@ -1,12 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Copy, UserPlus, MessageSquare, Users, ChevronDown, CheckCircle2, Star, Edit, Heart, Settings, Download, Bookmark } from 'lucide-react';
+import { Copy, UserPlus, MessageSquare, Users, ChevronDown, CheckCircle2, Star, Edit, Heart, Settings, Download, Bookmark, Lock } from 'lucide-react';
 import ProfileSettingsDrawer from './ProfileSettingsDrawer';
+import FriendsDrawer from './FriendsDrawer';
+import FollowersDrawer from './FollowersDrawer';
+import { Friendship, Follower } from '@/api/entities';
 
 export default function ProfileHeaderV2({ player, isMe }) {
+  const [realFriendsCount, setRealFriendsCount] = useState(0);
+  const [realFollowersCount, setRealFollowersCount] = useState(0);
+  const [realFollowingCount, setRealFollowingCount] = useState(0);
+
+  useEffect(() => {
+    if (!player?.id) return;
+    const fetchFriends = async () => {
+      try {
+        const [sent, received, followers, following] = await Promise.all([
+          Friendship.filter({ user_id: player.id }),
+          Friendship.filter({ friend_id: player.id }),
+          Follower.filter({ following_id: player.id }),
+          Follower.filter({ follower_id: player.id })
+        ]);
+        const accepted = [...sent, ...received].filter(f => f.status === 'accepted');
+        setRealFriendsCount(accepted.length);
+        
+        const uniqueFollowers = new Set(followers.map(f => f.follower_id));
+        setRealFollowersCount(uniqueFollowers.size);
+        
+        const uniqueFollowing = new Set(following.map(f => f.following_id));
+        setRealFollowingCount(uniqueFollowing.size);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchFriends();
+  }, [player?.id]);
   // Safe fallbacks
   const ign = player?.ign || "Unknown Player";
   const uid = player?.unique_id || player?.id?.substring(0, 8) || "N/A";
@@ -32,7 +63,7 @@ export default function ProfileHeaderV2({ player, isMe }) {
         {isMe && (
           <ProfileSettingsDrawer user={player}>
             <button 
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-1.5 sm:p-2 bg-black/50 hover:bg-[#ff5500]/80 rounded-full text-gray-300 hover:text-white backdrop-blur-md transition-all border border-gray-600/50 hover:border-[#ff5500]"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-1.5 sm:p-2 bg-black/50 hover:bg-[#ff5500]/80 rounded-full text-white backdrop-blur-md transition-all border border-gray-600/50 hover:border-[#ff5500]"
             >
               <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -44,7 +75,7 @@ export default function ProfileHeaderV2({ player, isMe }) {
           <div className="flex flex-row gap-4 items-center w-full">
             {/* Avatar Container */}
             <div className="relative shrink-0">
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-[#ff5500] shadow-[0_0_15px_rgba(255,85,0,0.3)]">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-2 border-[#ff5500]/80 shadow-[0_0_8px_rgba(255,85,0,0.15)]">
                 <AvatarImage src={avatarUrl} className="object-cover" />
                 <AvatarFallback className="bg-gray-900 text-white font-bold text-2xl">{ign[0]}</AvatarFallback>
               </Avatar>
@@ -95,11 +126,11 @@ export default function ProfileHeaderV2({ player, isMe }) {
 
       {/* Action Buttons (Below the banner area) */}
       <div className="px-3 sm:px-6 py-4 flex flex-row items-center justify-between w-full gap-2 border-t border-gray-800/50 bg-[#0a0a0c]">
-        <Button className="flex-1 bg-[#ff5500] hover:bg-[#ff5500]/90 text-white font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
-          <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" /> <span className="truncate">Download Data</span>
+        <Button variant="outline" className="flex-1 bg-[#111115] border-[#2a2a35] text-gray-200 hover:text-white hover:bg-[#1a1a20] font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
+          <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 text-[#ff5500]" /> <span className="truncate">Recent Chats</span>
         </Button>
         <Button variant="outline" className="flex-1 bg-[#111115] border-[#2a2a35] text-gray-200 hover:text-white hover:bg-[#1a1a20] font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
-          <Bookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" /> <span className="truncate">Saved Squads</span>
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" /> <span className="truncate">Your Team</span>
         </Button>
       </div>
 
@@ -107,29 +138,41 @@ export default function ProfileHeaderV2({ player, isMe }) {
       <div className="px-2 sm:px-6 py-3 pb-4 bg-[#0a0a0c] border-t border-gray-800/50">
         <div className="grid grid-cols-4 gap-1 sm:gap-2 w-full">
           {/* Friends */}
-          <div className="bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
-            <Users className="w-4 h-4 sm:w-6 sm:h-6 text-gray-300 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
-            <div className="flex flex-col">
-              <span className="text-[8px] sm:text-[10px] text-gray-400">Friends</span>
-              <span className="text-[11px] sm:text-sm font-black text-white">{player?.friends_count || 128}</span>
-            </div>
-          </div>
+          <FriendsDrawer user={player}>
+            <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
+              <Users className="w-4 h-4 sm:w-6 sm:h-6 text-gray-300 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[8px] sm:text-[10px] text-gray-400">Friends</span>
+                <span className="text-[11px] sm:text-sm font-black text-white">
+                  {(!isMe && player?.is_private) ? <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" /> : (player?.friends_count || realFriendsCount)}
+                </span>
+              </div>
+            </button>
+          </FriendsDrawer>
           {/* Followers */}
-          <div className="bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
-            <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-pink-500 drop-shadow-[0_0_8px_rgba(236,72,153,0.6)] shrink-0" />
-            <div className="flex flex-col">
-              <span className="text-[8px] sm:text-[10px] text-gray-400">Followers</span>
-              <span className="text-[11px] sm:text-sm font-black text-white">{player?.followers_count || '2.4K'}</span>
-            </div>
-          </div>
+          <FollowersDrawer user={player} type="followers">
+            <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
+              <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[8px] sm:text-[10px] text-gray-400">Followers</span>
+                <span className="text-[11px] sm:text-sm font-black text-white">
+                  {(!isMe && player?.is_private) ? <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" /> : (player?.followers_count || realFollowersCount)}
+                </span>
+              </div>
+            </button>
+          </FollowersDrawer>
           {/* Following */}
-          <div className="bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
-            <UserPlus className="w-4 h-4 sm:w-6 sm:h-6 text-teal-400 drop-shadow-[0_0_8px_rgba(45,212,191,0.6)] shrink-0" />
-            <div className="flex flex-col">
-              <span className="text-[8px] sm:text-[10px] text-gray-400">Following</span>
-              <span className="text-[11px] sm:text-sm font-black text-white">{player?.following_count || 96}</span>
-            </div>
-          </div>
+          <FollowersDrawer user={player} type="following">
+            <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
+              <UserPlus className="w-4 h-4 sm:w-6 sm:h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[8px] sm:text-[10px] text-gray-400">Following</span>
+                <span className="text-[11px] sm:text-sm font-black text-white">
+                  {(!isMe && player?.is_private) ? <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" /> : (player?.following_count || realFollowingCount)}
+                </span>
+              </div>
+            </button>
+          </FollowersDrawer>
           {/* Reputation */}
           <div className="bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
             <span className="text-[8px] sm:text-[10px] text-gray-400">Reputation</span>

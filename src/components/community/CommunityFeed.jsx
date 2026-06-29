@@ -5,7 +5,7 @@ import { User } from '@/entities/User';
 import { Loader2, ThumbsUp, ThumbsDown, MessageSquare, MoreVertical, Plus, Image as ImageIcon, CheckCircle, XCircle, X, Flag, Trash2, Send, Heart, Eye, BadgeCheck, Pin } from 'lucide-react';
 import CreatePostModal from './CreatePostModal';
 import { createPageUrl } from '@/utils';
-import { Report } from '@/api/entities';
+import { Report, Follower } from '@/api/entities';
 import UserProfileModal from '@/components/chat/UserProfileModal';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -32,6 +32,8 @@ export default function CommunityFeed() {
   const navigate = useNavigate();
 
   // New UI states
+  const [activeTab, setActiveTab] = useState('all');
+  const [follows, setFollows] = useState({});
   const [activeMenuPostId, setActiveMenuPostId] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null); // { urls: string[], index: number }
   const [activeCommentPost, setActiveCommentPost] = useState(null);
@@ -42,9 +44,23 @@ export default function CommunityFeed() {
   const isAdmin = user?.role === 'admin' || user?.email === 'shopecdiv@gmail.com';
 
   useEffect(() => {
-    User.me().then(setUser).catch(() => setUser(null));
+    User.me().then(u => {
+      setUser(u);
+      if (u) loadFollows(u.id);
+    }).catch(() => setUser(null));
     loadPosts();
   }, []);
+
+  const loadFollows = async (userId) => {
+    try {
+      const myFollows = await Follower.filter({ follower_id: userId });
+      const followsMap = {};
+      myFollows.forEach(f => {
+        followsMap[f.following_id] = f.id;
+      });
+      setFollows(followsMap);
+    } catch(e) {}
+  };
 
   const loadPosts = async () => {
     setLoading(true);
@@ -64,6 +80,28 @@ export default function CommunityFeed() {
   };
 
 
+
+  const handleFollowToggle = async (authorId) => {
+    if (!user) return alert("Please login to follow");
+    try {
+      if (follows[authorId]) {
+        await Follower.delete(follows[authorId]);
+        setFollows(prev => {
+          const next = { ...prev };
+          delete next[authorId];
+          return next;
+        });
+      } else {
+        const newFollow = await Follower.create({
+          follower_id: user.id,
+          following_id: authorId
+        });
+        setFollows(prev => ({ ...prev, [authorId]: newFollow.id }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handlePin = async (post) => {
     if (!isAdmin) return;
@@ -402,6 +440,13 @@ export default function CommunityFeed() {
     }
   };
 
+  const filteredPosts = posts.filter(post => {
+    if (activeTab === 'my_posts') {
+      return String(post.author_id) === String(user?.id) || (isAdmin && post.author_name === 'ADMIN');
+    }
+    return true;
+  });
+
   return (
     <div className="flex-1 bg-gray-950 pb-24 overflow-y-auto min-h-screen relative" onClick={() => setActiveMenuPostId(null)}>
       
@@ -412,17 +457,35 @@ export default function CommunityFeed() {
         <Plus className="w-6 h-6" />
       </button>
 
-      <div className="max-w-xl mx-auto pt-3 px-2 space-y-3">
+      {/* Segmented Tabs */}
+      <div className="max-w-xl mx-auto px-2 pt-2 pb-1 sticky top-0 z-30 bg-gray-950/80 backdrop-blur-md">
+        <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
+          <button 
+            className={`flex-1 text-sm font-semibold py-2 rounded-md transition-all ${activeTab === 'all' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setActiveTab('all')}
+          >
+            All Posts
+          </button>
+          <button 
+            className={`flex-1 text-sm font-semibold py-2 rounded-md transition-all ${activeTab === 'my_posts' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setActiveTab('my_posts')}
+          >
+            My Posts
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-xl mx-auto pt-2 px-2 space-y-3">
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
           </div>
-        ) : posts.length === 0 ? (
+        ) : filteredPosts.length === 0 ? (
           <div className="text-center text-gray-500 py-20 font-medium">
-            No posts yet. Be the first to share something!
+            {activeTab === 'my_posts' ? "You haven't made any posts yet." : "No posts yet. Be the first to share something!"}
           </div>
         ) : (
-          posts.map(post => (
+          filteredPosts.map(post => (
             <div key={post.id} className={`bg-gray-900/60 border rounded-lg overflow-hidden mb-4 shadow-sm ${post.is_pinned ? 'border-blue-400 bg-gradient-to-br from-blue-950/80 to-gray-900 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'border-gray-800'}`}>
               
               <div className="px-3 py-2.5 flex items-start justify-between relative">
@@ -443,6 +506,19 @@ export default function CommunityFeed() {
                       <span className="font-bold text-gray-100 text-sm leading-tight">{post.author_name}</span>
                       {(post.author_role === 'admin' || post.author_name?.toUpperCase().includes("ADMIN") || post.author_name?.includes("BATTLEHUB") || post.author_id === 'shopecdiv@gmail.com') && (
                         <BadgeCheck className="w-4 h-4 text-blue-500 fill-white flex-shrink-0" />
+                      )}
+                      
+                      {user && post.author_id !== user.id && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleFollowToggle(post.author_id); }}
+                          className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                            follows[post.author_id] 
+                              ? 'bg-[#1a1a20] border-gray-600 text-gray-300 hover:bg-[#2a2a35]' 
+                              : 'border-[#ff5500] text-[#ff5500] hover:bg-[#ff5500] hover:text-white'
+                          }`}
+                        >
+                          {follows[post.author_id] ? 'Following' : 'Follow'}
+                        </button>
                       )}
                       {post.is_pinned && <span className="text-[9px] bg-blue-500 text-white px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.6)]">Pinned</span>}
                       {(post.type === 'quiz' || post.type?.includes('poll')) && (

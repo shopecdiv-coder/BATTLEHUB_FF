@@ -18,21 +18,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Shield, Copy, Link2, X, Plus, Trash2, Users, Save, Download, BarChart2, Bookmark, MessageSquare, Gamepad2, Swords, Activity, ArrowLeft, UserPlus, UserCog, ChevronRight, Ban } from "lucide-react";
+import { Trophy, Shield, Copy, Link2, X, Plus, Trash2, Users, Save, Download, BarChart2, Bookmark, MessageSquare, Gamepad2, Swords, Activity, ArrowLeft, UserPlus, UserCog, ChevronRight, Ban, ShoppingCart } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DataReportGenerator from "@/components/profile/DataReportGenerator";
 import { useAuth } from "@/lib/AuthContext";
+import UserGroupsPanel from "../components/profile/UserGroupsPanel";
+import StorePanel from "../components/profile/StorePanel";
+import AccountSettingsDrawer from "@/components/profile/v2/AccountSettingsDrawer";
+import ProfileSettingsDrawer from "@/components/profile/v2/ProfileSettingsDrawer";
 import FriendList from "@/components/social/FriendList";
 import DirectMessageList from "@/components/social/DirectMessageList";
 import PartySystem from "@/components/social/PartySystem";
 
 import ProfileHeaderV2 from "@/components/profile/v2/ProfileHeaderV2";
+import AddFriendDrawer from '@/components/profile/v2/AddFriendDrawer';
 import OverviewTabV2 from "@/components/profile/v2/OverviewTabV2";
 import RecentMatchesV2 from "@/components/profile/v2/RecentMatchesV2";
 import ActivityFeedV2 from "@/components/profile/v2/ActivityFeedV2";
-import ProfileSettingsDrawer from "@/components/profile/v2/ProfileSettingsDrawer";
 import PlayerCardExport from "@/components/profile/PlayerCardExport";
 
 const LOGO_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y5NzMxNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjQwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJIPC90ZXh0Pjwvc3ZnPg==";
@@ -56,12 +59,10 @@ export default function Profile() {
   const [newMember, setNewMember] = useState({ ign: "", uid: "" });
   const [editingSquadIndex, setEditingSquadIndex] = useState(null);
   const [editingSquad, setEditingSquad] = useState(null);
-  const [showDataModal, setShowDataModal] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [userRegistrations, setUserRegistrations] = useState([]);
   const [userDiamond, setUserDiamond] = useState(null);
-  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
-  const pdfRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -188,21 +189,6 @@ export default function Profile() {
     setSaving(false);
   };
 
-  const downloadMyData = async () => {
-    if (!pdfRef.current) return;
-    setGeneratingPdf(true);
-    const success = await pdfRef.current.generatePDF();
-    setGeneratingPdf(false);
-    if (success) {
-      setShowDataModal(false);
-      alert('✅ PDF Downloaded Successfully!');
-    } else {
-      alert('❌ Failed to generate PDF');
-    }
-  };
-
-
-
   if (loading) {
     return <ProfileSkeleton />;
   }
@@ -212,44 +198,70 @@ export default function Profile() {
       id="profile-page-container" 
       className="min-h-screen bg-[#050505] text-white pb-20 p-2 sm:p-4 md:p-8"
     >
-      <DataReportGenerator ref={pdfRef} />
       <div className="max-w-7xl mx-auto">
         
         {/* Header & Main Actions */}
         <ProfileHeaderV2 player={user} isMe={true} />
 
-        {/* Main Content Buttons Grid */}
+        {/* Main Content Buttons */}
         <div className="flex flex-wrap gap-2 mt-6">
           {[
-            { id: 'your_performance', icon: BarChart2, label: 'Your Performance' },
-            { id: 'team_performance', icon: Users, label: 'Team Performance' },
-            { id: 'achievements', icon: Trophy, label: 'Achievements' },
-            { id: 'matches', icon: Swords, label: 'Matches' },
-            { id: 'social', icon: Users, label: 'Social' },
+            { id: 'add_friend', icon: UserPlus, label: 'Add Friend' },
+            { id: 'message', icon: MessageSquare, label: 'Message' },
+            { id: 'party', icon: Gamepad2, label: 'Party Invite' },
+          ].map(btn => {
+            const buttonContent = (
+              <button 
+                key={btn.id}
+                className="flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <span className="text-[9px] sm:text-[11px] uppercase font-bold text-gray-400 text-center leading-tight w-full">{btn.label}</span>
+              </button>
+            );
+
+            if (btn.id === 'add_friend') {
+              return (
+                <AddFriendDrawer user={user} key={btn.id}>
+                  {buttonContent}
+                </AddFriendDrawer>
+              );
+            }
+
+            return <React.Fragment key={btn.id}>{buttonContent}</React.Fragment>;
+          })}
+        </div>
+
+        {/* Action Buttons (Moved Down) */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          {[
+            { id: 'groups', icon: Users, label: 'Create Group' },
+            { id: 'social', icon: Users, label: 'Post' },
+            { id: 'store', icon: ShoppingCart, label: 'Store' },
           ].map(btn => (
             <button 
               key={btn.id}
               onClick={() => setActivePanel(btn.id)}
               className="flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95"
             >
-              <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+              <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               <span className="text-[9px] sm:text-[11px] uppercase font-bold text-gray-400 text-center leading-tight w-full">{btn.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Action Buttons Grid (Bottom) */}
+        {/* Remaining 2 Buttons */}
         <div className="flex flex-wrap gap-2 mt-2">
           {[
-            { id: 'add_friend', icon: UserPlus, label: 'Add Friend', color: 'text-[#ff5500]' },
-            { id: 'message', icon: MessageSquare, label: 'Message', color: 'text-blue-400' },
-            { id: 'party', icon: Gamepad2, label: 'Party Invite', color: 'text-purple-400' },
+            { id: 'your_performance', icon: BarChart2, label: 'Your Performance' },
+            { id: 'team_performance', icon: Users, label: 'Team Performance' },
           ].map(btn => (
             <button 
               key={btn.id}
+              onClick={() => setActivePanel(btn.id)}
               className="flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95"
             >
-              <btn.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${btn.color}`} />
+              <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               <span className="text-[9px] sm:text-[11px] uppercase font-bold text-gray-400 text-center leading-tight w-full">{btn.label}</span>
             </button>
           ))}
@@ -264,7 +276,7 @@ export default function Profile() {
 
         {/* Bottom Settings Buttons */}
         <div className="pb-8 flex flex-col gap-3">
-          <ProfileSettingsDrawer user={user}>
+          <AccountSettingsDrawer user={user}>
             <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:bg-[#111115] hover:border-[#2a2a35] rounded-2xl p-4 sm:p-5 flex items-center justify-between transition-colors group">
               <div className="flex items-center gap-4">
                 <UserCog className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
@@ -272,7 +284,7 @@ export default function Profile() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
-          </ProfileSettingsDrawer>
+          </AccountSettingsDrawer>
 
           <button 
             onClick={() => toast.info('Blocked Users list coming soon!')}
@@ -312,8 +324,8 @@ export default function Profile() {
                 <h2 className="text-lg font-black uppercase tracking-wider text-white">
                   {activePanel === 'your_performance' && 'Your Performance'}
                   {activePanel === 'team_performance' && 'Team Performance'}
-                  {activePanel === 'achievements' && 'Achievements'}
-                  {activePanel === 'matches' && 'Matches'}
+                  {activePanel === 'store' && 'Store'}
+                  {activePanel === 'groups' && 'My Groups'}
                   {activePanel === 'social' && 'Social'}
                   {activePanel === 'activity_feed' && 'Following Updates'}
                 </h2>
@@ -334,15 +346,11 @@ export default function Profile() {
                   <RecentMatchesV2 />
                 </div>
               )}
-              {activePanel === 'achievements' && (
-                <div className="text-center text-gray-500 py-20 bg-[#0a0a0c] rounded-2xl border border-gray-800 mt-4 animate-in fade-in duration-500">
-                  Achievements Coming Soon
-                </div>
+              {activePanel === 'store' && (
+                <StorePanel />
               )}
-              {activePanel === 'matches' && (
-                <div className="text-center text-gray-500 py-20 bg-[#0a0a0c] rounded-2xl border border-gray-800 mt-4 animate-in fade-in duration-500">
-                  Full Match History Coming Soon
-                </div>
+              {activePanel === 'groups' && (
+                <UserGroupsPanel />
               )}
               {activePanel === 'social' && (
                 <div className="bg-[#0a0a0c] border border-gray-800 rounded-xl p-4 md:p-6 mt-4 animate-in fade-in duration-500">

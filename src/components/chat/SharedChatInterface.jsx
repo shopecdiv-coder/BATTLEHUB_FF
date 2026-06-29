@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { User } from "@/entities/User";
 import { GlobalChat as GlobalChatEntity } from "@/entities/GlobalChat";
 import { TournamentChat as TournamentChatEntity } from "@/entities/TournamentChat";
+import { GroupChatMessage as GroupChatMessageEntity } from "@/api/entities";
 import { ActiveUser } from "@/entities/ActiveUser";
 import { base44 } from "@/api/base44Client";
 import { db } from "@/api/firebaseClient";
@@ -111,6 +112,7 @@ const playChatSound = (type) => {
 export default function SharedChatInterface({ 
   roomType = "global", 
   roomId = null, 
+  groupId = null,
   roomTitle = "BATTLEHUB FF", 
   isClosed = false, 
   isRegistered = true, 
@@ -119,7 +121,9 @@ export default function SharedChatInterface({
   user: propUser 
 }) {
   const [user, setUser] = useState(propUser || null);
-  const Entity = roomType === "global" ? GlobalChatEntity : TournamentChatEntity;
+  const Entity = roomType === "global" ? GlobalChatEntity : 
+                 roomType === "group" ? GroupChatMessageEntity : 
+                 TournamentChatEntity;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -165,19 +169,18 @@ export default function SharedChatInterface({
     localStorage.setItem('unreadChatCount', '0');
     localStorage.setItem('lastChatSeen', Date.now().toString());
 
-    const settingsInterval = setInterval(loadChatSettings, 5 * 60 * 1000);
-    const onlineInterval = setInterval(loadOnlineUsers, 5 * 60 * 1000);
+    const messagesLimit = 100;
+    const colName = roomType === "global" ? "global_chats" : 
+                    roomType === "group" ? "group_chat_messages" : 
+                    "tournament_chats";
+    const colRef = collection(db, colName);
+    let q = query(colRef, orderBy("created_at", "desc"), limit(messagesLimit));
     
-    // For tournament_chats, avoid composite index requirements by not combining where() and orderBy()
-    const colName = roomType === "global" ? "global_chats" : "tournament_chats";
-    let qConstraints = [];
     if (roomType === "tournament" && roomId) {
-      qConstraints.push(where("tournament_id", "==", roomId));
-    } else {
-      qConstraints.push(orderBy("created_date", "desc"));
-      qConstraints.push(limit(100));
+      q = query(colRef, where("tournament_id", "==", roomId), orderBy("created_at", "desc"), limit(messagesLimit));
+    } else if (roomType === "group" && groupId) {
+      q = query(colRef, where("group_id", "==", groupId), orderBy("created_at", "desc"), limit(messagesLimit));
     }
-    const q = query(collection(db, colName), ...qConstraints);
 
     const unsubscribeMsgs = onSnapshot(q, (snap) => {
       let allMessages = [];
@@ -187,6 +190,13 @@ export default function SharedChatInterface({
       
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       allMessages = allMessages.filter(m => new Date(m.created_date) >= twentyFourHoursAgo);
+
+      let unreadKey = "unread_global_chat";
+      if (roomType === "tournament") {
+        unreadKey = `unread_tourney_${roomId}`;
+      } else if (roomType === "group") {
+        unreadKey = `unread_group_${groupId}`;
+      }
 
       if (roomType === "tournament") {
         allMessages.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
@@ -223,6 +233,9 @@ export default function SharedChatInterface({
       console.error("Chat snapshot error:", error);
       setLoading(false);
     });
+
+    const settingsInterval = setInterval(loadChatSettings, 5 * 60 * 1000);
+    const onlineInterval = setInterval(loadOnlineUsers, 5 * 60 * 1000);
 
     return () => {
       unsubscribeMsgs();
@@ -263,7 +276,7 @@ export default function SharedChatInterface({
 
   // Handle typing indicator
   useEffect(() => {
-    const activeRoomId = roomId || "global";
+    const activeRoomId = roomId || groupId || "global";
     const unsub = onSnapshot(doc(db, "typing_status", activeRoomId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -275,11 +288,11 @@ export default function SharedChatInterface({
       }
     });
     return () => unsub();
-  }, [roomId, user]);
+  }, [roomId, groupId, user]);
 
   const updateTypingStatus = async (isTyping) => {
     if (!user) return;
-    const activeRoomId = roomId || "global";
+    const activeRoomId = roomId || groupId || "global";
     const ref = doc(db, "typing_status", activeRoomId);
     try {
       if (isTyping) {
@@ -368,7 +381,8 @@ export default function SharedChatInterface({
         is_deleted: false,
         is_pinned: false,
         reactions: { likes: [], hearts: [], laughs: [], fire: [], claps: [] },
-        ...(roomType === "tournament" ? { tournament_id: roomId } : {})
+        ...(roomType === "tournament" ? { tournament_id: roomId } : 
+            roomType === "group" ? { group_id: groupId } : {})
       });
       playChatSound('send'); 
     } catch (error) {
@@ -522,7 +536,7 @@ export default function SharedChatInterface({
 
   // Allow unauthenticated users to view the chat, but not send messages.
 
-  const canChat = Boolean(user && (user.role === "admin" || roomType === "global" || isRegistered));
+  const canChat = Boolean(user && (user.role === "admin" || roomType === "global" || roomType === "group" || isRegistered));
 
   return (
     <div

@@ -428,6 +428,15 @@ export const LeaderboardEntry = new FirestoreEntity('leaderboard_entries');
 export const MessageTemplate = new FirestoreEntity('message_templates');
 export const PhotoLibrary = new FirestoreEntity('photo_library');
 export const TeamInvite = new FirestoreEntity('team_invites');
+
+// Group Chat Entities
+export const UserGroup = new FirestoreEntity('user_groups');
+export const GroupChatMessage = new FirestoreEntity('group_chat_messages');
+
+// Store Entities
+export const Product = new FirestoreEntity('products');
+export const UserPurchase = new FirestoreEntity('user_purchases');
+
 export const Announcement = new FirestoreEntity('announcements');
 export const TournamentMatch = new FirestoreEntity('tournament_matches');
 
