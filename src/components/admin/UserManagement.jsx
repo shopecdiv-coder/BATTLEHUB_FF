@@ -293,7 +293,7 @@ export default function UserManagement() {
     content += `╚══════════════════════════════════════════╝\n\n`;
     content += `Player  : ${user.ign || user.full_name}\n`;
     content += `Email   : ${user.email}\n`;
-    content += `Unique ID: ${user.unique_id || `BH${user.id.substring(0, 6).toUpperCase()}`}\n`;
+    content += `Unique ID: ${user.unique_id || 'N/A'}\n`;
     content += `Generated: ${format(new Date(), "dd MMM yyyy, hh:mm a")}\n\n`;
     content += `══════════════════════════════════════════\n`;
     content += `              💰 BALANCES\n`;
@@ -382,7 +382,7 @@ export default function UserManagement() {
     content += `\n═══════════════════════════════════════════════\n\n`;
     
     users.forEach((u, index) => {
-      const uniqueId = u.unique_id || `BH${u.id.substring(0, 6).toUpperCase()}`;
+      const uniqueId = u.unique_id || 'N/A';
       const refCode = u.referral_code || u.id.substring(0, 8).toUpperCase();
       
       content += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -517,7 +517,7 @@ export default function UserManagement() {
                   <p className="font-semibold text-white truncate">{u.ign || u.full_name}</p>
                   <p className="text-xs text-gray-500">{u.email}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-cyan-400 font-mono">{u.unique_id || `BH${u.id.substring(0, 6).toUpperCase()}`}</p>
+                    <p className="text-xs text-cyan-400 font-mono">{u.unique_id || 'N/A'}</p>
                     {u.ign && (
                       <Badge className="bg-purple-500/20 text-purple-400 text-[9px]">
                         <Gamepad2 className="w-2 h-2 mr-1" />
@@ -569,12 +569,12 @@ export default function UserManagement() {
                   <p className="text-sm text-gray-400">{selectedUser.email}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className="bg-cyan-500/20 text-cyan-400 font-mono">
-                      {selectedUser.unique_id || `BH${selectedUser.id.substring(0, 6).toUpperCase()}`}
+                      {selectedUser.unique_id || 'N/A'}
                     </Badge>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => copyId(selectedUser.unique_id || `BH${selectedUser.id.substring(0, 6).toUpperCase()}`)}
+                      onClick={() => copyId(selectedUser.unique_id || 'N/A')}
                       className="h-6 px-2"
                     >
                       {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-gray-400" />}
@@ -696,7 +696,7 @@ export default function UserManagement() {
                       let message = template.message_template;
                       message = message.replace(/{name}/g, selectedUser.ign || selectedUser.full_name);
                       message = message.replace(/{email}/g, selectedUser.email);
-                      message = message.replace(/{unique_id}/g, selectedUser.unique_id || `BH${selectedUser.id.substring(0, 6).toUpperCase()}`);
+                      message = message.replace(/{unique_id}/g, selectedUser.unique_id || 'N/A');
                       setNotifMessage(message);
                     }
                   }}>

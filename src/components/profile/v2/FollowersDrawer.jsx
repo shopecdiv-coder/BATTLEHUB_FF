@@ -12,10 +12,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Follower, User } from '@/api/entities';
 import { Users, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import PlayerProfile from "@/pages/PlayerProfile";
 
-export default function FollowersDrawer({ children, user, type = 'followers' }) {
+export default function FollowersDrawer({ children, user, type = 'followers', isMe }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const [selectedProfile, setSelectedProfile] = useState(null);
   
   const [userList, setUserList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,23 +26,30 @@ export default function FollowersDrawer({ children, user, type = 'followers' }) 
     if (!user) return;
     setLoading(true);
     try {
+
+      const seen = new Set();
+      
+      // If viewing Followers: find records where this user is being followed (following_id = user.id)
+      // If viewing Following: find records where this user is the follower (follower_id = user.id)
       const data = type === 'followers' 
         ? await Follower.filter({ following_id: user.id })
         : await Follower.filter({ follower_id: user.id });
       
-      const populated = [];
-      const seen = new Set();
-      
-      for (const rel of data) {
+      const fetchPromises = data.map(async (rel) => {
         const targetId = type === 'followers' ? rel.follower_id : rel.following_id;
+        
         if (seen.has(targetId)) {
           Follower.delete(rel.id).catch(() => {});
-          continue;
+          return null;
         }
         seen.add(targetId);
+        
         const targetUser = await User.get(targetId).catch(() => null);
-        if (targetUser) populated.push({ ...rel, otherUser: targetUser });
-      }
+        return targetUser ? { ...rel, otherUser: targetUser } : null;
+      });
+      
+      const results = await Promise.all(fetchPromises);
+      const populated = results.filter(Boolean);
       
       setUserList(populated);
     } catch (e) {
@@ -55,9 +64,8 @@ export default function FollowersDrawer({ children, user, type = 'followers' }) 
     }
   }, [open, user]);
 
-  const handleProfileClick = (id) => {
-    setOpen(false);
-    navigate(`/PlayerProfile?uid=${id}`);
+  const handleProfileClick = (user) => {
+    setSelectedProfile(user);
   };
 
   return (
@@ -68,7 +76,7 @@ export default function FollowersDrawer({ children, user, type = 'followers' }) 
       
       <SheetContent 
         side="right" 
-        className="w-full sm:w-[450px] sm:max-w-md h-full bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col z-50 overflow-hidden [&>button]:hidden"
+        className="w-full sm:w-[450px] sm:max-w-md h-full bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col overflow-hidden [&>button]:hidden pt-16"
       >
         <SheetHeader className="p-4 sm:p-6 border-b border-[#1f2029] bg-[#0c0d12] flex flex-row items-center gap-4 space-y-0">
           <SheetClose asChild>
@@ -91,12 +99,13 @@ export default function FollowersDrawer({ children, user, type = 'followers' }) 
             </div>
           ) : (
             userList.map(f => (
-              <div key={f.id} className="bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4">
-                <div 
-                  className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1"
-                  onClick={() => handleProfileClick(f.otherUser.id)}
-                >
-                  <Avatar className="w-10 h-10">
+              <div 
+                key={f.id} 
+                className={`bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4 transition-all ${isMe ? 'cursor-pointer hover:border-[#ff5500]/50 hover:bg-[#1a1a20]' : ''}`}
+                onClick={() => isMe && handleProfileClick(f.otherUser)}
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <Avatar className="w-12 h-12 border-2 border-transparent">
                     <AvatarImage src={f.otherUser.avatar_url} className="object-cover" />
                     <AvatarFallback className="bg-gray-800 text-white font-bold">{f.otherUser.ign?.[0]}</AvatarFallback>
                   </Avatar>
@@ -105,16 +114,23 @@ export default function FollowersDrawer({ children, user, type = 'followers' }) 
                     <p className="text-[10px] text-gray-400">UID: {f.otherUser.unique_id}</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleProfileClick(f.otherUser.id)}
-                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-white text-xs font-bold transition-colors"
-                >
-                  PROFILE
-                </button>
               </div>
             ))
           )}
         </div>
+
+        {/* Full Profile Slider */}
+        <Sheet open={!!selectedProfile} onOpenChange={(val) => !val && setSelectedProfile(null)}>
+          <SheetContent className="bg-[#050505] border-[#1f2029] p-0 flex flex-col w-full sm:max-w-none sm:w-[500px] md:w-[600px] overflow-y-auto pt-16">
+            {selectedProfile && (
+              <PlayerProfile 
+                inlineUid={selectedProfile.id} 
+                isDrawer={true} 
+                onClose={() => setSelectedProfile(null)} 
+              />
+            )}
+          </SheetContent>
+        </Sheet>
       </SheetContent>
     </Sheet>
   );

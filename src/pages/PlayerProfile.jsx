@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { User, TournamentLeaderboard, Friendship, Follower } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Trophy, Swords, Settings, Activity, ArrowLeft, UserPlus, MessageSquare, Gamepad2, Users, ShoppingCart } from "lucide-react";
+import { BarChart, Trophy, Swords, Settings, Activity, ArrowLeft, UserPlus, MessageSquare, Gamepad2, Users, ShoppingCart, Star, X } from "lucide-react";
 import { toast } from 'sonner';
 
 // V2 Components
@@ -12,14 +12,15 @@ import ProfileHeaderV2 from "@/components/profile/v2/ProfileHeaderV2";
 import OverviewTabV2 from "@/components/profile/v2/OverviewTabV2";
 import RecentMatchesV2 from "@/components/profile/v2/RecentMatchesV2";
 import ActivityFeedV2 from "@/components/profile/v2/ActivityFeedV2";
+import MessagesDrawer from "@/components/profile/v2/MessagesDrawer";
 import PlayerCardExport from "@/components/profile/PlayerCardExport";
 import UserGroupsPanel from "@/components/profile/UserGroupsPanel";
 import StorePanel from "@/components/profile/StorePanel";
 
-export default function PlayerProfile() {
+export default function PlayerProfile({ inlineUid, isDrawer, onClose }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const playerUID = searchParams.get("uid");
+  const playerUID = inlineUid || searchParams.get("uid");
   const { user: currentUser } = useAuth();
   
   const [player, setPlayer] = useState(null);
@@ -43,31 +44,34 @@ export default function PlayerProfile() {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      const pData = await User.get(playerUID);
+      const [pData, friendshipResults, allLB] = await Promise.all([
+        User.get(playerUID).catch(() => null),
+        (currentUser && currentUser.id !== playerUID) 
+          ? (async () => {
+              const [sent, received] = await Promise.all([
+                Friendship.filter({ user_id: currentUser.id }),
+                Friendship.filter({ user_id: playerUID })
+              ]);
+              const relevantSent = sent.filter(f => f.friend_id === playerUID);
+              const relevantReceived = received.filter(f => f.friend_id === currentUser.id);
+              return [relevantSent, relevantReceived];
+            })()
+          : Promise.resolve([[], []]),
+        TournamentLeaderboard.filter({ user_id: playerUID }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 200)).catch(() => [])
+      ]);
+
       if (!pData) {
         setLoading(false);
         return;
       }
       setPlayer(pData);
 
-      if (currentUser && currentUser.id !== playerUID) {
-        try {
-          const [sent, received] = await Promise.all([
-            Friendship.filter({ user_id: currentUser.id, friend_id: playerUID }),
-            Friendship.filter({ user_id: playerUID, friend_id: currentUser.id })
-          ]);
-          const rel = sent[0] || received[0];
-          if (rel) {
-            if (rel.status === 'accepted') setFriendshipStatus('friends');
-            else if (rel.status === 'pending') setFriendshipStatus('pending');
-          }
-        } catch (e) {
-          console.error(e);
-        }
+      const [sent, received] = friendshipResults;
+      const rel = sent[0] || received[0];
+      if (rel) {
+        if (rel.status === 'accepted') setFriendshipStatus('friends');
+        else if (rel.status === 'pending') setFriendshipStatus('pending');
       }
-
-      // Load Stats from Leaderboards
-      const allLB = await TournamentLeaderboard.filter({ user_id: playerUID }, "-created_date", 200).catch(() => []);
       let totalKills = 0;
       let totalWins = 0;
       let matches = allLB.length;
@@ -115,57 +119,80 @@ export default function PlayerProfile() {
   return (
     <div 
       id="profile-page-container" 
-      className="min-h-screen bg-[#050505] text-white pb-20 p-2 sm:p-4 md:p-8"
+      className={`${isDrawer ? 'min-h-full pb-10' : 'min-h-screen pb-20'} bg-[#050505] text-white p-2 sm:p-4 md:p-8 relative`}
     >
+      {isDrawer && (
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-gray-800 rounded-full text-gray-400 hover:text-white transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      )}
       <div className="max-w-7xl mx-auto">
         
         {/* Profile Info Header */}
         <ProfileHeaderV2 player={player} isMe={false} />
 
         {/* Navigation Buttons Grid */}
-        <div className="flex flex-wrap gap-2 mt-6">
-          {[
-            { id: 'add_friend', icon: friendshipStatus === 'friends' ? Users : friendshipStatus === 'pending' ? Activity : UserPlus, label: friendshipStatus === 'friends' ? 'Friends' : friendshipStatus === 'pending' ? 'Pending' : 'Add Friend' },
-            { id: 'message', icon: MessageSquare, label: 'Message' },
-            { id: 'party', icon: Gamepad2, label: 'Party Invite' },
-          ].map(btn => (
-            <button 
-              key={btn.id}
-              onClick={() => {
-                if (btn.id === 'add_friend') handleAddFriend();
-              }}
-              disabled={btn.id === 'add_friend' && friendshipStatus !== 'none'}
-              className={`flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${btn.id === 'add_friend' && friendshipStatus !== 'none' ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <btn.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${btn.id === 'add_friend' && friendshipStatus !== 'none' ? 'text-[#ff5500]' : 'text-white'}`} />
-              <span className={`text-[9px] sm:text-[11px] uppercase font-bold text-center leading-tight w-full ${btn.id === 'add_friend' && friendshipStatus !== 'none' ? 'text-[#ff5500]' : 'text-gray-400'}`}>{btn.label}</span>
-            </button>
-          ))}
-        </div>
+        {isMe && (
+          <div className="flex flex-wrap gap-2 mt-6">
+            {[
+              { id: 'add_friend', icon: friendshipStatus === 'friends' ? Users : friendshipStatus === 'pending' ? Activity : UserPlus, label: friendshipStatus === 'friends' ? 'Friends' : friendshipStatus === 'pending' ? 'Pending' : 'Add Friend' },
+              { id: 'message', icon: MessageSquare, label: 'Message' },
+              { id: 'party', icon: Gamepad2, label: 'Party Invite' },
+            ].map(btn => {
+              const buttonContent = (
+              <button 
+                key={btn.id}
+                onClick={() => {
+                  if (btn.id === 'add_friend') handleAddFriend();
+                }}
+                disabled={btn.id === 'add_friend' && friendshipStatus !== 'none'}
+                className={`flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${btn.id === 'add_friend' && friendshipStatus !== 'none' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <btn.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${btn.id === 'add_friend' && friendshipStatus !== 'none' ? 'text-[#ff5500]' : 'text-white'}`} />
+                <span className={`text-[9px] sm:text-[11px] uppercase font-bold text-center leading-tight w-full ${btn.id === 'add_friend' && friendshipStatus !== 'none' ? 'text-[#ff5500]' : 'text-gray-400'}`}>{btn.label}</span>
+              </button>
+            );
+            
+            if (btn.id === 'message') {
+              return (
+                <MessagesDrawer user={currentUser} key={btn.id}>
+                  {buttonContent}
+                </MessagesDrawer>
+              );
+            }
+            return <React.Fragment key={btn.id}>{buttonContent}</React.Fragment>;
+            })}
+          </div>
+        )}
 
         {/* Action Buttons (Moved Down) */}
-        <div className="flex flex-wrap gap-2 mt-2">
-          {[
-            { id: 'groups', icon: Users, label: 'Create Group' },
-            { id: 'social', icon: Settings, label: 'Post' },
-            { id: 'store', icon: ShoppingCart, label: 'Store' },
-          ].map(btn => (
-            <button 
-              key={btn.id}
-              onClick={() => setActivePanel(btn.id)}
-              className="flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95"
-            >
-              <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              <span className="text-[9px] sm:text-[11px] uppercase font-bold text-gray-400 text-center leading-tight w-full">{btn.label}</span>
-            </button>
-          ))}
-        </div>
+        {isMe && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {[
+              { id: 'groups', icon: Users, label: 'Create Group' },
+              { id: 'social', icon: Settings, label: 'Post' },
+              { id: 'store', icon: ShoppingCart, label: 'Store' },
+            ].map(btn => (
+              <button 
+                key={btn.id}
+                onClick={() => setActivePanel(btn.id)}
+                className="flex-1 min-w-[100px] basis-[30%] bg-[#0a0a0c] hover:bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-1 sm:px-4 py-4 flex flex-col items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <span className="text-[9px] sm:text-[11px] uppercase font-bold text-gray-400 text-center leading-tight w-full">{btn.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Remaining 2 Buttons */}
         <div className="flex flex-wrap gap-2 mt-2">
           {[
-            { id: 'your_performance', icon: BarChart, label: 'Your Performance' },
-            { id: 'team_performance', icon: Users, label: 'Team Performance' },
+            { id: 'your_performance', icon: BarChart, label: isMe ? 'Your Performance' : `${player?.ign?.split(' ')[0] || 'Player'} Performance` },
+            { id: 'team_performance', icon: Users, label: isMe ? 'Team Performance' : `${player?.ign?.split(' ')[0] || 'Player'} Team` },
           ].map(btn => (
             <button 
               key={btn.id}
@@ -184,6 +211,11 @@ export default function PlayerProfile() {
           limit={2} 
           onViewAll={() => setActivePanel('activity_feed')} 
         />
+        
+        {/* Export Card at Bottom */}
+        <div className="mt-4 flex justify-center w-full">
+          <PlayerCardExport player={player} stats={stats} inline={true} />
+        </div>
 
       </div>
 

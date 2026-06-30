@@ -65,7 +65,7 @@ export default function GlobalMatchCredentials() {
       setCredentials(credentialsList);
 
       // Load PlayerMessages with room credentials (auto-expire after 15 min)
-      const msgs = await PlayerMessage.filter({ recipient_id: currentUser.id, read: false }).catch(() => []);
+      const msgs = await PlayerMessage.filter({ recipient_id: currentUser.id }).then(res => res.filter(m => !m.read)).catch(() => []);
       const fifteenMinAgo = Date.now() - 15 * 60 * 1000;
       const activeMessages = msgs.filter(msg => {
         if (!msg.room_code) return false;

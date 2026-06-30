@@ -169,7 +169,7 @@ function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setI
   }, [user]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
+    <header className="fixed top-0 left-0 right-0 z-[100] pointer-events-auto bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
@@ -302,8 +302,8 @@ function LayoutContent({ children, currentPageName }) {
         let currentUser = { ...authUser };
         
         if (!currentUser.unique_id) {
-          const raw = currentUser.id.replace(/-/g, "");
-          const uniqueId = `BH${raw.slice(-8).toUpperCase()}`;
+          const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
+          const uniqueId = `BH${randomDigits}`;
           await User.updateMyUserData({ unique_id: uniqueId }).catch(() => {});
           currentUser.unique_id = uniqueId;
         }
@@ -352,11 +352,11 @@ function LayoutContent({ children, currentPageName }) {
 
       <div className="absolute inset-0 bg-black z-0"></div>
 
-      <div className="relative z-10 min-h-screen">
-        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-        
-        {/* The actual Menu Component */}
-        <MenuPage isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+      <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+      {/* The actual Menu Component */}
+      <MenuPage isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
+      <div className="relative z-10 min-h-screen flex flex-col">
 
         <main className="pt-16">
           <div className="max-w-screen-2xl mx-auto px-0 py-2 sm:p-6 lg:p-8">

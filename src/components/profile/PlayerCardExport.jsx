@@ -250,18 +250,9 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
 
   if (inline) {
     return (
-      <div className="w-full mt-16 mb-[-10px] px-2" ref={containerRef}>
-        {/* Scale on Scroll Container */}
-        <motion.div
-          style={{ scale: scrollScale }}
-          className="flex flex-col items-center justify-center w-full relative"
-        >
-          {/* Background Watermark Text (PhonePe Style) */}
-          <h1 className="absolute top-[-50px] left-1/2 -translate-x-1/2 text-[3.5rem] sm:text-[5rem] md:text-[6.5rem] font-black text-white/5 whitespace-nowrap z-0 pointer-events-none select-none tracking-tighter uppercase">
-            PROFILE CARD
-          </h1>
-
-          <div className="flex justify-center w-full relative z-10 pb-4">
+      <div className="w-full mt-2 mb-4" ref={containerRef}>
+        <div className="flex flex-col items-center justify-center w-full relative">
+          <div className="flex justify-center w-full relative z-10">
             <div 
               className="origin-top"
               style={{ transform: `scale(${scale})`, height: `${cardHeight * scale}px` }}
@@ -269,25 +260,7 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
               {cardElement}
             </div>
           </div>
-
-          <div className="flex-row justify-center gap-4 flex w-full max-w-[800px] mt-4 px-4 relative z-10">
-            <Button 
-              onClick={handleDownload} 
-              disabled={downloading}
-              className="flex-1 bg-transparent border border-white/20 hover:bg-white/10 text-white font-bold h-12 rounded-xl text-[15px]"
-            >
-              {downloading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-              ) : (
-                <Download className="w-5 h-5 mr-2" />
-              )}
-              {downloading ? 'Wait...' : 'Download'}
-            </Button>
-            <Button onClick={handleShare} className="flex-1 bg-transparent border border-white/20 hover:bg-white/10 text-white font-bold h-12 rounded-xl text-[15px]">
-              <Share2 className="w-5 h-5 mr-2" /> Share
-            </Button>
-          </div>
-        </motion.div>
+        </div>
       </div>
     );
   }

@@ -529,7 +529,7 @@ export default function TournamentDetail() {
                             <p className="text-green-400 font-semibold text-center">✓ You are registered for this tournament</p>
                             {user && (
                               <p className="text-center text-xs text-cyan-400 mt-1 font-mono">
-                                Your Unique ID: <span className="font-bold">{user.unique_id || `BH${user.id.substring(0,6).toUpperCase()}`}</span>
+                                Your Unique ID: <span className="font-bold">{user.unique_id || 'N/A'}</span>
                               </p>
                             )}
                             {userRegistration && (

@@ -11,6 +11,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import Login from './pages/Login';
+import { CallProvider } from '@/lib/CallContext';
+import AudioCallScreen from '@/components/chat/AudioCallScreen';
 
 window.setFCMToken = (token) => {
   if (token) {
@@ -81,14 +83,17 @@ function App() {
 
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <NavigationTracker />
-          <AuthenticatedApp />
-        </Router>
-        <Toaster />
-        <VisualEditAgent />
-      </QueryClientProvider>
+      <CallProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <NavigationTracker />
+            <AuthenticatedApp />
+          </Router>
+          <Toaster />
+          <AudioCallScreen />
+          <VisualEditAgent />
+        </QueryClientProvider>
+      </CallProvider>
     </AuthProvider>
   )
 }

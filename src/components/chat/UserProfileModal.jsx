@@ -10,14 +10,18 @@ import { Trophy, Target, Gamepad2, Coins, Shield, UserPlus, Copy, Check, BadgeCh
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TournamentLeaderboard } from "@/entities/TournamentLeaderboard";
+import { useAuth } from "@/lib/AuthContext";
+import { Friendship } from "@/api/entities";
 
 export default function UserProfileModal({ userId, onClose }) {
+  const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState({ coins: 0, tournaments: 0, kills: 0, wins: 0 });
   const [copiedId, setCopiedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFriendRequest, setShowFriendRequest] = useState(false);
   const [friendRequestMsg, setFriendRequestMsg] = useState("");
+  const [isFriend, setIsFriend] = useState(false);
 
   const handleCopy = (text, id) => {
     if (!text) return;
@@ -61,11 +65,16 @@ export default function UserProfileModal({ userId, onClose }) {
         setProfile(foundUser);
         
         // Load stats
-        const [diamonds, regs, leaderboards] = await Promise.all([
+        const [diamonds, regs, leaderboards, myFriends, theirFriends] = await Promise.all([
           Diamond.filter({ user_id: userId }).catch(() => []),
           Registration.filter({ team_leader_id: userId }).catch(() => []),
-          TournamentLeaderboard.filter({ user_id: userId }).catch(() => [])
+          TournamentLeaderboard.filter({ user_id: userId }).catch(() => []),
+          currentUser ? Friendship.filter({ user_id: currentUser.id, friend_id: foundUser.id }).catch(() => []) : [],
+          currentUser ? Friendship.filter({ friend_id: currentUser.id, user_id: foundUser.id }).catch(() => []) : []
         ]);
+
+        const friendship = [...(myFriends || []), ...(theirFriends || [])].find(f => f.status === 'accepted');
+        setIsFriend(!!friendship);
         
         let total_kills = 0;
         let total_wins = 0;
@@ -124,9 +133,9 @@ export default function UserProfileModal({ userId, onClose }) {
               </h3>
               <div className="flex justify-center items-center gap-2 mt-1">
                 <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/50">
-                   {profile.unique_id || `BH${profile.id.replace(/-/g,'').slice(-8).toUpperCase()}`}
+                   {profile.unique_id || 'N/A'}
                 </div>
-                <button onClick={() => handleCopy(profile.unique_id || `BH${profile.id.replace(/-/g,'').slice(-8).toUpperCase()}`, 'bhid')} className="p-1 rounded bg-gray-800 hover:bg-gray-700 transition-colors" title="Copy BattleHub ID">
+                <button onClick={() => handleCopy(profile.unique_id || 'N/A', 'bhid')} className="p-1 rounded bg-gray-800 hover:bg-gray-700 transition-colors" title="Copy BattleHub ID">
                   {copiedId === 'bhid' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
                 </button>
               </div>
@@ -166,43 +175,44 @@ export default function UserProfileModal({ userId, onClose }) {
             </div>
 
             {/* Friend Request Section */}
-            <div className="pt-4 border-t border-gray-800">
-              {!showFriendRequest ? (
-                <Button 
-                  onClick={() => setShowFriendRequest(true)}
-                  className="w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add Friend
-                </Button>
-              ) : (
-                <div className="space-y-3 text-left">
-                  <p className="text-sm font-medium text-gray-300">Send Friend Request</p>
-                  <Textarea 
-                    placeholder="Add an optional message..." 
-                    value={friendRequestMsg}
-                    onChange={(e) => setFriendRequestMsg(e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white resize-none h-20"
-                  />
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => { setShowFriendRequest(false); setFriendRequestMsg(""); }}
-                      className="flex-1 text-gray-400 hover:text-white"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleSendFriendRequest}
-                      className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
-                    >
-                      Send
-                    </Button>
+            {currentUser?.id !== profile.id && !isFriend && (
+              <div className="pt-4 border-t border-gray-800">
+                {!showFriendRequest ? (
+                  <Button 
+                    onClick={() => setShowFriendRequest(true)}
+                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Friend
+                  </Button>
+                ) : (
+                  <div className="space-y-3 text-left">
+                    <p className="text-sm font-medium text-gray-300">Send Friend Request</p>
+                    <Textarea 
+                      placeholder="Add an optional message..." 
+                      value={friendRequestMsg}
+                      onChange={(e) => setFriendRequestMsg(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white resize-none h-20"
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => { setShowFriendRequest(false); setFriendRequestMsg(""); }}
+                        className="flex-1 text-gray-400 hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleSendFriendRequest}
+                        className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
+                      >
+                        Send
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-gray-500 text-center py-8">User not found</p>

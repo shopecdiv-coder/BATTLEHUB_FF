@@ -36,7 +36,7 @@ export default function GlobalInviteManager() {
       setSentInvite(validSent[0]);
     } else {
       // Check for recent accepted/rejected
-      const recent = await TeamInvite.filter({ sender_id: currentUser.id }, "-created_date", 3).catch(() => []);
+      const recent = await TeamInvite.filter({ sender_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 3)).catch(() => []);
       const recentResp = recent.find(i => ["accepted", "rejected"].includes(i.status) && 
         new Date(i.updated_date || i.created_date) > new Date(Date.now() - 5 * 60 * 1000));
       setSentInvite(recentResp || null);

@@ -162,7 +162,7 @@ export default function ReferralManagement({ onUpdate }) {
     content += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     
     allUsers.forEach((u) => {
-      const uniqueId = u.unique_id || `BH${u.id.substring(0, 6).toUpperCase()}`;
+      const uniqueId = u.unique_id || 'N/A';
       content += `${uniqueId} | ${u.ign || '-'} | ${u.full_name || '-'} | ${u.email}\n`;
     });
     
@@ -314,7 +314,7 @@ export default function ReferralManagement({ onUpdate }) {
           
           <div className="max-h-[300px] overflow-y-auto space-y-2">
             {filteredUsers.slice(0, 100).map((u) => {
-              const uniqueId = u.unique_id || `BH${u.id.substring(0, 6).toUpperCase()}`;
+              const uniqueId = u.unique_id || 'N/A';
               return (
                 <div key={u.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                   <div>

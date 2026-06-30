@@ -62,7 +62,7 @@ export default function BottomNavigation() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800">
+    <nav className="fixed bottom-0 left-0 right-0 z-[200] pointer-events-auto bg-gray-900 border-t border-gray-800">
       <div className="grid grid-cols-5 gap-1 items-center h-16 px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;

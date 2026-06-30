@@ -10,11 +10,13 @@ import { collection, query, orderBy, limit, onSnapshot, where, doc, setDoc, dele
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useCall } from "@/lib/CallContext";
 import { Badge } from "@/components/ui/badge";
 import {
   Send, Pin, Trash2, Reply, X,
   MoreVertical, Shield, Flame, Megaphone, Pencil, Image,
-  ChevronDown, SmilePlus, CheckCheck, ArrowDown, Maximize2, Search, BadgeCheck
+  ChevronDown, SmilePlus, CheckCheck, ArrowDown, Maximize2, Search, BadgeCheck,
+  Paperclip, Mic, Square, FileText, Headphones, Phone, Video
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ChatSettings } from "@/entities/ChatSettings";
@@ -114,11 +116,15 @@ export default function SharedChatInterface({
   roomId = null, 
   groupId = null,
   roomTitle = "BATTLEHUB FF", 
+  roomAvatar = null,
   isClosed = false, 
   isRegistered = true, 
   onExpand, 
   onShrink, 
-  user: propUser 
+  user: propUser,
+  customHeaderActions,
+  customMenuItems: propCustomMenuItems,
+  isGlobal = false
 }) {
   const [user, setUser] = useState(propUser || null);
   const Entity = roomType === "global" ? GlobalChatEntity : 
@@ -144,6 +150,8 @@ export default function SharedChatInterface({
   const [showPinnedFull, setShowPinnedFull] = useState(false);
   const lastDropdownCloseTime = useRef(0);
   const [ytViewer, setYtViewer] = useState(null); 
+  const [customMenuItems, setCustomMenuItems] = useState(propCustomMenuItems || null);
+  const { initiateCall } = useCall();
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -152,6 +160,13 @@ export default function SharedChatInterface({
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [activeDropdownId, setActiveDropdownId] = useState(null);
   const [typingUsers, setTypingUsers] = useState([]);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const cancelRecordingRef = useRef(false);
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -174,12 +189,13 @@ export default function SharedChatInterface({
                     roomType === "group" ? "group_chat_messages" : 
                     "tournament_chats";
     const colRef = collection(db, colName);
-    let q = query(colRef, orderBy("created_at", "desc"), limit(messagesLimit));
-    
+    let q;
     if (roomType === "tournament" && roomId) {
-      q = query(colRef, where("tournament_id", "==", roomId), orderBy("created_at", "desc"), limit(messagesLimit));
+      q = query(colRef, where("tournament_id", "==", roomId));
     } else if (roomType === "group" && groupId) {
-      q = query(colRef, where("group_id", "==", groupId), orderBy("created_at", "desc"), limit(messagesLimit));
+      q = query(colRef, where("group_id", "==", groupId));
+    } else {
+      q = query(colRef, orderBy("created_at", "desc"), limit(messagesLimit));
     }
 
     const unsubscribeMsgs = onSnapshot(q, (snap) => {
@@ -189,7 +205,7 @@ export default function SharedChatInterface({
       });
       
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      allMessages = allMessages.filter(m => new Date(m.created_date) >= twentyFourHoursAgo);
+      allMessages = allMessages.filter(m => new Date(m.created_at || m.created_date) >= twentyFourHoursAgo);
 
       let unreadKey = "unread_global_chat";
       if (roomType === "tournament") {
@@ -198,10 +214,9 @@ export default function SharedChatInterface({
         unreadKey = `unread_group_${groupId}`;
       }
 
-      if (roomType === "tournament") {
-        allMessages.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-        allMessages = allMessages.slice(0, 100);
-      }
+      // Sort in memory to avoid composite index requirements
+      allMessages.sort((a, b) => new Date(b.created_at || b.created_date) - new Date(a.created_at || a.created_date));
+      allMessages = allMessages.slice(0, 100);
         
       localStorage.setItem('lastChatSeen', Date.now().toString());
       localStorage.setItem('unreadChatCount', '0');
@@ -381,6 +396,7 @@ export default function SharedChatInterface({
         is_deleted: false,
         is_pinned: false,
         reactions: { likes: [], hearts: [], laughs: [], fire: [], claps: [] },
+        created_at: new Date().toISOString(),
         ...(roomType === "tournament" ? { tournament_id: roomId } : 
             roomType === "group" ? { group_id: groupId } : {})
       });
@@ -457,15 +473,61 @@ export default function SharedChatInterface({
     } catch {}
   };
 
-  const uploadAndSendImage = async (file) => {
-    if (!file || !user || user.role !== "admin") return;
+  const uploadAndSendFile = async (file) => {
+    if (!file || !user) return;
     setUploading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      await sendMessage(file_url, "image");
+      let type = "file";
+      if (file.type.startsWith('image/')) type = "image";
+      else if (file.type.startsWith('audio/')) type = "audio";
+      else if (file.type.startsWith('video/')) type = "video";
+      
+      await sendMessage(`${file_url}::${file.name}`, type);
     } catch {}
     setUploading(false);
   };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      cancelRecordingRef.current = false;
+      
+      mediaRecorder.ondataavailable = e => audioChunksRef.current.push(e.data);
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        clearInterval(recordingTimerRef.current);
+        setRecordingTime(0);
+        
+        if (!cancelRecordingRef.current) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const file = new File([audioBlob], 'voice-note.webm', { type: 'audio/webm' });
+          uploadAndSendFile(file);
+        }
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (e) {
+      toast.error("Microphone access denied");
+    }
+  };
+
+  const stopRecording = (shouldSend = true) => {
+    if (mediaRecorderRef.current && isRecording) {
+      cancelRecordingRef.current = !shouldSend;
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
 
   const handleTouchStart = (e, msg) => {
     touchStartRef.current = e.touches[0].clientX;
@@ -516,7 +578,7 @@ export default function SharedChatInterface({
     : messages;
 
   filteredMessages.forEach((msg, index) => {
-    const dateLabel = getDateLabel(msg.created_date);
+    const dateLabel = getDateLabel(msg.created_at || msg.created_date);
     if (dateLabel !== lastDate) {
       groupedMessages.push({ type: 'date', label: dateLabel, id: `date-${index}` });
       lastDate = dateLabel;
@@ -577,9 +639,9 @@ export default function SharedChatInterface({
                 <div className="relative">
                   <Avatar
                     className="w-11 h-11 ring-2 ring-cyan-500/50 cursor-pointer shadow-lg shadow-cyan-900/30"
-                    onClick={() => chatDP && setMediaViewer({ url: chatDP, type: 'image' })}
+                    onClick={() => (roomAvatar || chatDP) && setMediaViewer({ url: roomAvatar || chatDP, type: 'image' })}
                   >
-                    <AvatarImage src={chatDP || undefined} />
+                    <AvatarImage src={roomAvatar || chatDP || undefined} className="object-cover" />
                     <AvatarFallback className="bg-gradient-to-br from-cyan-600 to-purple-700">
                       <Flame className="w-5 h-5 text-white" />
                     </AvatarFallback>
@@ -595,12 +657,53 @@ export default function SharedChatInterface({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsSearching(true)}
-                  className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95"
-                >
-                  <Search className="w-4.5 h-4.5" />
-                </button>
+                {roomType === "group" && (
+                  <>
+                    <button onClick={() => alert("Video call coming soon!")} className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95">
+                      <Video className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => {
+                      const recipient = { id: roomId, ign: roomTitle, isGroup: true };
+                      initiateCall(recipient, 'zegocloud');
+                    }} className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95">
+                      <Phone className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                {roomType === "direct" && (
+                  <button onClick={() => {
+                    const idParts = roomId.replace('direct_', '').split('_');
+                    const otherUserId = idParts.find(id => id.toString() !== user?.id?.toString()) || idParts[0];
+                    const recipient = { id: otherUserId, ign: roomTitle, avatar_url: roomAvatar };
+                    initiateCall(recipient, 'zegocloud');
+                  }} className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95">
+                    <Phone className="w-4 h-4" />
+                  </button>
+                )}
+
+                {roomType !== "tournament" ? (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-[150] w-48 bg-[#111115] border-[#1f2029]">
+                      <DropdownMenuItem onClick={() => setIsSearching(true)} className="text-gray-300 hover:text-white hover:bg-[#1a1a20] cursor-pointer">
+                        <Search className="w-4 h-4 mr-2" /> Search Messages
+                      </DropdownMenuItem>
+                      {customMenuItems && customMenuItems}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <button
+                    onClick={() => setIsSearching(true)}
+                    className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-95"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                )}
+
                 {onExpand && (
                   <button onClick={onExpand} className="w-9 h-9 rounded-full bg-gray-800/60 border border-white/5 flex items-center justify-center text-cyan-400 hover:text-white hover:bg-cyan-900/50 transition-all active:scale-95">
                     <Maximize2 className="w-4 h-4" />
@@ -697,6 +800,11 @@ export default function SharedChatInterface({
             const { msg } = item;
             const isOwn = msg.user_id === user?.id;
             const isImage = msg.message_type === "image";
+            const isAudio = msg.message_type === "audio";
+            const isFile = msg.message_type === "file";
+            const parts = typeof msg.message === 'string' ? msg.message.split('::') : [];
+            const fileUrl = parts[0] || msg.message;
+            const fileName = parts[1] || 'Attachment';
             const isDeleted = msg.is_deleted;
             const isAnnouncement = msg.is_announcement;
             const isAdmin = msg.sender_email === 'shopecdiv@gmail.com' || msg.sender_role === 'admin';
@@ -804,13 +912,13 @@ export default function SharedChatInterface({
                             }
                           }}
                         >
-                          {(msg.reply_to_type === 'image' || (msg.reply_to_text.startsWith('http') && msg.reply_to_text.includes('res.cloudinary'))) && (
+                          {(msg.reply_to_type === 'image' || (msg.reply_to_text?.startsWith('http') && msg.reply_to_text?.includes('res.cloudinary'))) && (
                             <img src={msg.reply_to_text} alt="Reply" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-[10px] text-cyan-400 font-semibold">↩ {msg.reply_to_user}</p>
                             <p className="text-xs text-gray-300 truncate">
-                              {(msg.reply_to_type === 'image' || (msg.reply_to_text.startsWith('http') && msg.reply_to_text.includes('res.cloudinary'))) ? '📸 Photo' : msg.reply_to_text}
+                              {(msg.reply_to_type === 'image' || (msg.reply_to_text?.startsWith('http') && msg.reply_to_text?.includes('res.cloudinary'))) ? '📸 Photo' : msg.reply_to_text}
                             </p>
                           </div>
                         </div>
@@ -820,17 +928,24 @@ export default function SharedChatInterface({
                         <p className="text-xs text-gray-500 italic">{msg.message}</p>
                       ) : isImage ? (
                         <img
-                          src={msg.message}
+                          src={fileUrl}
                           alt="Shared image"
                           draggable={false}
                           onContextMenu={(e) => e.preventDefault()}
                           className="max-w-[200px] sm:max-w-[240px] rounded-xl cursor-pointer hover:opacity-90 select-none"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setMediaViewer({ url: msg.message, type: 'image' });
+                            setMediaViewer({ url: fileUrl, type: 'image' });
                           }}
                           loading="lazy"
                         />
+                      ) : isAudio ? (
+                        <audio src={fileUrl} controls className="max-w-[200px] sm:max-w-[240px] h-10" />
+                      ) : isFile ? (
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors">
+                          <FileText className="w-5 h-5 text-cyan-400" />
+                          <span className="text-sm font-medium text-white truncate max-w-[150px]">{fileName}</span>
+                        </a>
                       ) : editingMessageId === msg.id ? (
                         <div className="space-y-2 min-w-[180px]">
                           <Input
@@ -905,13 +1020,13 @@ export default function SharedChatInterface({
                           
                           <div className="text-[9px] text-white/40 flex items-center gap-1 shrink-0 ml-auto pb-0.5">
                             {msg.edited && <span className="text-[8px] text-white/30 italic">edited</span>}
-                            <span>{formatTimeIST(msg.created_date)}</span>
+                            <span>{formatTimeIST(msg.created_at || msg.created_date)}</span>
                             {isOwn && <CheckCheck className="w-[10px] h-[10px] text-cyan-400" />}
                           </div>
                         </div>
                       )}
                     </div>
-                  <DropdownMenuContent side="top" sideOffset={8} align={isOwn ? "end" : "start"} className="bg-transparent border-none shadow-none p-0 w-max min-w-[260px] z-[100] outline-none mb-1">
+                  <DropdownMenuContent side="top" sideOffset={8} align={isOwn ? "end" : "start"} className="bg-transparent border-none shadow-none p-0 w-max min-w-[260px] z-[200] outline-none mb-1">
                     <div className="bg-gray-800/95 backdrop-blur-xl border border-white/10 rounded-full px-3 py-2 flex gap-1 justify-between mb-2 shadow-2xl">
                       {REACTIONS.map(r => (
                         <DropdownMenuItem asChild key={r.key}>
@@ -1024,85 +1139,97 @@ export default function SharedChatInterface({
         ) : (
           <div className="max-w-3xl mx-auto flex items-end gap-2 relative">
           
-          {showEmojiPicker && (
-            <div className="absolute bottom-14 left-0 z-50 bg-gray-900 border border-white/10 rounded-2xl p-3 shadow-2xl w-72 h-48 overflow-y-auto grid grid-cols-6 gap-2 backdrop-blur-xl scrollbar-thin">
-              {EMOJIS.map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => {
-                    setNewMessage(prev => prev + emoji);
-                  }}
-                  className="text-2xl hover:bg-white/10 p-1.5 rounded active:scale-125 transition-transform flex items-center justify-center"
-                >
-                  {emoji}
+          {isRecording ? (
+            <div className="flex-1 bg-gray-800/90 border border-white/10 rounded-full h-11 px-4 flex items-center justify-between animate-in slide-in-from-right-4 fade-in mb-0.5">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-red-400 font-mono text-sm">
+                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+              <div className="flex-1 px-4 flex items-center gap-1 overflow-hidden justify-end">
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} className="w-1 bg-cyan-400 rounded-full animate-pulse opacity-50" style={{ height: `${Math.max(20, Math.random() * 100)}%`, animationDelay: `${i * 100}ms`, minHeight: '4px' }} />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => stopRecording(false)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:text-red-300 hover:bg-red-500/30 flex items-center justify-center transition-colors">
+                  <Trash2 className="w-4 h-4" />
                 </button>
-              ))}
+                <button onClick={() => stopRecording(true)} className="w-8 h-8 rounded-full bg-cyan-500 hover:bg-cyan-600 flex items-center justify-center text-white shrink-0 transition-colors shadow-lg shadow-cyan-900/50">
+                  <Send className="w-4 h-4 -ml-0.5 mt-0.5" />
+                </button>
+              </div>
             </div>
-          )}
-
-          {user?.role === "admin" && (
+          ) : (
             <>
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadAndSendImage(e.target.files[0])} />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-10 h-10 rounded-full bg-purple-600/90 hover:bg-purple-600 border border-purple-500/30 flex items-center justify-center flex-shrink-0 mb-0.5"
+              {roomType !== "tournament" && (
+                <>
+                  <input 
+                    ref={fileInputRef} 
+                    type="file" 
+                    className="hidden" 
+                    onChange={e => e.target.files[0] && uploadAndSendFile(e.target.files[0])} 
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-10 h-10 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-white/10 flex items-center justify-center flex-shrink-0 mb-0.5 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {uploading
+                      ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <Paperclip className="w-4 h-4" />
+                    }
+                  </button>
+                  
+                  <button
+                    onClick={startRecording}
+                    className="w-10 h-10 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-white/10 flex items-center justify-center flex-shrink-0 mb-0.5 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              <div className="flex-1 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={newMessage}
+                  onChange={e => {
+                    setNewMessage(e.target.value);
+                    if (textareaRef.current) {
+                      textareaRef.current.style.height = 'auto';
+                      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 112) + 'px';
+                    }
+                  }}
+                  placeholder="Type a message..."
+                  className="w-full bg-gray-800/70 border border-white/10 text-white placeholder-gray-500 rounded-2xl px-4 py-2 resize-none overflow-hidden min-h-[38px] max-h-28 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/25 text-sm leading-relaxed"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    } else {
+                      updateTypingStatus(true);
+                    }
+                  }}
+                  onBlur={() => updateTypingStatus(false)}
+                  disabled={sending}
+                  rows={1}
+                />
+              </div>
+
+              <Button
+                onClick={() => sendMessage()}
+                disabled={!newMessage.trim() || sending}
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-violet-600 hover:opacity-90 p-0 flex-shrink-0 mb-0.5 disabled:opacity-25 shadow-lg shadow-violet-900/30"
               >
-                {uploading
+                {sending
                   ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <Image className="w-4 h-4 text-white" />
+                  : <Send className="w-4 h-4 text-white" />
                 }
-              </button>
+              </Button>
             </>
           )}
-
-          <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`w-10 h-10 rounded-full border flex items-center justify-center flex-shrink-0 mb-0.5 transition-colors ${showEmojiPicker ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-400' : 'bg-gray-800/80 border-white/10 text-gray-400 hover:text-white'}`}
-          >
-            😊
-          </button>
-
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={newMessage}
-              onChange={e => {
-                setNewMessage(e.target.value);
-                if (textareaRef.current) {
-                  textareaRef.current.style.height = 'auto';
-                  textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 112) + 'px';
-                }
-              }}
-              placeholder="Type a message..."
-              className="w-full bg-gray-800/70 border border-white/10 text-white placeholder-gray-500 rounded-2xl px-4 py-2 resize-none overflow-hidden min-h-[38px] max-h-28 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/25 text-sm leading-relaxed"
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                } else {
-                  updateTypingStatus(true);
-                }
-              }}
-              onBlur={() => updateTypingStatus(false)}
-              onClick={() => {
-                setShowEmojiPicker(false);
-              }}
-              disabled={sending}
-              rows={1}
-            />
-          </div>
-
-          <Button
-            onClick={() => sendMessage()}
-            disabled={!newMessage.trim() || sending}
-            className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-violet-600 hover:opacity-90 p-0 flex-shrink-0 mb-0.5 disabled:opacity-25 shadow-lg shadow-violet-900/30"
-          >
-            {sending
-              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <Send className="w-4 h-4 text-white" />
-            }
-          </Button>
         </div>
         )}
       </div>

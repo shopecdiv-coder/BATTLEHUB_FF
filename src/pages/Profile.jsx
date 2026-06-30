@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Shield, Copy, Link2, X, Plus, Trash2, Users, Save, Download, BarChart2, Bookmark, MessageSquare, Gamepad2, Swords, Activity, ArrowLeft, UserPlus, UserCog, ChevronRight, Ban, ShoppingCart } from "lucide-react";
+import { Trophy, Shield, Copy, Link2, X, Plus, Trash2, Users, Save, Download, BarChart2, Bookmark, MessageSquare, Gamepad2, Swords, Activity, ArrowLeft, UserPlus, UserCog, ChevronRight, Ban, ShoppingCart, Star } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,6 +33,7 @@ import PartySystem from "@/components/social/PartySystem";
 
 import ProfileHeaderV2 from "@/components/profile/v2/ProfileHeaderV2";
 import AddFriendDrawer from '@/components/profile/v2/AddFriendDrawer';
+import MessagesDrawer from '@/components/profile/v2/MessagesDrawer';
 import OverviewTabV2 from "@/components/profile/v2/OverviewTabV2";
 import RecentMatchesV2 from "@/components/profile/v2/RecentMatchesV2";
 import ActivityFeedV2 from "@/components/profile/v2/ActivityFeedV2";
@@ -46,8 +47,14 @@ import { ProfileSkeleton } from "@/components/SkeletonLoader";
 export default function Profile() {
   const { user: authUser, reloadUser } = useAuth();
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('bh_cached_profile_v2');
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
   const [loading, setLoading] = useState(true);
+  const [backgroundSyncing, setBackgroundSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({});
@@ -81,45 +88,58 @@ export default function Profile() {
   };
 
   const loadUser = async () => {
-    const currentUser = await User.me();
-    
-    if (!currentUser.unique_id) {
-      const uniqueId = await generateTrulyUniqueId(currentUser.id);
-      await User.updateMyUserData({ unique_id: uniqueId });
-      currentUser.unique_id = uniqueId;
+    if (user) {
+      setLoading(false);
+      setBackgroundSyncing(true); // Show progress bar since we're doing a background sync
     }
-    
-    setUser(currentUser);
-    setFormData({
-      full_name: currentUser.full_name || "",
-      game_uid: currentUser.game_uid || "",
-      phone: currentUser.phone || "",
-      bio: currentUser.bio || ""
-    });
-    setAvatarUrl(currentUser.avatar_url || "");
-    setSavedSquads(currentUser.saved_squads || []);
 
-    // Load performance data in background
-    Registration.filter({ team_leader_id: currentUser.id }).then(regs => {
-      const r = regs || [];
-      setUserRegistrations(r);
-      setUser(prev => prev ? { ...prev, total_tournaments: r.length } : prev);
-    }).catch(() => {});
-    
-    Diamond.filter({ user_id: currentUser.id }).then(d => setUserDiamond(d?.[0] || null)).catch(() => {});
-
-    TournamentLeaderboard.filter({ user_id: currentUser.id }).then(leaderboards => {
-      if (!leaderboards) return;
-      let total_kills = 0;
-      let total_wins = 0;
-      leaderboards.forEach(lb => {
-        total_kills += (lb.kills || 0);
-        if (lb.wins > 0) total_wins += 1;
+    try {
+      const currentUser = await User.me();
+      
+      if (!currentUser.unique_id) {
+        const uniqueId = await generateTrulyUniqueId(currentUser.id);
+        await User.updateMyUserData({ unique_id: uniqueId });
+        currentUser.unique_id = uniqueId;
+      }
+      
+      // Cache it for instant next load
+      localStorage.setItem('bh_cached_profile_v2', JSON.stringify(currentUser));
+      
+      setUser(currentUser);
+      setFormData({
+        full_name: currentUser.full_name || "",
+        game_uid: currentUser.game_uid || "",
+        phone: currentUser.phone || "",
+        bio: currentUser.bio || ""
       });
-      setUser(prev => prev ? { ...prev, total_kills, total_wins } : prev);
-    }).catch(() => {});
+      setAvatarUrl(currentUser.avatar_url || "");
+      if (currentUser.squads) setSavedSquads(currentUser.squads);
+      
+      // Load performance data in background
+      Registration.filter({ team_leader_id: currentUser.id }).then(regs => {
+        const r = regs || [];
+        setUserRegistrations(r);
+        setUser(prev => prev ? { ...prev, total_tournaments: r.length } : prev);
+      }).catch(() => {});
+      
+      Diamond.filter({ user_id: currentUser.id }).then(d => setUserDiamond(d?.[0] || null)).catch(() => {});
 
-    setLoading(false);
+      TournamentLeaderboard.filter({ user_id: currentUser.id }).then(leaderboards => {
+        if (!leaderboards) return;
+        let total_kills = 0;
+        let total_wins = 0;
+        leaderboards.forEach(lb => {
+          total_kills += (lb.kills || 0);
+          if (lb.wins > 0) total_wins += 1;
+        });
+        setUser(prev => prev ? { ...prev, total_kills, total_wins } : prev);
+      }).catch(() => {});
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setBackgroundSyncing(false);
+    }
   };
 
   const saveSquad = async () => {
@@ -194,10 +214,15 @@ export default function Profile() {
   }
 
   return (
-    <div 
-      id="profile-page-container" 
-      className="min-h-screen bg-[#050505] text-white pb-20 p-2 sm:p-4 md:p-8"
-    >
+    <div className="min-h-screen bg-[#050505] text-white pb-32 overflow-x-hidden w-full relative">
+      {/* Top Loading Progress Bar */}
+      {(loading || backgroundSyncing) && (
+        <div className="fixed top-0 left-0 w-full h-1 z-[999] overflow-hidden bg-gray-900/50">
+          <div className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 animate-[loading-bar_1.5s_ease-in-out_infinite]" style={{ width: '50%', transformOrigin: 'left' }}></div>
+        </div>
+      )}
+
+      {/* Decorative Background Elements */}
       <div className="max-w-7xl mx-auto">
         
         {/* Header & Main Actions */}
@@ -225,6 +250,13 @@ export default function Profile() {
                 <AddFriendDrawer user={user} key={btn.id}>
                   {buttonContent}
                 </AddFriendDrawer>
+              );
+            }
+            if (btn.id === 'message') {
+              return (
+                <MessagesDrawer user={user} key={btn.id}>
+                  {buttonContent}
+                </MessagesDrawer>
               );
             }
 

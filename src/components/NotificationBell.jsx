@@ -29,7 +29,7 @@ export default function NotificationBell() {
       setUser(currentUser);
 
       // Single API call - fetch user notifications only to reduce rate limiting
-      const userNotifs = await Notification.filter({ recipient_id: currentUser.id }, "-created_at", 15).catch(() => []);
+      const userNotifs = await Notification.filter({ recipient_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15)).catch(() => []);
       
       setNotifications(userNotifs);
       setUnreadCount(userNotifs.filter(n => !n.read).length);

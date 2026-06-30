@@ -42,11 +42,11 @@ const DataReportGenerator = forwardRef((props, ref) => {
           PaymentRequest.filter({ user_id: currentUser.id }).catch(() => []),
           RedeemRequest.filter({ user_id: currentUser.id }).catch(() => []),
           ActiveUser.filter({ user_id: currentUser.id }).catch(() => []),
-          Notification.filter({ recipient_id: currentUser.id }, "-created_date", 1000).catch(() => []),
-          TournamentLeaderboard.filter({ user_id: currentUser.id }, "-created_date", 50).catch(() => []),
-          TaskSubmission.filter({ user_id: currentUser.id }, "-created_date").catch(() => []),
-          RedeemCode.filter({ user_id: currentUser.id }, "-created_date").catch(() => []),
-          GlobalChat.filter({ user_id: currentUser.id }, "-created_date", 50).catch(() => [])
+          Notification.filter({ recipient_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 1000)).catch(() => []),
+          TournamentLeaderboard.filter({ user_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 50)).catch(() => []),
+          TaskSubmission.filter({ user_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date))).catch(() => []),
+          RedeemCode.filter({ user_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date))).catch(() => []),
+          GlobalChat.filter({ user_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 50)).catch(() => [])
         ]);
 
         const allData = {

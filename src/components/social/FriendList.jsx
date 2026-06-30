@@ -24,20 +24,23 @@ export default function FriendList({ user }) {
       
       const allRelations = [...sent, ...received];
       
+      const fetchPromises = allRelations.map(async (rel) => {
+        const otherId = rel.user_id === user.id ? rel.friend_id : rel.user_id;
+        const otherUser = await User.get(otherId).catch(() => null);
+        if (!otherUser) return null;
+        return { ...rel, otherUser };
+      });
+      
+      const results = await Promise.all(fetchPromises);
+      const validResults = results.filter(Boolean);
+      
       const pendingRecv = [];
       const acceptedList = [];
       
-      for (const rel of allRelations) {
-        // Resolve the other user's profile
-        const otherId = rel.user_id === user.id ? rel.friend_id : rel.user_id;
-        const otherUser = await User.get(otherId).catch(() => null);
-        if (!otherUser) continue;
-        
-        const data = { ...rel, otherUser };
-        
-        if (rel.status === 'accepted') {
+      for (const data of validResults) {
+        if (data.status === 'accepted') {
           acceptedList.push(data);
-        } else if (rel.status === 'pending' && rel.friend_id === user.id) {
+        } else if (data.status === 'pending' && data.friend_id === user.id) {
           // It's a request received by me
           pendingRecv.push(data);
         }

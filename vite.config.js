@@ -17,6 +17,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: true,
     watch: {
       ignored: ['**/users*.csv', '**/*.csv', '**/*.mjs']
     }

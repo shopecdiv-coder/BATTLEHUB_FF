@@ -29,12 +29,10 @@ export default function PartySystem({ user }) {
       if (myParty) {
         setCurrentParty(myParty);
         // Load member details
-        const membersData = [];
-        for (const uid of (myParty.members || [])) {
-          const mUser = await User.get(uid).catch(() => null);
-          if (mUser) membersData.push(mUser);
-        }
-        setPartyMembers(membersData);
+        const membersData = await Promise.all(
+          (myParty.members || []).map(async (uid) => await User.get(uid).catch(() => null))
+        );
+        setPartyMembers(membersData.filter(Boolean));
       } else {
         setCurrentParty(null);
         setPartyMembers([]);

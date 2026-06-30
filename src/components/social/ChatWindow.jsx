@@ -17,10 +17,13 @@ export default function ChatWindow({ user, recipient, onBack }) {
       // Basic poll since we removed real-time presence/sockets for now
       // A full implementation would use Firebase onSnapshot for real-time
       const [sent, received] = await Promise.all([
-        DirectMessage.filter({ sender_id: user.id, recipient_id: recipient.id }),
-        DirectMessage.filter({ sender_id: recipient.id, recipient_id: user.id })
+        DirectMessage.filter({ sender_id: user.id }),
+        DirectMessage.filter({ sender_id: recipient.id })
       ]);
-      const allMsgs = [...sent, ...received].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const allMsgs = [
+        ...sent.filter(m => m.recipient_id === recipient.id), 
+        ...received.filter(m => m.recipient_id === user.id)
+      ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       setMessages(allMsgs);
     } catch(e) { console.error(e); }
     setLoading(false);

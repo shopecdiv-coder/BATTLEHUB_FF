@@ -46,7 +46,7 @@ export function SendInvitePanel({ tournament, currentUser, onInviteSent }) {
     setFoundUser(null);
 
     // Self-check
-    const myUniqueId = currentUser.unique_id || `BH${currentUser.id.replace(/-/g,'').slice(-8).toUpperCase()}`;
+    const myUniqueId = currentUser.unique_id || 'N/A';
     if (uniqueId.trim().toUpperCase() === myUniqueId.toUpperCase()) {
       setError("You cannot invite yourself.");
       setSearching(false);
@@ -61,12 +61,12 @@ export function SendInvitePanel({ tournament, currentUser, onInviteSent }) {
       if (byUniqueId && byUniqueId.length > 0) {
         found = byUniqueId[0];
       } else {
-        const allUsers = await User.list("-created_date", 200).catch(() => []);
-        found = allUsers.find(u => (u.unique_id || `BH${u.id.replace(/-/g,'').slice(-8).toUpperCase()}`).toUpperCase() === searchUid);
+        const allUsers = await User.list("-created_date", 2000).catch(() => []);
+        found = allUsers.find(u => (u.unique_id || 'N/A').toUpperCase() === searchUid);
       }
     } catch {
-      const allUsers = await User.list("-created_date", 200).catch(() => []);
-      found = allUsers.find(u => (u.unique_id || `BH${u.id.replace(/-/g,'').slice(-8).toUpperCase()}`).toUpperCase() === searchUid);
+      const allUsers = await User.list("-created_date", 2000).catch(() => []);
+      found = allUsers.find(u => (u.unique_id || 'N/A').toUpperCase() === searchUid);
     }
 
     if (!found) {
@@ -116,10 +116,10 @@ export function SendInvitePanel({ tournament, currentUser, onInviteSent }) {
       tournament_mode: tournament.mode,
       sender_id: currentUser.id,
       sender_ign: currentUser.ign || currentUser.full_name,
-      sender_unique_id: currentUser.unique_id || `BH${currentUser.id.replace(/-/g,'').slice(-8).toUpperCase()}`,
+      sender_unique_id: currentUser.unique_id || 'N/A',
       recipient_id: foundUser.id,
       recipient_ign: foundUser.ign || foundUser.full_name,
-      recipient_unique_id: foundUser.unique_id || `BH${foundUser.id.replace(/-/g,'').slice(-8).toUpperCase()}`,
+      recipient_unique_id: foundUser.unique_id || 'N/A',
       status: "pending",
       expires_at: expiresAt,
     });
@@ -170,7 +170,7 @@ export function SendInvitePanel({ tournament, currentUser, onInviteSent }) {
             </Avatar>
             <div>
               <p className="font-bold text-white">{foundUser.ign || foundUser.full_name}</p>
-              <p className="text-xs text-cyan-400 font-mono">{foundUser.unique_id || `BH${foundUser.id.replace(/-/g,'').slice(-8).toUpperCase()}`}</p>
+              <p className="text-xs text-cyan-400 font-mono">{foundUser.unique_id || 'N/A'}</p>
               <p className="text-xs text-gray-400">UID: {foundUser.game_uid || foundUser.ff_uid}</p>
             </div>
           </div>

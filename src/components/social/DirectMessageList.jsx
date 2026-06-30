@@ -16,20 +16,27 @@ export default function DirectMessageList({ user }) {
       setLoading(true);
       try {
         const [sent, received] = await Promise.all([
-          Friendship.filter({ user_id: user.id, status: 'accepted' }),
-          Friendship.filter({ friend_id: user.id, status: 'accepted' })
+          Friendship.filter({ user_id: user.id }),
+          Friendship.filter({ friend_id: user.id })
         ]);
-        const allRelations = [...sent, ...received];
+        const allRelations = [...sent, ...received].filter(rel => rel.status === 'accepted');
         
-        const convos = [];
+        const uniqueConvos = [];
+        const seen = new Set();
+        
         for (const rel of allRelations) {
           const otherId = rel.user_id === user.id ? rel.friend_id : rel.user_id;
-          const otherUser = await User.get(otherId).catch(() => null);
-          if (otherUser) {
-            convos.push(otherUser);
+          if (!seen.has(otherId)) {
+            seen.add(otherId);
+            uniqueConvos.push(otherId);
           }
         }
-        setConversations(convos);
+        
+        const convos = await Promise.all(
+          uniqueConvos.map(async (otherId) => await User.get(otherId).catch(() => null))
+        );
+        
+        setConversations(convos.filter(Boolean));
       } catch(e) { console.error(e); }
       setLoading(false);
     };

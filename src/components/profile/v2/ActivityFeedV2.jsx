@@ -5,7 +5,7 @@ const activities = [
   {
     id: 1,
     type: 'tournament',
-    user: 'ShivamPlays',
+    user: 'MortalPlays',
     action: 'won the tournament',
     context: 'BattleHub Cup Season 7',
     time: '2m ago',
@@ -16,7 +16,7 @@ const activities = [
   {
     id: 2,
     type: 'rank',
-    user: 'ShivamPlays',
+    user: 'ScoutOP',
     action: 'reached Conqueror rank',
     context: 'Season 7',
     time: '3h ago',
@@ -27,7 +27,7 @@ const activities = [
   {
     id: 3,
     type: 'mvp',
-    user: 'ShivamPlays',
+    user: 'JonathanGaming',
     action: 'achieved MVP',
     context: 'in BattleHub Cup',
     time: '1d ago',
@@ -38,7 +38,7 @@ const activities = [
   {
     id: 4,
     type: 'reel',
-    user: 'ShivamPlays',
+    user: 'PayalGaming',
     action: 'added a new reel',
     context: 'Watch now',
     time: '2d ago',
@@ -90,7 +90,7 @@ export default function ActivityFeedV2({ player, limit, onViewAll, hideHeader })
               
               <div className="flex flex-col flex-1 min-w-0">
                 <p className="text-[13px] sm:text-[15px] text-gray-300 leading-tight truncate">
-                  <span className="font-bold text-white mr-1">{playerName}</span> 
+                  <span className="font-bold text-white mr-1">{activity.user}</span> 
                   {activity.action}
                 </p>
                 {activity.type === 'reel' ? (

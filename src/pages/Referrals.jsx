@@ -126,7 +126,7 @@ export default function Referrals() {
       const inputCode = enterCode.trim().toUpperCase();
 
       // Check if user is trying to use their own code
-      const myCode = user.unique_id || `BH${user.id.substring(0, 6).toUpperCase()}`;
+      const myCode = user.unique_id || 'N/A';
       if (myCode === inputCode) {
         setCodeMessage("You cannot use your own code!");
         setCodeError(true);
@@ -148,7 +148,7 @@ export default function Referrals() {
         try {
           const allUsers = await User.list("-created_date", 200);
           referrer = allUsers.find(u => {
-            const userCode = u.unique_id || `BH${u.id.substring(0, 6).toUpperCase()}`;
+            const userCode = u.unique_id || 'N/A';
             return userCode === inputCode;
           });
         } catch (e) {
@@ -263,7 +263,7 @@ export default function Referrals() {
   // App download link
   const appDownloadLink = "https://battlehubff.site";
   
-  const myReferralCode = user?.unique_id || `BH${user?.id?.substring(0, 6).toUpperCase()}`;
+  const myReferralCode = user?.unique_id || 'N/A';
   
   // Generate unique_id if not set
   useEffect(() => {

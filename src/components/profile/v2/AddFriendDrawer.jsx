@@ -16,9 +16,21 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { toast } from 'sonner';
 
+const scanStyle = `
+@keyframes scanLine {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+.animate-scan-line {
+  animation: scanLine 2.5s ease-in-out infinite;
+}
+`;
+
 export default function AddFriendDrawer({ children, user }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const [scannedProfile, setScannedProfile] = useState(null);
   
   const [requestsReceived, setRequestsReceived] = useState([]);
   const [requestsSent, setRequestsSent] = useState([]);
@@ -44,15 +56,18 @@ export default function AddFriendDrawer({ children, user }) {
       const pendingRecv = [];
       const pendingSent = [];
       
-      for (const rel of allRelations) {
+      const fetchPromises = allRelations.map(async (rel) => {
         const otherId = rel.user_id === user.id ? rel.friend_id : rel.user_id;
         const otherUser = await User.get(otherId).catch(() => null);
-        if (!otherUser) continue;
-        
-        const data = { ...rel, otherUser };
-        
-        if (rel.status === 'pending') {
-          if (rel.friend_id === user.id) pendingRecv.push(data);
+        if (!otherUser) return null;
+        return { ...rel, otherUser };
+      });
+      const results = await Promise.all(fetchPromises);
+      const validResults = results.filter(Boolean);
+      
+      for (const data of validResults) {
+        if (data.status === 'pending') {
+          if (data.friend_id === user.id) pendingRecv.push(data);
           else pendingSent.push(data);
         }
       }
@@ -61,7 +76,7 @@ export default function AddFriendDrawer({ children, user }) {
       setRequestsSent(pendingSent);
 
       // Fetch some random users for suggestions
-      const allUsers = await User.list();
+      const allUsers = await User.list("-created_date", 2000);
       setAllUsersCache(allUsers);
       const notFriends = allUsers.filter(u => 
         u.id !== user.id && 
@@ -132,7 +147,7 @@ export default function AddFriendDrawer({ children, user }) {
       
       <SheetContent 
         side="right" 
-        className="w-full sm:w-[450px] sm:max-w-md h-full bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col z-50 overflow-hidden [&>button]:hidden"
+        className="w-full sm:w-[450px] sm:max-w-md h-full bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col z-50 overflow-hidden [&>button]:hidden pt-16"
       >
         <SheetHeader className="p-4 sm:p-6 border-b border-[#1f2029] bg-[#0c0d12] flex flex-row items-center gap-4 space-y-0 relative">
           <SheetClose asChild>
@@ -328,7 +343,7 @@ export default function AddFriendDrawer({ children, user }) {
         </div>
 
         {showMyQR && (
-          <div className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col">
+          <div className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col pt-16">
             <div className="p-4 sm:p-6 border-b border-[#1f2029] flex items-center gap-4">
               <button 
                 onClick={() => setShowMyQR(false)}
@@ -354,14 +369,6 @@ export default function AddFriendDrawer({ children, user }) {
                   value={user?.unique_id || ""} 
                   size={200}
                   level="H"
-                  imageSettings={{
-                    src: user?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=fallback",
-                    x: undefined,
-                    y: undefined,
-                    height: 48,
-                    width: 48,
-                    excavate: true,
-                  }}
                 />
               </div>
               <p className="text-gray-500 text-sm max-w-[250px] text-center">
@@ -372,7 +379,7 @@ export default function AddFriendDrawer({ children, user }) {
         )}
 
         {showScanner && (
-          <div className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col">
+          <div className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col pt-16">
              <div className="p-4 sm:p-6 border-b border-[#1f2029] flex items-center gap-4 bg-[#0a0a0c] relative z-10">
               <button 
                 onClick={() => setShowScanner(false)}
@@ -382,32 +389,96 @@ export default function AddFriendDrawer({ children, user }) {
               </button>
               <h2 className="text-xl font-black tracking-widest text-white uppercase m-0">Scan QR Code</h2>
             </div>
-            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-              <Scanner 
-                onScan={(result) => {
-                  if (result && result.length > 0) {
-                    setSearchQuery(result[0].rawValue);
-                    setShowScanner(false);
-                    toast.success("QR Code scanned!");
-                  }
-                }}
-                onError={(error) => {
-                  console.error("Scanner Error:", error);
-                  toast.error("Camera error: Please check permissions or ensure HTTPS connection.");
-                }}
-                constraints={{ facingMode: "environment" }}
-                components={{ audio: false, finder: true }}
-                styles={{ container: { width: '100%', height: '100%' } }}
-              />
-              <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none">
-                <p className="text-white/70 text-sm bg-black/50 inline-block px-4 py-2 rounded-full backdrop-blur-sm">
-                  Point your camera at a friend's QR code
+            <div className="flex-1 relative bg-[#0a0a0c] flex flex-col items-center justify-center overflow-hidden">
+              <div className="w-[280px] h-[280px] rounded-3xl overflow-hidden relative shadow-[0_0_50px_rgba(255,85,0,0.15)] ring-4 ring-[#ff5500]/30 ring-offset-4 ring-offset-[#0a0a0c]">
+                <Scanner 
+                  formats={['qr_code']}
+                  onScan={async (result) => {
+                    if (result && result.length > 0) {
+                      const scannedUid = result[0].rawValue.trim();
+                      setShowScanner(false); // Close instantly for speed
+                      
+                      let foundUser = allUsersCache.find(u => u.unique_id?.toUpperCase() === scannedUid.toUpperCase());
+                      
+                      if (!foundUser) {
+                        try {
+                           const fetched = await User.filter({ unique_id: scannedUid.toUpperCase() }).catch(() => []);
+                           if (fetched.length > 0) foundUser = fetched[0];
+                        } catch(e) {}
+                      }
+                      
+                      if (foundUser) {
+                        setScannedProfile(foundUser);
+                      } else {
+                        setSearchQuery(scannedUid);
+                        toast.error("User not found directly, checking search...");
+                      }
+                    }
+                  }}
+                  onError={(error) => {
+                    console.error("Scanner Error:", error);
+                  }}
+                  constraints={{ facingMode: "environment" }}
+                  components={{ audio: false, finder: false }}
+                  styles={{ container: { width: '100%', height: '100%' }, video: { objectFit: 'cover' } }}
+                />
+                
+                {/* Custom Corner Accents */}
+                <div className="absolute inset-0 pointer-events-none z-10">
+                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#ff5500] rounded-tl-3xl" />
+                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#ff5500] rounded-tr-3xl" />
+                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#ff5500] rounded-bl-3xl" />
+                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#ff5500] rounded-br-3xl" />
+                  {/* Scan line */}
+                  <div className="absolute left-4 right-4 h-0.5 bg-[#ff5500] shadow-[0_0_15px_#ff5500] animate-scan-line" />
+                </div>
+              </div>
+              
+              <div className="mt-12 text-center px-6">
+                <p className="text-white font-bold tracking-wider mb-2">SCAN TO ADD FRIEND</p>
+                <p className="text-gray-500 text-sm max-w-[250px] mx-auto">
+                  Align your friend's QR code within the frame above.
                 </p>
               </div>
             </div>
           </div>
         )}
+
+        {/* Scanned Profile Nested Sheet */}
+        <Sheet open={!!scannedProfile} onOpenChange={(val) => !val && setScannedProfile(null)}>
+          <SheetContent className="bg-[#0a0a0c] border-[#1f2029] p-0 flex flex-col w-full sm:max-w-md z-[60] pt-16">
+            <SheetHeader className="p-4 sm:p-6 border-b border-[#1f2029] flex-row items-center justify-between space-y-0">
+              <SheetTitle className="text-xl font-black tracking-widest text-white uppercase m-0">Player Found</SheetTitle>
+              <SheetClose asChild>
+                <button className="p-2 bg-[#111115] hover:bg-gray-800 text-gray-400 hover:text-white border border-[#2a2a35] rounded-lg transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </SheetClose>
+            </SheetHeader>
+            <div className="flex-1 flex flex-col items-center p-6 space-y-6">
+              <Avatar className="w-24 h-24 border-4 border-[#ff5500]/20">
+                <AvatarImage src={scannedProfile?.avatar_url} className="object-cover" />
+                <AvatarFallback className="bg-gray-800 text-white font-bold text-2xl">{scannedProfile?.ign?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="text-center">
+                <p className="font-black text-2xl text-white tracking-wider">{scannedProfile?.ign || scannedProfile?.full_name}</p>
+                <p className="text-gray-400 text-sm mt-1 font-mono text-cyan-400">{scannedProfile?.unique_id}</p>
+              </div>
+              <button 
+                onClick={() => {
+                  handleAddFriend(scannedProfile?.id);
+                  setScannedProfile(null);
+                }}
+                className="w-full bg-[#ff5500] hover:bg-[#ff7733] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_0_20px_rgba(255,85,0,0.3)] flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-5 h-5" />
+                SEND FRIEND REQUEST
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </SheetContent>
+      <style>{scanStyle}</style>
     </Sheet>
   );
 }

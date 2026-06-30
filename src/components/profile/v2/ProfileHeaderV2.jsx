@@ -125,54 +125,94 @@ export default function ProfileHeaderV2({ player, isMe }) {
       </div>
 
       {/* Action Buttons (Below the banner area) */}
-      <div className="px-3 sm:px-6 py-4 flex flex-row items-center justify-between w-full gap-2 border-t border-gray-800/50 bg-[#0a0a0c]">
-        <Button variant="outline" className="flex-1 bg-[#111115] border-[#2a2a35] text-gray-200 hover:text-white hover:bg-[#1a1a20] font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
-          <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 text-[#ff5500]" /> <span className="truncate">Recent Chats</span>
-        </Button>
-        <Button variant="outline" className="flex-1 bg-[#111115] border-[#2a2a35] text-gray-200 hover:text-white hover:bg-[#1a1a20] font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
-          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" /> <span className="truncate">Your Team</span>
-        </Button>
-      </div>
+      {isMe && (
+        <div className="px-3 sm:px-6 py-4 flex flex-row items-center justify-between w-full gap-2 border-t border-gray-800/50 bg-[#0a0a0c]">
+          <Button variant="outline" className="flex-1 bg-[#111115] border-[#2a2a35] text-gray-200 hover:text-white hover:bg-[#1a1a20] font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
+            <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 text-[#ff5500]" /> <span className="truncate">Recent Chats</span>
+          </Button>
+          <Button variant="outline" className="flex-1 bg-[#111115] border-[#2a2a35] text-gray-200 hover:text-white hover:bg-[#1a1a20] font-medium text-[11px] sm:text-[13px] px-2 sm:px-6 h-[34px] rounded-lg truncate">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" /> <span className="truncate">Your Team</span>
+          </Button>
+        </div>
+      )}
 
       {/* Social Stats Row */}
       <div className="px-2 sm:px-6 py-3 pb-4 bg-[#0a0a0c] border-t border-gray-800/50">
         <div className="grid grid-cols-4 gap-1 sm:gap-2 w-full">
           {/* Friends */}
-          <FriendsDrawer user={player}>
-            <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
-              <Users className="w-4 h-4 sm:w-6 sm:h-6 text-gray-300 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+          {(!isMe && player?.is_private) ? (
+            <button className="w-full bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left cursor-not-allowed opacity-80">
+              <Users className="w-4 h-4 sm:w-6 sm:h-6 text-gray-500 shrink-0" />
               <div className="flex flex-col items-center sm:items-start">
-                <span className="text-[8px] sm:text-[10px] text-gray-400">Friends</span>
+                <span className="text-[8px] sm:text-[10px] text-gray-500">Friends</span>
                 <span className="text-[11px] sm:text-sm font-black text-white">
-                  {(!isMe && player?.is_private) ? <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" /> : (player?.friends_count || realFriendsCount)}
+                  <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" />
                 </span>
               </div>
             </button>
-          </FriendsDrawer>
+          ) : (
+            <FriendsDrawer user={player} isMe={isMe}>
+              <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
+                <Users className="w-4 h-4 sm:w-6 sm:h-6 text-gray-300 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+                <div className="flex flex-col items-center sm:items-start">
+                  <span className="text-[8px] sm:text-[10px] text-gray-400">Friends</span>
+                  <span className="text-[11px] sm:text-sm font-black text-white">
+                    {player?.friends_count || realFriendsCount}
+                  </span>
+                </div>
+              </button>
+            </FriendsDrawer>
+          )}
+
           {/* Followers */}
-          <FollowersDrawer user={player} type="followers">
-            <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
-              <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+          {(!isMe && player?.is_private) ? (
+            <button className="w-full bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left cursor-not-allowed opacity-80">
+              <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-gray-500 shrink-0" />
               <div className="flex flex-col items-center sm:items-start">
-                <span className="text-[8px] sm:text-[10px] text-gray-400">Followers</span>
+                <span className="text-[8px] sm:text-[10px] text-gray-500">Followers</span>
                 <span className="text-[11px] sm:text-sm font-black text-white">
-                  {(!isMe && player?.is_private) ? <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" /> : (player?.followers_count || realFollowersCount)}
+                  <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" />
                 </span>
               </div>
             </button>
-          </FollowersDrawer>
+          ) : (
+            <FollowersDrawer user={player} type="followers" isMe={isMe}>
+              <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
+                <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+                <div className="flex flex-col items-center sm:items-start">
+                  <span className="text-[8px] sm:text-[10px] text-gray-400">Followers</span>
+                  <span className="text-[11px] sm:text-sm font-black text-white">
+                    {player?.followers_count || realFollowersCount}
+                  </span>
+                </div>
+              </button>
+            </FollowersDrawer>
+          )}
+
           {/* Following */}
-          <FollowersDrawer user={player} type="following">
-            <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
-              <UserPlus className="w-4 h-4 sm:w-6 sm:h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+          {(!isMe && player?.is_private) ? (
+            <button className="w-full bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left cursor-not-allowed opacity-80">
+              <UserPlus className="w-4 h-4 sm:w-6 sm:h-6 text-gray-500 shrink-0" />
               <div className="flex flex-col items-center sm:items-start">
-                <span className="text-[8px] sm:text-[10px] text-gray-400">Following</span>
+                <span className="text-[8px] sm:text-[10px] text-gray-500">Following</span>
                 <span className="text-[11px] sm:text-sm font-black text-white">
-                  {(!isMe && player?.is_private) ? <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" /> : (player?.following_count || realFollowingCount)}
+                  <Lock className="w-3 h-3 sm:w-4 sm:h-4 inline text-gray-500" />
                 </span>
               </div>
             </button>
-          </FollowersDrawer>
+          ) : (
+            <FollowersDrawer user={player} type="following" isMe={isMe}>
+              <button className="w-full bg-[#0c0d12] border border-[#1f2029] hover:border-[#ff5500] transition-colors rounded-lg p-1.5 sm:p-2.5 flex flex-col sm:flex-row items-center sm:items-start justify-center gap-1 sm:gap-2 text-center sm:text-left">
+                <UserPlus className="w-4 h-4 sm:w-6 sm:h-6 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] shrink-0" />
+                <div className="flex flex-col items-center sm:items-start">
+                  <span className="text-[8px] sm:text-[10px] text-gray-400">Following</span>
+                  <span className="text-[11px] sm:text-sm font-black text-white">
+                    {player?.following_count || realFollowingCount}
+                  </span>
+                </div>
+              </button>
+            </FollowersDrawer>
+          )}
           {/* Reputation */}
           <div className="bg-[#0c0d12] border border-[#1f2029] rounded-lg p-1.5 sm:p-2.5 flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
             <span className="text-[8px] sm:text-[10px] text-gray-400">Reputation</span>

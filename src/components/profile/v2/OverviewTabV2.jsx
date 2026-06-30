@@ -39,7 +39,7 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
         setLoading(true);
         try {
           const [entries, regs] = await Promise.all([
-            TournamentLeaderboard.filter({ user_id: player.id }, "-created_date", 20).catch(() => []),
+            TournamentLeaderboard.filter({ user_id: player.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 20)).catch(() => []),
             Registration.filter({ user_id: player.id }, "-created_date", 50).catch(() => [])
           ]);
           setLeaderboardEntries(entries || []);

@@ -35,7 +35,7 @@ export default function NoticeManagement({ notices, onUpdate }) {
 
   const loadPlayerMessages = async () => {
     setLoadingMessages(true);
-    const messages = await PlayerMessage.filter({ read: false }, "-sent_at");
+    const messages = await PlayerMessage.filter({ read: false }).then(res => res.sort((a,b) => new Date(b.sent_at) - new Date(a.sent_at)));
     setPlayerMessages(messages);
     setLoadingMessages(false);
   };

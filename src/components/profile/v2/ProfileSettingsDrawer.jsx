@@ -76,7 +76,7 @@ export default function ProfileSettingsDrawer({ children, user }) {
       */}
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-md bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col h-full overflow-hidden z-50 [&>button]:bg-[#111115] [&>button]:text-white [&>button]:p-2 [&>button]:rounded-lg [&>button]:border [&>button]:border-[#2a2a35] [&>button:hover]:bg-[#ff5500] [&>button:hover]:border-[#ff5500] [&>button]:transition-all [&>button]:right-6 [&>button]:top-6 [&>button]:shadow-lg"
+        className="w-full sm:max-w-md bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col h-full overflow-hidden z-50 [&>button]:bg-[#111115] [&>button]:text-white [&>button]:p-2 [&>button]:rounded-lg [&>button]:border [&>button]:border-[#2a2a35] [&>button:hover]:bg-[#ff5500] [&>button:hover]:border-[#ff5500] [&>button]:transition-all [&>button]:right-6 [&>button]:top-6 [&>button]:shadow-lg pt-16"
       >
         <SheetHeader className="p-6 border-b border-[#1f2029] bg-[#0c0d12]">
           <SheetTitle className="text-xl font-black tracking-widest text-white uppercase text-left pr-10">
