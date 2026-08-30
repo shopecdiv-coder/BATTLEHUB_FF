@@ -120,15 +120,27 @@ export default function WalletPlayStore() {
               </span>
             </div>
 
-            <Button
-              onClick={() => fetchWallet(false)}
-              size="icon"
-              variant="ghost"
-              className="w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 transition-all active:scale-90"
-              title="Refresh Wallet"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading || isRefreshing ? "animate-spin text-orange-400" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => window.dispatchEvent(new CustomEvent("open-gift-mailbox"))}
+                size="icon"
+                variant="ghost"
+                className="relative w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-amber-500/20 transition-all active:scale-90"
+                title="Gift Mailbox"
+              >
+                <Gift className="w-4 h-4" />
+              </Button>
+
+              <Button
+                onClick={() => fetchWallet(false)}
+                size="icon"
+                variant="ghost"
+                className="w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 transition-all active:scale-90"
+                title="Refresh Wallet"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading || isRefreshing ? "animate-spin text-orange-400" : ""}`} />
+              </Button>
+            </div>
           </div>
 
           {/* Primary Balance Card Box (Matching Web Wallet Box) */}

@@ -9,9 +9,12 @@ import CoinInvoiceDownload from "@/components/wallet/CoinInvoiceDownload";
 import { 
   ArrowUpCircle, ArrowDownCircle, Banknote, 
   History, RefreshCw, Smartphone, Building2,
-  CheckCircle2, Wallet as WalletIcon, ShieldCheck
+  CheckCircle2, Wallet as WalletIcon, ShieldCheck,
+  Gift
 } from "lucide-react";
 import { format } from "date-fns";
+import { auth, db } from "@/api/firebaseClient";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 const BHCoinIcon = ({ className = "w-9 h-9" }) => (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -54,12 +57,37 @@ export default function WalletWeb() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [unclaimedGiftCount, setUnclaimedGiftCount] = useState(0);
+
   useEffect(() => {
     fetchWallet();
     const unsubscribe = WalletEngine.subscribeToUpdates(() => {
       fetchWallet(true);
     });
-    return () => unsubscribe();
+
+    const userUid = auth.currentUser?.uid;
+    let unsubGifts = () => {};
+    if (userUid) {
+      const q = query(
+        collection(db, "gift_mails"),
+        where("recipient_id", "==", userUid),
+        where("status", "==", "unclaimed")
+      );
+      unsubGifts = onSnapshot(q, (snap) => {
+        setUnclaimedGiftCount(snap.docs.length);
+      });
+    }
+
+    const handleBalanceUpdated = () => {
+      fetchWallet(false);
+    };
+    window.addEventListener("wallet-balance-updated", handleBalanceUpdated);
+
+    return () => {
+      unsubscribe();
+      unsubGifts();
+      window.removeEventListener("wallet-balance-updated", handleBalanceUpdated);
+    };
   }, []);
 
   const fetchWallet = async (isSilent = false) => {
@@ -233,15 +261,33 @@ export default function WalletWeb() {
               </span>
             </div>
 
-            <Button
-              onClick={() => fetchWallet(false)}
-              size="icon"
-              variant="ghost"
-              className="w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 transition-all active:scale-90"
-              title="Refresh Wallet"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading || isRefreshing ? "animate-spin text-blue-400" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Gift Mailbox Button next to Refresh */}
+              <Button
+                onClick={() => window.dispatchEvent(new CustomEvent("open-gift-mailbox"))}
+                size="icon"
+                variant="ghost"
+                className="relative w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-amber-500/20 transition-all active:scale-90"
+                title="Gift Mailbox"
+              >
+                <Gift className="w-4 h-4" />
+                {unclaimedGiftCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse shadow-sm">
+                    {unclaimedGiftCount}
+                  </span>
+                )}
+              </Button>
+
+              <Button
+                onClick={() => fetchWallet(false)}
+                size="icon"
+                variant="ghost"
+                className="w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-300 transition-all active:scale-90"
+                title="Refresh Wallet"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading || isRefreshing ? "animate-spin text-blue-400" : ""}`} />
+              </Button>
+            </div>
           </div>
 
           {/* Clean Dark Total Balance Card */}
