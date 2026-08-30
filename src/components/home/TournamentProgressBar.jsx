@@ -42,6 +42,17 @@ function buildJourneys(regs, tournamentsMap) {
   return journeys.reverse(); // Most recent first
 }
 
+const safeFormatDate = (dateStr, formatStr, defaultText = "Past") => {
+  if (!dateStr) return defaultText;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return defaultText;
+    return format(d, formatStr);
+  } catch (e) {
+    return defaultText;
+  }
+};
+
 function JourneyBar({ journey, isLatest }) {
   const { qualifierReg, semifinalReg, grandFinalReg } = journey;
 
@@ -64,28 +75,28 @@ function JourneyBar({ journey, isLatest }) {
   const progressPercent = disqualified ? (currentStepIdx * 50 + 15) : finished ? 100 : currentStepIdx === 0 ? 33 : currentStepIdx === 1 ? 66 : 90;
 
   const colorMap = {
-    blue: { ring: "ring-blue-500", bg: "bg-blue-500", text: "text-blue-400", light: "bg-blue-500/15 border-blue-500/30" },
+    blue: { ring: "ring-orange-500", bg: "bg-orange-500", text: "text-blue-400", light: "bg-orange-500/15 border-orange-500/30" },
     purple: { ring: "ring-purple-500", bg: "bg-purple-500", text: "text-purple-400", light: "bg-purple-500/15 border-purple-500/30" },
-    orange: { ring: "ring-orange-500", bg: "bg-orange-500", text: "text-orange-400", light: "bg-orange-500/15 border-orange-500/30" },
+    orange: { ring: "ring-orange-600", bg: "bg-orange-600", text: "text-orange-500", light: "bg-orange-600/15 border-orange-600/30" },
   };
 
   const activeStep = steps[currentStepIdx];
   const activeData = activeStep.data;
 
   return (
-    <div className={`bg-gray-900 border ${isLatest ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl overflow-hidden mb-4`}>
+    <div className={`bg-gray-900 border ${isLatest ? 'border-orange-600/30' : 'border-gray-800'} rounded-xl overflow-hidden mb-4`}>
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Flame className={`w-4 h-4 ${isLatest ? 'text-orange-400' : 'text-gray-600'}`} />
+          <Flame className={`w-4 h-4 ${isLatest ? 'text-orange-500' : 'text-gray-600'}`} />
           <span className={`font-bold text-sm ${isLatest ? 'text-white' : 'text-gray-400'}`}>
-            {isLatest ? 'Current Journey' : `Journey — ${qualifierReg ? format(new Date(qualifierReg.tournament.date_time), "MMM yyyy") : "Past"}`}
+            {isLatest ? 'Current Journey' : `Journey — ${qualifierReg ? safeFormatDate(qualifierReg.tournament?.date_time, "MMM yyyy", "Past") : "Past"}`}
           </span>
           {disqualified && <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">Disqualified</span>}
           {finished && <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">🏆 Completed</span>}
         </div>
         {activeData && isLatest && (
           <Link to={createPageUrl(`TournamentDetail?id=${activeData.tournament.id}`)}>
-            <span className="text-orange-400 text-xs font-semibold flex items-center gap-0.5">View <ChevronRight className="w-3 h-3" /></span>
+            <span className="text-orange-500 text-xs font-semibold flex items-center gap-0.5">View <ChevronRight className="w-3 h-3" /></span>
           </Link>
         )}
       </div>
@@ -93,7 +104,7 @@ function JourneyBar({ journey, isLatest }) {
       <div className="px-4 mb-3">
         <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-700 ${disqualified ? 'bg-red-500' : 'bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500'}`}
+            className={`h-full rounded-full transition-all duration-700 ${disqualified ? 'bg-red-500' : 'bg-gradient-to-r from-orange-500 via-purple-500 to-orange-600'}`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -114,7 +125,7 @@ function JourneyBar({ journey, isLatest }) {
               <div className={`text-lg ${!isActive && !isPast ? "grayscale opacity-50" : ""}`}>{step.emoji}</div>
               <div className="text-left">
                 <p className={`text-[11px] font-bold leading-tight ${isActive ? c.text : isPast ? "text-gray-400" : "text-gray-600"}`}>{step.label}</p>
-                {isActive && step.data && <p className="text-[9px] text-gray-500 truncate w-[60px] sm:w-[90px]">{step.data.tournament.title}</p>}
+                {isActive && step.data && <p className="text-[9px] text-gray-500 truncate w-[60px] sm:w-[90px]">{step.data.tournament?.title}</p>}
               </div>
               {isPast && !disqualified && <CheckCircle className="w-3 h-3 text-emerald-400 ml-auto" />}
               {disqualified && idx === 0 && <XCircle className="w-3 h-3 text-red-400 ml-auto" />}
@@ -126,19 +137,19 @@ function JourneyBar({ journey, isLatest }) {
       {activeData && isLatest && (
         <div className="border-t border-gray-800/60 px-4 py-2.5 flex items-center justify-between">
           <div>
-            <p className="text-white text-xs font-semibold">{activeData.tournament.title}</p>
+            <p className="text-white text-xs font-semibold">{activeData.tournament?.title}</p>
             <p className="text-gray-500 text-[10px]">
-              Team: <span className="text-gray-300">{activeData.reg.team_name}</span>
+              Team: <span className="text-gray-300">{activeData.reg?.team_name || "Team"}</span>
               {" · "}
-              {format(new Date(activeData.tournament.date_time), "MMM d, h:mm a")}
+              {safeFormatDate(activeData.tournament?.date_time, "MMM d, h:mm a", "Upcoming")}
             </p>
           </div>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            activeData.reg.status === "Qualified" ? "bg-emerald-500/15 text-emerald-400" :
-            activeData.reg.status === "Confirmed" ? "bg-blue-500/15 text-blue-400" :
+            activeData.reg?.status === "Qualified" ? "bg-emerald-500/15 text-emerald-400" :
+            activeData.reg?.status === "Confirmed" ? "bg-orange-500/15 text-blue-400" :
             "bg-gray-700 text-gray-400"
           }`}>
-            {activeData.reg.status}
+            {activeData.reg?.status}
           </span>
         </div>
       )}

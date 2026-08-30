@@ -1,0 +1,139 @@
+Created At: 2026-08-23T07:53:27+05:30
+Completed At: 2026-08-23T07:53:27+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2778
+Total Bytes: 148390
+Showing lines 2380 to 2510
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2380:                                     {user && isRegistered && entry.user_id !== user.id && (
+2381:                                       <button
+2382:                                         onClick={(e) => { e.stopPropagation(); setShowReportModal(entry); }}
+2383:                                         className="text-red-400 hover:text-red-300 flex items-center gap-1 text-[10px] font-semibold"
+2384:                                       >
+2385:                                         <AlertTriangle className="w-3 h-3" /> Report
+2386:                                       </button>
+2387:                                     )}
+2388:                                   </div>
+2389:                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+2390:                                     {members.map((m, idx) => {
+2391:                                       const avatarSrc = m.avatar_url || m.avatar || m.dp || m.photoURL;
+2392:                                       const pKills = totalPlayerKills[m.ign] !== undefined ? totalPlayerKills[m.ign] : (m.kills || 0);
+2393:                                       return (
+2394:                                         <div key={idx} className="flex items-center justify-between px-2 py-1.5 bg-slate-950/70 border border-slate-800/50 rounded-lg">
+2395:                                           <div className="flex items-center gap-1.5 min-w-0">
+2396:                                             {avatarSrc ? (
+2397:                                               <img
+2398:                                                 src={avatarSrc}
+2399:                                                 alt={m.ign}
+2400:                                                 className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+2401:                                                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+2402:                                               />
+2403:                                             ) : null}
+2404:                                             <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${avatarSrc ? 'hidden' : 'flex'}`}>
+2405:                                               {m.ign?.charAt(0).toUpperCase() || (idx + 1)}
+2406:                                             </div>
+2407:                                             <div className="min-w-0">
+2408:                                               <div className="flex items-center gap-1">
+2409:                                                 <span className="font-bold text-slate-200 text-[11px] truncate max-w-[65px]">{m.ign}</span>
+2410:                                                 {m.isLeader && <span className="text-[7.5px] font-black text-amber-400 bg-amber-500/20 px-1 py-0.2 rounded shrink-0">IGL</span>}
+2411:                                               </div>
+2412:                                             </div>
+2413:                                           </div>
+2414:                                           <div className="flex items-center gap-1 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold text-red-400 shrink-0 ml-1">
+2415:                                             <span className="text-[9px]">💀</span>
+2416:                                             <span>{pKills} Kills</span>
+2417:                                           </div>
+2418:                                         </div>
+2419:                                       );
+2420:                                     })}
+2421:                                   </div>
+2422:                                 </div>
+2423:                               );
+2424:                             })()}
+2425: 
+2426:                             {/* Match Breakdown — Clean Grid (ONLY SHOW IF > 1 MATCH) */}
+2427:                             {matchResults.length > 1 && (() => {
+2428:                               const sortedMatches = [...matchResults]
+2429:                                 .filter(mr => mr)
+2430:                                 .sort((a, b) => {
+2431:                                   const numA = parseInt(String(a.match_number || '').replace(/\D/g, '')) || 0;
+2432:                                   const numB = parseInt(String(b.match_number || '').replace(/\D/g, '')) || 0;
+2433:                                   return numA - numB;
+2434:                                 });
+2435:                               const totalMatchKills = sortedMatches.reduce((sum, mr) => sum + (mr.kills || 0), 0);
+2436:                               const totalMatchPts = sortedMatches.reduce((sum, mr) => sum + (mr.points || 0), 0);
+2437:                               const totalBooyahs = sortedMatches.filter(mr => mr.placement === 1).length;
+2438: 
+2439:                               return (
+2440:                                 <div className="bg-slate-900/60 border border-slate-800/70 rounded-lg p-2">
+2441:                                   {/* Section header with totals */}
+2442:                                   <div className="flex items-center justify-between mb-1.5 px-0.5">
+2443:                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+2444:                                       <Trophy className="w-3.5 h-3.5 text-cyan-400" /> Match Breakdown
+2445:                                       <span className="text-slate-600 font-normal normal-case">({sortedMatches.length} matches)</span>
+2446:                                     </span>
+2447:                                     <div className="flex items-center gap-2 text-[10px]">
+2448:                                       {totalBooyahs > 0 && <span className="text-amber-400 font-bold">🏆 {totalBooyahs}x</span>}
+2449:                                       <span className="text-slate-400">Total: <span className="text-red-400 font-bold">{totalMatchKills} Kills</span></span>
+2450:                                       <span className="text-slate-600">·</span>
+2451:                                       <span className="text-cyan-400 font-bold">{totalMatchPts} Pts</span>
+2452:                                     </div>
+2453:                                   </div>
+2454: 
+2455:                                   <div className="grid grid-cols-2 gap-1.5">
+2456:                                     {sortedMatches.map((mr, mi) => {
+2457:                                       const pKillsRaw = mr.player_kills || mr.memberKills || mr.member_kills || [];
+2458:                                       const pKillsList = Array.isArray(pKillsRaw) && pKillsRaw.length > 0 ? pKillsRaw : members.map((m, idx) => {
+2459:                                         const totK = mr.kills || 0;
+2460:                                         let pK = 0;
+2461:                                         if (idx === 0) pK = Math.ceil(totK * 0.4);
+2462:                                         else if (idx === 1) pK = Math.floor(totK * 0.3);
+2463:                                         else if (idx === 2) pK = Math.floor(totK * 0.2);
+2464:                                         else pK = Math.max(0, totK - Math.ceil(totK * 0.4) - Math.floor(totK * 0.3) - Math.floor(totK * 0.2));
+2465:                                         return { ign: m.ign, kills: pK };
+2466:                                       });
+2467: 
+2468:                                       return (
+2469:                                         <div key={mi} className="bg-slate-950/70 border border-slate-800/50 rounded p-1.5">
+2470:                                           {/* Match header */}
+2471:                                           <div className="flex items-center justify-between mb-1">
+2472:                                             <span className="font-bold text-slate-200 text-[11px]">Match {String(mr.match_number || (mi+1)).replace(/\D/g, '')}</span>
+2473:                                             {mr.placement === 1
+2474:                                               ? <span className="text-amber-400 font-black text-[9.5px]">🏆 Booyah</span>
+2475:                                               : <span className="text-slate-400 text-[9.5px]">Rank #{mr.placement || '—'}</span>
+2476:                                             }
+2477:                                           </div>
+2478:                                           {/* Kills & Pts Bar */}
+2479:                                           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1 pb-1 border-b border-slate-800/40">
+2480:                                             <span>Kills: <strong className="text-red-400">{mr.kills || 0}</strong></span>
+2481:                                             <span>Pts: <strong className="text-cyan-400">{mr.points || 0}</strong></span>
+2482:                                           </div>
+2483:                                           {/* Player Kills inline */}
+2484:                                           {pKillsList && pKillsList.length > 0 && (
+2485:                                             <div className="grid grid-cols-2 gap-x-1.5 gap-y-0.5 text-[9.5px]">
+2486:                                               {pKillsList.filter(pk => pk).map((pk, pki) => (
+2487:                                                 <div key={pki} className="flex items-center justify-between">
+2488:                                                   <span className="text-slate-400 truncate max-w-[55px]">{pk.ign || `P${pki+1}`}</span>
+2489:                                                   <span className="text-red-400 font-bold">{pk.kills || 0}k</span>
+2490:                                                 </div>
+2491:                                               ))}
+2492:                                             </div>
+2493:                                           )}
+2494:                                         </div>
+2495:                                       );
+2496:                                     })}
+2497:                                   </div>
+2498:                                 </div>
+2499:                               );
+2500:                             })()}
+2501: 
+2502:                           </div>
+2503:                         </td>
+2504:                       </tr>
+2505:                     )}
+2506:                   </React.Fragment>
+2507:                 );
+2508:               })}
+2509:             </tbody>
+2510:           </table>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

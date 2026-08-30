@@ -13,9 +13,28 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Friendship, User } from '@/api/entities';
 import { UserPlus, Check, X, ChevronLeft, Search, QrCode, ScanLine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import CustomScanner from '@/components/CustomScanner';
+import { Camera } from '@capacitor/camera';
 import { toast } from 'sonner';
+import { doc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import { db } from '@/api/firebaseClient';
 
+const RealtimeUserWrapper = ({ initialUser, children }) => {
+  const [user, setUser] = useState(initialUser);
+  
+  useEffect(() => {
+    if (!initialUser?.id) return;
+    const unsub = onSnapshot(doc(db, 'users', initialUser.id), (docSnap) => {
+      if (docSnap.exists()) {
+        // Always include the document ID in the user object
+        setUser({ id: docSnap.id, ...docSnap.data() });
+      }
+    });
+    return () => unsub();
+  }, [initialUser?.id]);
+
+  return children(user);
+};
 const scanStyle = `
 @keyframes scanLine {
   0% { top: 0%; }
@@ -31,6 +50,22 @@ export default function AddFriendDrawer({ children, user }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const [scannedProfile, setScannedProfile] = useState(null);
+
+  const handleScanClick = async () => {
+    try {
+      const status = await Camera.checkPermissions();
+      if (status.camera !== 'granted') {
+        const reqStatus = await Camera.requestPermissions({ permissions: ['camera'] });
+        if (reqStatus.camera !== 'granted') {
+          alert('Camera permission is required to scan QR codes.');
+          return;
+        }
+      }
+    } catch (e) {
+      console.log('Web environment or permission check failed, proceeding to scan...', e);
+    }
+    setShowScanner(true);
+  };
   
   const [requestsReceived, setRequestsReceived] = useState([]);
   const [requestsSent, setRequestsSent] = useState([]);
@@ -42,31 +77,28 @@ export default function AddFriendDrawer({ children, user }) {
   const [allRelationsCache, setAllRelationsCache] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const [sent, received] = await Promise.all([
-        Friendship.filter({ user_id: user.id }),
-        Friendship.filter({ friend_id: user.id })
-      ]);
-      
-      const allRelations = [...sent, ...received];
-      setAllRelationsCache(allRelations);
+  useEffect(() => {
+    if (!open || !user) return;
+    
+    let isMounted = true;
+    let sentRels = [];
+    let recvRels = [];
+
+    const handleFriendships = (allRels) => {
+      setAllRelationsCache(allRels);
       const pendingRecv = [];
       const pendingSent = [];
       
-      const fetchPromises = allRelations.map(async (rel) => {
+      const validResults = allRels.map((rel) => {
         const otherId = rel.user_id === user.id ? rel.friend_id : rel.user_id;
-        const otherUser = await User.get(otherId).catch(() => null);
-        if (!otherUser) return null;
+        let otherUser = allUsersCache.find(u => u.id === otherId) || { id: otherId };
         return { ...rel, otherUser };
       });
-      const results = await Promise.all(fetchPromises);
-      const validResults = results.filter(Boolean);
+      
+      if (!isMounted) return;
       
       for (const data of validResults) {
-        if (data.status === 'pending') {
+        if (data.status?.toLowerCase() !== 'accepted') {
           if (data.friend_id === user.id) pendingRecv.push(data);
           else pendingSent.push(data);
         }
@@ -74,33 +106,105 @@ export default function AddFriendDrawer({ children, user }) {
       
       setRequestsReceived(pendingRecv);
       setRequestsSent(pendingSent);
+      setLoading(false);
+    };
 
-      // Fetch some random users for suggestions
-      const allUsers = await User.list("-created_date", 2000);
-      setAllUsersCache(allUsers);
-      const notFriends = allUsers.filter(u => 
-        u.id !== user.id && 
-        !allRelations.some(r => r.user_id === u.id || r.friend_id === u.id)
-      ).slice(0, 10);
-      setSuggestions(notFriends);
+    const checkCombine = () => handleFriendships([...sentRels, ...recvRels]);
 
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
-  };
+    setLoading(true);
+
+    const qSent = query(collection(db, 'friendships'), where('user_id', '==', user.id));
+    const unsubSent = onSnapshot(qSent, (snap) => {
+      sentRels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      checkCombine();
+    });
+
+    const qRecv = query(collection(db, 'friendships'), where('friend_id', '==', user.id));
+    const unsubRecv = onSnapshot(qRecv, (snap) => {
+      recvRels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      checkCombine();
+    });
+
+    // Fetch random suggestions ONCE when drawer opens
+    const fetchSuggestions = async () => {
+      try {
+        const allUsers = await User.list("-created_date", 50);
+        if (!isMounted) return;
+        setAllUsersCache(prev => {
+          const newCache = [...prev];
+          allUsers.forEach(u => {
+            if (!newCache.some(existing => existing.id === u.id)) {
+              newCache.push(u);
+            }
+          });
+          return newCache;
+        });
+      } catch(e) {}
+    };
+    fetchSuggestions();
+
+    return () => {
+      isMounted = false;
+      unsubSent();
+      unsubRecv();
+    };
+  }, [open, user]);
 
   useEffect(() => {
-    if (open) {
-      loadData();
+    if (!user) return;
+    const notFriends = allUsersCache.filter(u => 
+      u.id !== user.id && 
+      !allRelationsCache.some(r => r.user_id === u.id || r.friend_id === u.id)
+    ).slice(0, 10);
+    setSuggestions(notFriends);
+  }, [allUsersCache, allRelationsCache, user]);
+
+  useEffect(() => {
+    if (open && requestsReceived.length > 0) {
+      try {
+        const newIds = requestsReceived.map(r => r.id);
+        const existing = JSON.parse(localStorage.getItem('viewed_requests') || '[]');
+        const combined = [...new Set([...existing, ...newIds])];
+        localStorage.setItem('viewed_requests', JSON.stringify(combined));
+        window.dispatchEvent(new Event('requestsRead'));
+      } catch(e) {}
     }
-  }, [open, user]);
+  }, [open, requestsReceived]);
+
+  // Live UID search
+  useEffect(() => {
+    if (searchQuery.trim().length > 3) {
+      const searchLive = async () => {
+        try {
+          const query = searchQuery.trim().toUpperCase();
+          const exactUsers = await User.filter({ unique_id: query });
+          if (exactUsers.length > 0) {
+            setAllUsersCache(prev => {
+              const newUsers = [...prev];
+              let added = false;
+              exactUsers.forEach(eu => {
+                if (eu && !newUsers.some(u => u.id === eu.id)) {
+                  newUsers.push(eu);
+                  added = true;
+                }
+              });
+              return added ? newUsers : prev;
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      // Debounce slightly or just run
+      const timer = setTimeout(() => searchLive(), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery]);
 
   const handleAccept = async (relId) => {
     try {
       await Friendship.update(relId, { status: 'accepted' });
       toast.success("Friend request accepted!");
-      loadData();
     } catch (e) { toast.error("Error accepting request"); }
   };
 
@@ -108,11 +212,24 @@ export default function AddFriendDrawer({ children, user }) {
     try {
       await Friendship.delete(relId);
       toast.success("Request removed");
-      loadData();
     } catch (e) { toast.error("Error rejecting request"); }
   };
 
   const handleAddFriend = async (friendId) => {
+    if (friendId === user?.id) {
+      toast.error("You cannot send a friend request to yourself.");
+      return;
+    }
+    const existing = allRelationsCache.find(r => 
+      (r.user_id === user.id && r.friend_id === friendId) ||
+      (r.friend_id === user.id && r.user_id === friendId)
+    );
+    if (existing) {
+      if (existing.status?.toLowerCase() === 'accepted') toast.error("Already friends!");
+      else toast.error("Request already pending!");
+      return;
+    }
+
     try {
       await Friendship.create({
         user_id: user.id,
@@ -120,7 +237,6 @@ export default function AddFriendDrawer({ children, user }) {
         status: 'pending'
       });
       toast.success("Friend request sent!");
-      loadData();
     } catch (e) {
       toast.error("Error sending request");
     }
@@ -147,11 +263,11 @@ export default function AddFriendDrawer({ children, user }) {
       
       <SheetContent 
         side="right" 
-        className="w-full sm:w-[450px] sm:max-w-md h-full bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col z-50 overflow-hidden [&>button]:hidden pt-16"
+        className="w-full sm:w-[450px] sm:max-w-md h-full bg-slate-950 border-l border-slate-800 p-0 flex flex-col z-50 overflow-hidden [&>button]:hidden pt-16"
       >
-        <SheetHeader className="p-4 sm:p-6 border-b border-[#1f2029] bg-[#0c0d12] flex flex-row items-center gap-4 space-y-0 relative">
+        <SheetHeader className="p-4 sm:p-6 border-b border-slate-800 bg-[#0c0d12] flex flex-row items-center gap-4 space-y-0 relative">
           <SheetClose asChild>
-            <button className="p-2 bg-[#111115] hover:bg-[#ff5500] text-gray-400 hover:text-white border border-[#2a2a35] hover:border-[#ff5500] rounded-lg transition-colors">
+            <button className="p-2 bg-slate-900 hover:bg-[#0ea5e9] text-gray-400 hover:text-white border border-slate-700 hover:border-[#0ea5e9] rounded-lg transition-colors">
               <ChevronLeft className="w-5 h-5" />
             </button>
           </SheetClose>
@@ -161,7 +277,7 @@ export default function AddFriendDrawer({ children, user }) {
           </SheetTitle>
           <button 
             onClick={() => setShowMyQR(true)}
-            className="p-2 bg-[#111115] hover:bg-[#ff5500]/20 text-gray-400 hover:text-[#ff5500] border border-[#2a2a35] hover:border-[#ff5500]/50 rounded-lg transition-colors absolute right-4 sm:right-6"
+            className="p-2 bg-slate-900 hover:bg-[#0ea5e9]/20 text-gray-400 hover:text-[#0ea5e9] border border-slate-700 hover:border-[#0ea5e9]/50 rounded-lg transition-colors absolute right-4 sm:right-6"
           >
             <QrCode className="w-5 h-5" />
           </button>
@@ -175,14 +291,23 @@ export default function AddFriendDrawer({ children, user }) {
               placeholder="Search by Username or UID..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#111115] border border-[#1f2029] focus:border-[#ff5500] text-white placeholder:text-gray-600 rounded-lg py-2.5 pl-10 pr-10 outline-none transition-colors text-sm"
+              className="w-full bg-slate-900 border border-slate-800 focus:border-[#0ea5e9] text-white placeholder:text-gray-600 rounded-lg py-2.5 pl-10 pr-10 outline-none transition-colors text-sm"
             />
-            <button 
-              onClick={() => setShowScanner(true)}
-              className="absolute right-2 p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
-            >
-              <ScanLine className="w-4 h-4" />
-            </button>
+            {searchQuery.length > 0 ? (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : (
+              <button 
+                onClick={handleScanClick}
+                className="absolute right-2 p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
+              >
+                <ScanLine className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -194,147 +319,202 @@ export default function AddFriendDrawer({ children, user }) {
                 <div className="text-center py-10 text-gray-500">No users found</div>
               ) : (
                 searchResults.map(s => {
-                  const relation = allRelationsCache.find(r => r.user_id === s.id || r.friend_id === s.id);
-                  const isFriend = relation?.status === 'accepted';
-                  const isPending = relation?.status === 'pending';
+                  const relation = allRelationsCache.find(r => 
+                    (r.user_id === user.id && r.friend_id === s.id) ||
+                    (r.friend_id === user.id && r.user_id === s.id)
+                  );
+                  const isFriend = relation?.status?.toLowerCase() === 'accepted';
+                  const isPending = relation && !isFriend;
+                  const isSentByMe = isPending && relation?.user_id === user.id;
                   
                   return (
-                    <div key={s.id} className="bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4">
-                      <div 
-                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1"
-                        onClick={() => handleProfileClick(s.id)}
-                      >
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={s.avatar_url} className="object-cover" />
-                          <AvatarFallback className="bg-gray-800 text-white font-bold">{s.ign?.[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-bold text-white text-sm">{s.ign}</p>
-                          <p className="text-[10px] text-gray-400">UID: {s.unique_id}</p>
+                    <RealtimeUserWrapper key={s.id} initialUser={s}>
+                      {(realtimeUser) => (
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-4">
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity flex-1"
+                            onClick={() => handleProfileClick(realtimeUser.id)}
+                          >
+                            <div className="relative">
+                              <Avatar className="w-10 h-10">
+                                <AvatarImage src={realtimeUser.avatar_url} className="object-cover" />
+                                <AvatarFallback className="bg-gray-800 text-white font-bold">{realtimeUser.ign?.[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#111115] ${realtimeUser.activity_status === 'Online' ? 'bg-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'bg-[#0ea5e9]' : 'bg-gray-500'}`} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-white text-sm">{realtimeUser.ign}</p>
+                              <p className="text-[10px] text-gray-400">UID: {realtimeUser.unique_id}</p>
+                              <p className={`text-[10px] font-bold ${realtimeUser.activity_status === 'Online' ? 'text-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'text-[#0ea5e9]' : 'text-gray-500'}`}>
+                                {realtimeUser.activity_status === 'Online' ? 'Online' : realtimeUser.activity_status === 'In Match' ? 'In Match' : 'Offline'}
+                              </p>
+                            </div>
+                          </div>
+                          {isFriend ? (
+                            <span className="px-3 py-1.5 text-xs text-[#00e676] font-bold uppercase bg-[#00e676]/10 border border-[#00e676]/30 rounded-lg flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Friends
+                            </span>
+                          ) : isPending && isSentByMe ? (
+                            <span className="px-3 py-1.5 text-xs text-yellow-500/70 font-bold uppercase bg-yellow-500/10 rounded-lg">Request Sent</span>
+                          ) : isPending && !isSentByMe ? (
+                            <div className="flex gap-1">
+                              <button onClick={() => handleAccept(relation.id)} className="p-1.5 bg-[#00e676] text-black hover:bg-[#00c853] rounded-lg transition-colors">
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleReject(relation.id)} className="p-1.5 bg-gray-800 text-gray-400 hover:text-white rounded-lg transition-colors">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => handleAddFriend(realtimeUser.id)} 
+                              className="px-3 py-1.5 bg-[#0ea5e9]/10 border border-[#0ea5e9]/30 text-[#0ea5e9] hover:bg-[#0ea5e9] hover:text-white rounded-lg transition-colors flex items-center gap-1 text-xs font-bold uppercase"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" /> Add
+                            </button>
+                          )}
                         </div>
-                      </div>
-                      {isFriend ? (
-                        <span className="px-3 py-1.5 text-xs text-gray-500 font-bold uppercase bg-gray-800/30 rounded-lg">Friends</span>
-                      ) : isPending ? (
-                        <span className="px-3 py-1.5 text-xs text-yellow-500/70 font-bold uppercase bg-yellow-500/10 rounded-lg">Pending</span>
-                      ) : (
-                        <button 
-                          onClick={() => handleAddFriend(s.id)} 
-                          className="px-3 py-1.5 bg-[#ff5500]/10 border border-[#ff5500]/30 text-[#ff5500] hover:bg-[#ff5500] hover:text-white rounded-lg transition-colors flex items-center gap-1 text-xs font-bold uppercase"
-                        >
-                          <UserPlus className="w-3.5 h-3.5" /> Add
-                        </button>
                       )}
-                    </div>
+                    </RealtimeUserWrapper>
                   );
                 })
               )}
             </div>
           ) : (
             <Tabs defaultValue="received" className="w-full">
-            <TabsList className="bg-transparent border-b border-[#1f2029] p-0 h-auto w-full flex rounded-none mb-4">
-              <TabsTrigger value="received" className="flex-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#ff5500] data-[state=active]:text-white text-gray-500 rounded-none py-3 text-[10px] font-bold uppercase tracking-wider">
+            <TabsList className="bg-transparent border-b border-slate-800 p-0 h-auto w-full flex rounded-none mb-4">
+              <TabsTrigger value="received" className="flex-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#0ea5e9] data-[state=active]:text-white text-gray-500 rounded-none py-3 text-[10px] font-bold uppercase tracking-wider">
                 Received ({requestsReceived.length})
               </TabsTrigger>
-              <TabsTrigger value="sent" className="flex-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#ff5500] data-[state=active]:text-white text-gray-500 rounded-none py-3 text-[10px] font-bold uppercase tracking-wider">
+              <TabsTrigger value="sent" className="flex-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#0ea5e9] data-[state=active]:text-white text-gray-500 rounded-none py-3 text-[10px] font-bold uppercase tracking-wider">
                 Sent ({requestsSent.length})
               </TabsTrigger>
-              <TabsTrigger value="suggestions" className="flex-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#ff5500] data-[state=active]:text-white text-gray-500 rounded-none py-3 text-[10px] font-bold uppercase tracking-wider">
+              <TabsTrigger value="suggestions" className="flex-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-[#0ea5e9] data-[state=active]:text-white text-gray-500 rounded-none py-3 text-[10px] font-bold uppercase tracking-wider">
                 Suggestions
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="received" className="space-y-2 mt-0">
               {loading ? (
-                <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#ff5500] border-t-transparent rounded-full" /></div>
+                <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#0ea5e9] border-t-transparent rounded-full" /></div>
               ) : requestsReceived.length === 0 ? (
                 <div className="text-center py-10 text-gray-500">No pending requests</div>
               ) : (
                 requestsReceived.map(req => (
-                  <div key={req.id} className="bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4">
-                    <div 
-                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => handleProfileClick(req.otherUser.id)}
-                    >
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={req.otherUser.avatar_url} className="object-cover" />
-                        <AvatarFallback className="bg-gray-800 text-white font-bold">{req.otherUser.ign?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-bold text-white text-sm">{req.otherUser.ign}</p>
-                        <p className="text-[10px] text-gray-400">UID: {req.otherUser.unique_id}</p>
+                  <RealtimeUserWrapper key={req.id} initialUser={req.otherUser}>
+                    {(realtimeUser) => (
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-4">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => handleProfileClick(realtimeUser.id)}
+                        >
+                          <div className="relative">
+                            <Avatar className="w-10 h-10">
+                              <AvatarImage src={realtimeUser.avatar_url} className="object-cover" />
+                              <AvatarFallback className="bg-gray-800 text-white font-bold">{realtimeUser.ign?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#111115] ${realtimeUser.activity_status === 'Online' ? 'bg-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'bg-[#0ea5e9]' : 'bg-gray-500'}`} />
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-sm">{realtimeUser.ign}</p>
+                            <p className="text-[10px] text-gray-400">UID: {realtimeUser.unique_id}</p>
+                            <p className={`text-[10px] font-bold ${realtimeUser.activity_status === 'Online' ? 'text-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'text-[#0ea5e9]' : 'text-gray-500'}`}>
+                              {realtimeUser.activity_status === 'Online' ? 'Online' : realtimeUser.activity_status === 'In Match' ? 'In Match' : 'Offline'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleAccept(req.id)} className="p-2 bg-[#00e676] text-black hover:bg-[#00c853] rounded-lg transition-colors">
+                            <Check className="w-4 h-4 font-bold" />
+                          </button>
+                          <button onClick={() => handleReject(req.id)} className="p-2 bg-gray-800 text-gray-400 hover:text-white rounded-lg transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleAccept(req.id)} className="p-2 bg-[#00e676] text-black hover:bg-[#00c853] rounded-lg transition-colors">
-                        <Check className="w-4 h-4 font-bold" />
-                      </button>
-                      <button onClick={() => handleReject(req.id)} className="p-2 bg-gray-800 text-gray-400 hover:text-white rounded-lg transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                    )}
+                  </RealtimeUserWrapper>
                 ))
               )}
             </TabsContent>
 
             <TabsContent value="sent" className="space-y-2 mt-0">
               {loading ? (
-                <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#ff5500] border-t-transparent rounded-full" /></div>
+                <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#0ea5e9] border-t-transparent rounded-full" /></div>
               ) : requestsSent.length === 0 ? (
                 <div className="text-center py-10 text-gray-500">No requests sent</div>
               ) : (
                 requestsSent.map(req => (
-                  <div key={req.id} className="bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4">
-                    <div 
-                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => handleProfileClick(req.otherUser.id)}
-                    >
-                      <Avatar className="w-10 h-10 opacity-50">
-                        <AvatarImage src={req.otherUser.avatar_url} className="object-cover" />
-                        <AvatarFallback className="bg-gray-800 text-white font-bold">{req.otherUser.ign?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-bold text-gray-400 text-sm">{req.otherUser.ign}</p>
-                        <p className="text-[10px] text-gray-500">Pending Approval...</p>
+                  <RealtimeUserWrapper key={req.id} initialUser={req.otherUser}>
+                    {(realtimeUser) => (
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-4">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => handleProfileClick(realtimeUser.id)}
+                        >
+                          <div className="relative">
+                            <Avatar className="w-10 h-10 opacity-50">
+                              <AvatarImage src={realtimeUser.avatar_url} className="object-cover" />
+                              <AvatarFallback className="bg-gray-800 text-white font-bold">{realtimeUser.ign?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#111115] opacity-50 ${realtimeUser.activity_status === 'Online' ? 'bg-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'bg-[#0ea5e9]' : 'bg-gray-500'}`} />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-400 text-sm">{realtimeUser.ign}</p>
+                            <p className="text-[10px] text-gray-500">Pending Approval...</p>
+                            <p className={`text-[10px] font-bold ${realtimeUser.activity_status === 'Online' ? 'text-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'text-[#0ea5e9]' : 'text-gray-500'}`}>
+                              {realtimeUser.activity_status === 'Online' ? 'Online' : realtimeUser.activity_status === 'In Match' ? 'In Match' : 'Offline'}
+                            </p>
+                          </div>
+                        </div>
+                        <button onClick={() => handleReject(req.id)} className="px-3 py-1.5 bg-gray-800 text-xs text-gray-400 hover:text-white rounded-lg transition-colors font-bold uppercase">
+                          Cancel
+                        </button>
                       </div>
-                    </div>
-                    <button onClick={() => handleReject(req.id)} className="px-3 py-1.5 bg-gray-800 text-xs text-gray-400 hover:text-white rounded-lg transition-colors font-bold uppercase">
-                      Cancel
-                    </button>
-                  </div>
+                    )}
+                  </RealtimeUserWrapper>
                 ))
               )}
             </TabsContent>
 
             <TabsContent value="suggestions" className="space-y-2 mt-0">
               {loading ? (
-                <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#ff5500] border-t-transparent rounded-full" /></div>
+                <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#0ea5e9] border-t-transparent rounded-full" /></div>
               ) : suggestions.length === 0 ? (
                 <div className="text-center py-10 text-gray-500">No suggestions available</div>
               ) : (
                 suggestions.map(s => (
-                  <div key={s.id} className="bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4">
-                    <div 
-                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => handleProfileClick(s.id)}
-                    >
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={s.avatar_url} className="object-cover" />
-                        <AvatarFallback className="bg-gray-800 text-white font-bold">{s.ign?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-bold text-white text-sm">{s.ign}</p>
-                        <p className="text-[10px] text-gray-400">UID: {s.unique_id}</p>
+                  <RealtimeUserWrapper key={s.id} initialUser={s}>
+                    {(realtimeUser) => (
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-4">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => handleProfileClick(realtimeUser.id)}
+                        >
+                          <div className="relative">
+                            <Avatar className="w-10 h-10">
+                              <AvatarImage src={realtimeUser.avatar_url} className="object-cover" />
+                              <AvatarFallback className="bg-gray-800 text-white font-bold">{realtimeUser.ign?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#111115] ${realtimeUser.activity_status === 'Online' ? 'bg-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'bg-[#0ea5e9]' : 'bg-gray-500'}`} />
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-sm">{realtimeUser.ign}</p>
+                            <p className="text-[10px] text-gray-400">UID: {realtimeUser.unique_id}</p>
+                            <p className={`text-[10px] font-bold ${realtimeUser.activity_status === 'Online' ? 'text-[#00e676]' : realtimeUser.activity_status === 'In Match' ? 'text-[#0ea5e9]' : 'text-gray-500'}`}>
+                              {realtimeUser.activity_status === 'Online' ? 'Online' : realtimeUser.activity_status === 'In Match' ? 'In Match' : 'Offline'}
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => handleAddFriend(realtimeUser.id)} 
+                          className="px-3 py-1.5 bg-[#0ea5e9]/10 border border-[#0ea5e9]/30 text-[#0ea5e9] hover:bg-[#0ea5e9] hover:text-white rounded-lg transition-colors flex items-center gap-1 text-xs font-bold uppercase"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" /> Add
+                        </button>
                       </div>
-                    </div>
-                    <button 
-                      onClick={() => handleAddFriend(s.id)} 
-                      className="px-3 py-1.5 bg-[#ff5500]/10 border border-[#ff5500]/30 text-[#ff5500] hover:bg-[#ff5500] hover:text-white rounded-lg transition-colors flex items-center gap-1 text-xs font-bold uppercase"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" /> Add
-                    </button>
-                  </div>
+                    )}
+                  </RealtimeUserWrapper>
                 ))
               )}
             </TabsContent>
@@ -343,11 +523,11 @@ export default function AddFriendDrawer({ children, user }) {
         </div>
 
         {showMyQR && (
-          <div className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col pt-16">
-            <div className="p-4 sm:p-6 border-b border-[#1f2029] flex items-center gap-4">
+          <div className="absolute inset-0 bg-slate-950 z-50 flex flex-col pt-16">
+            <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center gap-4">
               <button 
                 onClick={() => setShowMyQR(false)}
-                className="p-2 bg-[#111115] hover:bg-gray-800 text-gray-400 hover:text-white border border-[#2a2a35] rounded-lg transition-colors"
+                className="p-2 bg-slate-900 hover:bg-gray-800 text-gray-400 hover:text-white border border-slate-700 rounded-lg transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -355,7 +535,7 @@ export default function AddFriendDrawer({ children, user }) {
             </div>
             <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8">
               <div className="flex flex-col items-center gap-3">
-                <Avatar className="w-20 h-20 border-4 border-[#ff5500]/20">
+                <Avatar className="w-20 h-20 border-4 border-[#0ea5e9]/20">
                   <AvatarImage src={user?.avatar_url} className="object-cover" />
                   <AvatarFallback className="bg-gray-800 text-white font-bold text-xl">{user?.ign?.[0]}</AvatarFallback>
                 </Avatar>
@@ -379,20 +559,19 @@ export default function AddFriendDrawer({ children, user }) {
         )}
 
         {showScanner && (
-          <div className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col pt-16">
-             <div className="p-4 sm:p-6 border-b border-[#1f2029] flex items-center gap-4 bg-[#0a0a0c] relative z-10">
+          <div className="absolute inset-0 bg-slate-950 z-50 flex flex-col pt-16">
+             <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center gap-4 bg-slate-950 relative z-10">
               <button 
                 onClick={() => setShowScanner(false)}
-                className="p-2 bg-[#111115] hover:bg-gray-800 text-gray-400 hover:text-white border border-[#2a2a35] rounded-lg transition-colors"
+                className="p-2 bg-slate-900 hover:bg-gray-800 text-gray-400 hover:text-white border border-slate-700 rounded-lg transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <h2 className="text-xl font-black tracking-widest text-white uppercase m-0">Scan QR Code</h2>
             </div>
-            <div className="flex-1 relative bg-[#0a0a0c] flex flex-col items-center justify-center overflow-hidden">
-              <div className="w-[280px] h-[280px] rounded-3xl overflow-hidden relative shadow-[0_0_50px_rgba(255,85,0,0.15)] ring-4 ring-[#ff5500]/30 ring-offset-4 ring-offset-[#0a0a0c]">
-                <Scanner 
-                  formats={['qr_code']}
+            <div className="flex-1 relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+              <div className="w-[280px] h-[280px] rounded-3xl overflow-hidden relative shadow-[0_0_50px_rgba(255,85,0,0.15)] ring-4 ring-[#0ea5e9]/30 ring-offset-4 ring-offset-[#0a0a0c]">
+                <CustomScanner 
                   onScan={async (result) => {
                     if (result && result.length > 0) {
                       const scannedUid = result[0].rawValue.trim();
@@ -418,19 +597,16 @@ export default function AddFriendDrawer({ children, user }) {
                   onError={(error) => {
                     console.error("Scanner Error:", error);
                   }}
-                  constraints={{ facingMode: "environment" }}
-                  components={{ audio: false, finder: false }}
-                  styles={{ container: { width: '100%', height: '100%' }, video: { objectFit: 'cover' } }}
                 />
                 
                 {/* Custom Corner Accents */}
                 <div className="absolute inset-0 pointer-events-none z-10">
-                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#ff5500] rounded-tl-3xl" />
-                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#ff5500] rounded-tr-3xl" />
-                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#ff5500] rounded-bl-3xl" />
-                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#ff5500] rounded-br-3xl" />
+                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-[#0ea5e9] rounded-tl-3xl" />
+                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-[#0ea5e9] rounded-tr-3xl" />
+                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-[#0ea5e9] rounded-bl-3xl" />
+                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-[#0ea5e9] rounded-br-3xl" />
                   {/* Scan line */}
-                  <div className="absolute left-4 right-4 h-0.5 bg-[#ff5500] shadow-[0_0_15px_#ff5500] animate-scan-line" />
+                  <div className="absolute left-4 right-4 h-0.5 bg-[#0ea5e9] shadow-[0_0_15px_#0ea5e9] animate-scan-line" />
                 </div>
               </div>
               
@@ -446,34 +622,68 @@ export default function AddFriendDrawer({ children, user }) {
 
         {/* Scanned Profile Nested Sheet */}
         <Sheet open={!!scannedProfile} onOpenChange={(val) => !val && setScannedProfile(null)}>
-          <SheetContent className="bg-[#0a0a0c] border-[#1f2029] p-0 flex flex-col w-full sm:max-w-md z-[60] pt-16">
-            <SheetHeader className="p-4 sm:p-6 border-b border-[#1f2029] flex-row items-center justify-between space-y-0">
+          <SheetContent className="bg-slate-950 border-slate-800 p-0 flex flex-col w-full sm:max-w-md z-[60] pt-16">
+            <SheetHeader className="p-4 sm:p-6 border-b border-slate-800 flex-row items-center justify-between space-y-0">
               <SheetTitle className="text-xl font-black tracking-widest text-white uppercase m-0">Player Found</SheetTitle>
               <SheetClose asChild>
-                <button className="p-2 bg-[#111115] hover:bg-gray-800 text-gray-400 hover:text-white border border-[#2a2a35] rounded-lg transition-colors">
+                <button className="p-2 bg-slate-900 hover:bg-gray-800 text-gray-400 hover:text-white border border-slate-700 rounded-lg transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </SheetClose>
             </SheetHeader>
             <div className="flex-1 flex flex-col items-center p-6 space-y-6">
-              <Avatar className="w-24 h-24 border-4 border-[#ff5500]/20">
+              <Avatar className="w-24 h-24 border-4 border-[#0ea5e9]/20">
                 <AvatarImage src={scannedProfile?.avatar_url} className="object-cover" />
                 <AvatarFallback className="bg-gray-800 text-white font-bold text-2xl">{scannedProfile?.ign?.[0]}</AvatarFallback>
               </Avatar>
               <div className="text-center">
-                <p className="font-black text-2xl text-white tracking-wider">{scannedProfile?.ign || scannedProfile?.full_name}</p>
-                <p className="text-gray-400 text-sm mt-1 font-mono text-cyan-400">{scannedProfile?.unique_id}</p>
+                <div className="text-center">
+                  <p className="font-black text-2xl text-white tracking-wider">{scannedProfile?.ign || scannedProfile?.full_name}</p>
+                  <p className="text-gray-400 text-sm mt-1 font-mono text-cyan-400">{scannedProfile?.unique_id}</p>
+                </div>
+                {(() => {
+                  if (scannedProfile?.id === user?.id) {
+                    return (
+                      <button disabled className="w-full bg-slate-800 text-gray-400 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-not-allowed mt-4">
+                        <Check className="w-5 h-5" />
+                        YOUR ACCOUNT
+                      </button>
+                    );
+                  }
+                  const relation = allRelationsCache.find(r => 
+                    (r.user_id === user?.id && r.friend_id === scannedProfile?.id) ||
+                    (r.friend_id === user?.id && r.user_id === scannedProfile?.id)
+                  );
+                  if (relation?.status?.toLowerCase() === 'accepted') {
+                    return (
+                      <button disabled className="w-full bg-[#00e676]/20 border border-[#00e676]/50 text-[#00e676] font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-not-allowed mt-4">
+                        <Check className="w-5 h-5" />
+                        ALREADY FRIENDS
+                      </button>
+                    );
+                  }
+                  if (relation && relation?.status?.toLowerCase() !== 'accepted') {
+                    return (
+                      <button disabled className="w-full bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-not-allowed mt-4">
+                        <Check className="w-5 h-5" />
+                        REQUEST PENDING
+                      </button>
+                    );
+                  }
+                  return (
+                    <button 
+                      onClick={() => {
+                        handleAddFriend(scannedProfile?.id);
+                        setScannedProfile(null);
+                      }}
+                      className="w-full bg-[#0ea5e9] hover:bg-[#38bdf8] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] flex items-center justify-center gap-2 mt-4"
+                    >
+                      <UserPlus className="w-5 h-5" />
+                      SEND FRIEND REQUEST
+                    </button>
+                  );
+                })()}
               </div>
-              <button 
-                onClick={() => {
-                  handleAddFriend(scannedProfile?.id);
-                  setScannedProfile(null);
-                }}
-                className="w-full bg-[#ff5500] hover:bg-[#ff7733] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_0_20px_rgba(255,85,0,0.3)] flex items-center justify-center gap-2"
-              >
-                <UserPlus className="w-5 h-5" />
-                SEND FRIEND REQUEST
-              </button>
             </div>
           </SheetContent>
         </Sheet>

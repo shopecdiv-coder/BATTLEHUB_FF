@@ -1,0 +1,74 @@
+Created At: 2026-08-23T06:10:02+05:30
+Completed At: 2026-08-23T06:10:02+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2627
+Total Bytes: 138358
+Showing lines 2175 to 2240
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2175:                 
+2176:                 const matchResults = Array.isArray(entry.match_results) ? entry.match_results : [];
+2177:                 const booyahCount = matchResults.filter(mr => mr && mr.placement === 1).length;
+2178: 
+2179:                 return (
+2180:                   <React.Fragment key={rowId}>
+2181:                     <tr
+2182:                       onClick={() => setExpandedId(isExpanded ? null : rowId)}
+2183:                       className={`cursor-pointer transition-colors hover:bg-slate-800/40 ${
+2184:                         rankNum === 1 ? 'bg-amber-500/5' :
+2185:                         rankNum === 2 ? 'bg-slate-400/5' :
+2186:                         rankNum === 3 ? 'bg-amber-700/5' : ''
+2187:                       }`}
+2188:                     >
+2189:                       <td className="py-2.5 px-1.5 font-black text-left">
+2190:                         <span className={`text-[11px] ${
+2191:                           rankNum === 1 ? 'text-amber-400 font-black' :
+2192:                           rankNum === 2 ? 'text-slate-300 font-black' :
+2193:                           rankNum === 3 ? 'text-amber-600 font-black' : 'text-slate-500 font-bold'
+2194:                         }`}>
+2195:                           #{rankNum}
+2196:                         </span>
+2197:                       </td>
+2198: 
+2199:                       <td className="py-2.5 px-2">
+2200:                         <div className="flex items-center gap-1.5 min-w-0">
+2201:                           {logo ? (
+2202:                             <img src={logo} alt="" className="w-7 h-7 min-w-[28px] max-w-[28px] min-h-[28px] max-h-[28px] rounded-md object-cover border border-slate-700 shrink-0" onError={e=>e.target.style.display='none'} />
+2203:                           ) : (
+2204:                             <div className="w-7 h-7 min-w-[28px] max-w-[28px] min-h-[28px] max-h-[28px] rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-400 text-xs shrink-0">
+2205:                               {displayName.charAt(0).toUpperCase()}
+2206:                             </div>
+2207:                           )}
+2208:                           <div className="min-w-0 flex-1">
+2209:                             <p className="font-bold text-white text-[11px] truncate leading-tight">{displayName}</p>
+2210:                           </div>
+2211:                         </div>
+2212:                       </td>
+2213: 
+2214:                       <td className="py-2.5 px-1 text-center">
+2215:                         <span className="font-bold text-red-400 text-[11px]">{entry.kills || 0}</span>
+2216:                       </td>
+2217: 
+2218:                       <td className="py-2.5 px-1 text-center">
+2219:                         <span className="font-bold text-slate-300 text-[11px]">
+2220:                           {entry.placement_points !== undefined ? entry.placement_points : Math.max(0, (entry.points || 0) - (entry.kills || 0))}
+2221:                         </span>
+2222:                       </td>
+2223: 
+2224:                       <td className="py-2.5 px-1 text-center">
+2225:                         <span className="font-black text-cyan-400 text-[11px]">
+2226:                           {entry.points || 0}
+2227:                         </span>
+2228:                       </td>
+2229: 
+2230:                       <td className="py-2.5 text-center text-slate-500 text-[9px]">
+2231:                         {isExpanded ? '▲' : '▼'}
+2232:                       </td>
+2233:                     </tr>
+2234: 
+2235:                     {/* Expanded Team Breakdown Drawer */}
+2236:                     {isExpanded && (
+2237:                       <tr className="border-b border-slate-800/80">
+2238:                         <td colSpan={6} className="px-3 py-2.5 bg-slate-950/95">
+2239:                           <div className="space-y-2">
+2240: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

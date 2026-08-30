@@ -281,7 +281,7 @@ export default function TournamentWinnerReward({ tournament, onClose }) {
                     <Button
                       onClick={sendReward}
                       disabled={rewardAmount <= 0}
-                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-bold h-11 text-base"
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-black font-bold h-11 text-base"
                     >
                       <Trophy className="w-4 h-4 mr-2" />
                       Send {rewardAmount > 0 ? `${rewardAmount} 🪙` : ""} to {gameIGN}

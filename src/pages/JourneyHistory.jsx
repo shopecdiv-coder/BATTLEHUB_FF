@@ -37,8 +37,8 @@ export default function JourneyHistory() {
     <div className="min-h-screen bg-gray-950 p-4 pb-24">
       <div className="max-w-xl mx-auto">
         <div className="flex items-center gap-3 mb-5 pt-2">
-          <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
-            <Flame className="w-5 h-5 text-orange-400" />
+          <div className="w-10 h-10 bg-orange-600/20 rounded-xl flex items-center justify-center">
+            <Flame className="w-5 h-5 text-orange-500" />
           </div>
           <div>
             <h1 className="text-xl font-black text-white">Tournament Journey</h1>

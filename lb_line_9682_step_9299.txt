@@ -1,0 +1,99 @@
+Created At: 2026-08-23T08:29:07+05:30
+Completed At: 2026-08-23T08:29:07+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 3022
+Total Bytes: 161929
+Showing lines 2160 to 2250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2160:           match_results: lb.match_results || []
+2161:         });
+2162:       });
+2163:     }
+2164: 
+2165:     return rows;
+2166:   })();
+2167: 
+2168:   const getRegForEntry = (entry) => registrations.find(r => r.team_leader_id === entry.user_id || r.id === entry.id);
+2169:   const adminMsg = leaderboardEntries && leaderboardEntries.length > 0 ? (leaderboardEntries[0]?.admin_message || "") : "";
+2170:   const isFinalized = leaderboardEntries && leaderboardEntries.length > 0 && leaderboardEntries[0]?.is_finalized;
+2171: 
+2172:   // Qualification counts
+2173:   const totalQualifiedCount = rawRows.filter(r => r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified").length;
+2174: 
+2175:   // Search, Group & Stage Filter
+2176:   const filteredRows = rawRows.filter((r, idx) => {
+2177:     const origIdx = registrations.findIndex(reg => reg.id === r.id || (reg.team_leader_id && reg.team_leader_id === r.user_id));
+2178:     const realIdx = origIdx >= 0 ? origIdx : idx;
+2179:     
+2180:     const grp = r.group_number !== undefined && r.group_number !== null && String(r.group_number).trim() !== ""
+2181:       ? String(r.group_number).replace(/[^0-9]/g, '') || String(r.group_number)
+2182:       : String(Math.floor(realIdx / 12) + 1);
+2183: 
+2184:     const matchesGrp = selectedGroup === "all" || selectedGroup === grp;
+2185: 
+2186:     const isQual = r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified";
+2187:     const regStage = String(r.stage || "").toLowerCase().trim().replace(/\s+/g, '_');
+2188:     const teamStageIdx = allRealStages.findIndex(s => {
+2189:       const sId = String(s.id || s).toLowerCase().trim().replace(/\s+/g, '_');
+2190:       const sName = String(s.name || s).toLowerCase().trim().replace(/\s+/g, '_');
+2191:       return regStage === sId || regStage === sName || (sName && regStage.includes(sName)) || (sId && regStage.includes(sId));
+2192:     });
+2193: 
+2194:     let matchesStage = true;
+2195:     if (selectedStage === "all") {
+2196:       // Option 1: When "All Stages" is selected, show teams that belong to the current ongoing stage across all groups!
+2197:       matchesStage = teamStageIdx === -1 || teamStageIdx >= ongoingStageIdx;
+2198:     } else if (selectedStage === "qualified") {
+2199:       matchesStage = isQual;
+2200:     } else {
+2201:       const selLower = selectedStage.toLowerCase().trim().replace(/\s+/g, '_');
+2202:       const targetIdx = allRealStages.findIndex(s => {
+2203:         const sId = String(s.id || s).toLowerCase().trim().replace(/\s+/g, '_');
+2204:         const sName = String(s.name || s).toLowerCase().trim().replace(/\s+/g, '_');
+2205:         return sId === selLower || sName === selLower || (sName && selLower.includes(sName)) || (sId && selLower.includes(sId));
+2206:       });
+2207: 
+2208:       if (targetIdx !== -1 && teamStageIdx !== -1) {
+2209:         matchesStage = teamStageIdx >= targetIdx;
+2210:       }
+2211:     }
+2212: 
+2213:     const q = (searchQuery || "").toLowerCase().trim();
+2214:     if (!q) return matchesGrp && matchesStage;
+2215: 
+2216:     const reg = getRegForEntry(r) || {};
+2217:     const rawMembers = Array.isArray(r.team_members) && r.team_members.length > 0
+2218:       ? r.team_members
+2219:       : (Array.isArray(reg.team_members) ? reg.team_members : []);
+2220: 
+2221:     const tName = String(r.team_name || reg.team_name || "").toLowerCase();
+2222:     const leaderIgn = String(r.player_ign || reg.team_leader_ign || "").toLowerCase();
+2223:     const uid = String(r.player_uid || reg.team_leader_uid || "").toLowerCase();
+2224: 
+2225:     const memberMatches = rawMembers.some(m => {
+2226:       if (!m) return false;
+2227:       const mIgn = typeof m === 'string' ? m : (m.ign || m.name || m.player_ign || '');
+2228:       const mUid = typeof m === 'object' ? (m.uid || m.game_id || '') : '';
+2229:       return String(mIgn).toLowerCase().includes(q) || String(mUid).toLowerCase().includes(q);
+2230:     });
+2231: 
+2232:     const rankStr = String(idx + 1);
+2233:     const matchesQ = tName.includes(q) || leaderIgn.includes(q) || uid.includes(q) || memberMatches || rankStr === q || `#${rankStr}` === q;
+2234: 
+2235:     return matchesGrp && matchesStage && matchesQ;
+2236:   });
+2237: 
+2238:   // Official eSports Tie-Breaker Rule Sorting:
+2239:   // Priority 1: Total Points (descending)
+2240:   const getBooyahCount = (row) => {
+2241:     if (!row?.match_results || !Array.isArray(row.match_results)) return 0;
+2242:     return row.match_results.filter(m => m && m.placement === 1).length;
+2243:   };
+2244:   
+2245:   const getLastMatchPlacement = (row) => {
+2246:     if (!row?.match_results || !Array.isArray(row.match_results)) return 999;
+2247:     const validMatches = row.match_results.filter(m => m);
+2248:     if (validMatches.length === 0) return 999;
+2249:     const sortedMatches = [...validMatches].sort((a,b) => String(b?.match_number||"").localeCompare(String(a?.match_number||"")));
+2250:     return sortedMatches[0]?.placement || 999;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

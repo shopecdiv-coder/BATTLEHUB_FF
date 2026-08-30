@@ -1,0 +1,49 @@
+Created At: 2026-08-23T06:06:03+05:30
+Completed At: 2026-08-23T06:06:03+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2609
+Total Bytes: 137120
+Showing lines 1865 to 1905
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1865:   const filteredRows = rawRows.filter((r, idx) => {
+1866:     const origIdx = registrations.findIndex(reg => reg.id === r.id || (reg.team_leader_id && reg.team_leader_id === r.user_id));
+1867:     const realIdx = origIdx >= 0 ? origIdx : idx;
+1868:     
+1869:     const grp = r.group_number !== undefined && r.group_number !== null && String(r.group_number).trim() !== ""
+1870:       ? String(r.group_number).replace(/[^0-9]/g, '') || String(r.group_number)
+1871:       : String(Math.floor(realIdx / 12) + 1);
+1872: 
+1873:     const matchesGrp = selectedGroup === "all" || selectedGroup === grp;
+1874: 
+1875:     const isQual = r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified";
+1876:     const regStage = String(r.stage || "").toLowerCase();
+1877: 
+1878:     let matchesStage = true;
+1879:     if (selectedStage === "all") {
+1880:       matchesStage = true;
+1881:     } else if (selectedStage === "qualified") {
+1882:       matchesStage = isQual;
+1883:     } else {
+1884:       const selLower = selectedStage.toLowerCase();
+1885:       const stObj = stagesList.find(s => String(s.id || s).toLowerCase() === selLower || String(s.name || s).toLowerCase() === selLower);
+1886:       const targetName = (stObj?.name || selectedStage).toLowerCase();
+1887:       const targetId = (stObj?.id || selectedStage).toLowerCase();
+1888: 
+1889:       if (targetName.includes("qualifier") || targetName.includes("round 1") || targetId.includes("qualifier")) {
+1890:         matchesStage = true;
+1891:       } else {
+1892:         matchesStage = regStage === targetId ||
+1893:                        regStage === targetName ||
+1894:                        (targetName && regStage.includes(targetName)) ||
+1895:                        (targetName.includes("semi") && (regStage.includes("semi") || isQual)) ||
+1896:                        (targetName.includes("final") && (regStage.includes("final") || regStage.includes("grand")));
+1897:       }
+1898:     }
+1899: 
+1900:     const q = (searchQuery || "").toLowerCase().trim();
+1901:     if (!q) return matchesGrp && matchesStage;
+1902: 
+1903:     const reg = getRegForEntry(r) || {};
+1904:     const rawMembers = Array.isArray(r.team_members) && r.team_members.length > 0
+1905:       ? r.team_members
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -33,9 +33,9 @@ export default function AnnouncementBanner() {
   if (visibleAnnouncements.length === 0) return null;
 
   const priorityStyles = {
-    Urgent: "bg-gradient-to-r from-red-600 via-red-500 to-orange-500 border-red-400",
-    High: "bg-gradient-to-r from-orange-600 via-orange-500 to-yellow-500 border-orange-400",
-    Medium: "bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 border-blue-400",
+    Urgent: "bg-gradient-to-r from-red-600 via-red-500 to-orange-600 border-red-400",
+    High: "bg-gradient-to-r from-orange-700 via-orange-600 to-yellow-500 border-orange-500",
+    Medium: "bg-gradient-to-r from-orange-600 via-orange-500 to-cyan-500 border-blue-400",
     Low: "bg-gradient-to-r from-gray-600 via-gray-500 to-gray-400 border-gray-400"
   };
 

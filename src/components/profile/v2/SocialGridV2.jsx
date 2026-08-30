@@ -12,7 +12,7 @@ export default function SocialGridV2({ player }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
       {items.map((item, i) => (
-        <div key={i} className="bg-[#0a0a0c] border border-gray-800 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:border-gray-700 transition-colors cursor-pointer">
+        <div key={i} className="bg-slate-950 border border-gray-800 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:border-gray-700 transition-colors cursor-pointer">
           <item.icon className={`w-6 h-6 mb-2 ${item.color}`} />
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">{item.label}</p>
           <div className="flex items-center gap-1">

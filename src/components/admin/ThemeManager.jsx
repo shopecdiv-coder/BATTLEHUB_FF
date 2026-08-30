@@ -50,14 +50,7 @@ export default function ThemeManager() {
       value: "dark", 
       icon: Moon,
       gradient: "from-black via-blue-950 to-black",
-      description: "Default dark blue theme"
-    },
-    { 
-      name: "Pure Black", 
-      value: "black", 
-      icon: Moon,
-      gradient: "from-black via-gray-900 to-black",
-      description: "Pure black theme"
+      description: "Default dark theme"
     },
     { 
       name: "Light", 
@@ -132,9 +125,8 @@ export default function ThemeManager() {
           <ul className="text-gray-400 text-xs space-y-1 list-disc list-inside">
             <li>Theme changes apply globally to all users</li>
             <li>Users need to refresh the page to see changes</li>
-            <li>Dark theme (default): Black background with blue accents</li>
-            <li>Pure Black: Complete black background</li>
-            <li>Light theme: Clean white background (experimental)</li>
+            <li>Dark theme (default): Dark background with accents</li>
+            <li>Light theme: Clean white background</li>
           </ul>
         </div>
       </CardContent>

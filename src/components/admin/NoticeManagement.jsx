@@ -157,7 +157,7 @@ export default function NoticeManagement({ notices, onUpdate }) {
                           size="sm"
                           variant="outline"
                           onClick={() => editPlayerMessage(msg)}
-                          className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                          className="border-orange-500/50 text-blue-400 hover:bg-orange-500/10"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -187,7 +187,7 @@ export default function NoticeManagement({ notices, onUpdate }) {
         </div>
         <Button
           onClick={() => setShowForm(!showForm)}
-          className="bg-orange-500 hover:bg-orange-600"
+          className="bg-orange-600 hover:bg-orange-700"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Notice
@@ -229,15 +229,15 @@ export default function NoticeManagement({ notices, onUpdate }) {
                     {formData.poster_url ? (
                       <div className="relative group">
                         {formData.poster_url.endsWith('.pdf') ? (
-                          <div className="flex items-center gap-3 p-4 bg-gray-900 rounded border-2 border-orange-500/50">
-                            <FileText className="w-8 h-8 text-orange-400" />
+                          <div className="flex items-center gap-3 p-4 bg-gray-900 rounded border-2 border-orange-600/50">
+                            <FileText className="w-8 h-8 text-orange-500" />
                             <span className="text-gray-300">PDF Uploaded</span>
                           </div>
                         ) : (
                           <img
                             src={formData.poster_url}
                             alt="Poster"
-                            className="w-full h-64 object-cover rounded border-2 border-orange-500/50"
+                            className="w-full h-64 object-cover rounded border-2 border-orange-600/50"
                           />
                         )}
                         <button
@@ -250,7 +250,7 @@ export default function NoticeManagement({ notices, onUpdate }) {
                       </div>
                     ) : (
                       <label className="cursor-pointer">
-                        <div className="border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded p-6 text-center">
+                        <div className="border-2 border-dashed border-gray-700 hover:border-orange-600/50 rounded p-6 text-center">
                           {uploading ? (
                             <p className="text-sm text-gray-400">Uploading...</p>
                           ) : (
@@ -313,7 +313,7 @@ export default function NoticeManagement({ notices, onUpdate }) {
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-orange-500 hover:bg-orange-600"
+                      className="bg-orange-600 hover:bg-orange-700"
                       disabled={uploading}
                     >
                       Create Notice
@@ -338,15 +338,15 @@ export default function NoticeManagement({ notices, onUpdate }) {
                 <div className="flex items-start gap-4">
                   {notice.poster_url && (
                     notice.poster_url.endsWith('.pdf') ? (
-                      <a href={notice.poster_url} target="_blank" rel="noopener noreferrer" className="w-32 h-32 flex items-center justify-center bg-gray-900 rounded border-2 border-orange-500/50 hover:border-orange-500">
-                        <FileText className="w-16 h-16 text-orange-400" />
+                      <a href={notice.poster_url} target="_blank" rel="noopener noreferrer" className="w-32 h-32 flex items-center justify-center bg-gray-900 rounded border-2 border-orange-600/50 hover:border-orange-600">
+                        <FileText className="w-16 h-16 text-orange-500" />
                       </a>
                     ) : (
                       <a href={notice.poster_url} target="_blank" rel="noopener noreferrer">
                         <img
                           src={notice.poster_url}
                           alt="Notice"
-                          className="w-32 h-32 object-cover rounded border-2 border-orange-500/50 hover:border-orange-500 cursor-pointer"
+                          className="w-32 h-32 object-cover rounded border-2 border-orange-600/50 hover:border-orange-600 cursor-pointer"
                         />
                       </a>
                     )
@@ -356,7 +356,7 @@ export default function NoticeManagement({ notices, onUpdate }) {
                       <h4 className="font-bold text-gray-100">{notice.title}</h4>
                       <Badge className={
                         notice.priority === "Urgent" ? "bg-red-500/20 text-red-400" :
-                        notice.priority === "High" ? "bg-orange-500/20 text-orange-400" :
+                        notice.priority === "High" ? "bg-orange-600/20 text-orange-500" :
                         "bg-gray-500/20 text-gray-400"
                       }>
                         {notice.priority}

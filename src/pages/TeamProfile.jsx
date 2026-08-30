@@ -8,11 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trophy, Users, Swords, TrendingUp, ArrowLeft, Star, RefreshCw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
 
 export default function TeamProfile() {
+  const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const teamId = urlParams.get("id");
   const leaderId = urlParams.get("leader");
@@ -106,7 +107,7 @@ export default function TeamProfile() {
     <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 p-4">
       <div className="max-w-2xl mx-auto space-y-5">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => window.history.back()} className="text-gray-400 hover:text-white">
+          <Button variant="ghost" onClick={() => navigate('/Leaderboard')} className="text-gray-400 hover:text-white">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
           </Button>
           <Button onClick={updateLeaderboard} disabled={refreshing} variant="outline" size="sm" className="border-cyan-500/50 text-cyan-400">
@@ -201,7 +202,7 @@ export default function TeamProfile() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-lg font-black ${match.placement === 1 ? 'text-yellow-400' : match.placement === 2 ? 'text-gray-300' : match.placement === 3 ? 'text-orange-400' : 'text-white'}`}>
+                    <p className={`text-lg font-black ${match.placement === 1 ? 'text-yellow-400' : match.placement === 2 ? 'text-gray-300' : match.placement === 3 ? 'text-orange-500' : 'text-white'}`}>
                       {match.placement > 0 ? (match.placement === 1 ? '🥇' : match.placement === 2 ? '🥈' : match.placement === 3 ? '🥉' : `#${match.placement}`) : '-'}
                     </p>
                     <p className="text-cyan-400 text-xs font-bold">{match.points} pts</p>

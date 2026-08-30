@@ -12,9 +12,9 @@ import { format } from "date-fns";
 
 const NOTICE_CATEGORIES = [
   { value: "announcement", label: "🔔 Big Announcements", icon: Megaphone, color: "bg-red-500/20 text-red-400 border-red-500/50" },
-  { value: "upcoming_event", label: "📆 Upcoming Events", icon: Calendar, color: "bg-blue-500/20 text-blue-400 border-blue-500/50" },
+  { value: "upcoming_event", label: "📆 Upcoming Events", icon: Calendar, color: "bg-orange-500/20 text-blue-400 border-orange-500/50" },
   { value: "winners", label: "🏅 Rewards & Winners", icon: Trophy, color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" },
-  { value: "rule_change", label: "⚠️ Rule Changes", icon: Bell, color: "bg-orange-500/20 text-orange-400 border-orange-500/50" },
+  { value: "rule_change", label: "⚠️ Rule Changes", icon: Bell, color: "bg-orange-600/20 text-orange-500 border-orange-600/50" },
   { value: "maintenance", label: "🛠️ System Alerts", icon: Wrench, color: "bg-gray-500/20 text-gray-400 border-gray-500/50" },
   { value: "wallet_update", label: "💰 Wallet Updates", icon: Wallet, color: "bg-green-500/20 text-green-400 border-green-500/50" },
   { value: "new_feature", label: "✨ New Features", icon: Sparkles, color: "bg-purple-500/20 text-purple-400 border-purple-500/50" },
@@ -111,7 +111,7 @@ export default function NoticesManagement() {
             setEditingNotice(null);
             setFormData({ category: "announcement", title: "", content: "", priority: 1, is_active: true });
           }}
-          className="bg-gradient-to-r from-orange-500 to-red-500"
+          className="bg-gradient-to-r from-orange-600 to-red-500"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Notice
@@ -141,7 +141,7 @@ export default function NoticesManagement() {
 
       {/* Form */}
       {showForm && (
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-orange-500/50">
+        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-orange-600/50">
           <CardHeader>
             <CardTitle className="text-gray-100">
               {editingNotice ? "Edit Notice" : "Create New Notice"}

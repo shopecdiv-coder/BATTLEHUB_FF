@@ -195,7 +195,7 @@ export default function ReferralCodeManager() {
             <Button
               onClick={giveBonusToAll}
               disabled={givingBonus || bonusAmount < 1}
-              className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:opacity-90"
+              className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:opacity-90"
             >
               {givingBonus ? "Processing..." : `Give ${bonusAmount} BH🪙 to All`}
             </Button>

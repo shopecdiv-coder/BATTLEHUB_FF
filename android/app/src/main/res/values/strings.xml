@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BattleHub FF</string>
+    <string name="title_activity_main">BattleHub FF</string>
+    <string name="package_name">com.battlehub.ff</string>
+    <string name="custom_url_scheme">com.battlehub.ff</string>
+</resources>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PaymentQR } from "@/entities/PaymentQR";
 import { AppSettings } from "@/entities/AppSettings";
+import { uploadFileToAWS } from '@/utils/awsStorage';
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export default function QRCodeManagement({ onUpdate }) {
     if (!file) return;
     setUploadingGuide(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = await uploadFileToAWS(file);
       if (utrSetting) {
         await AppSettings.update(utrSetting.id, { setting_value: file_url });
       } else {
@@ -64,7 +65,7 @@ export default function QRCodeManagement({ onUpdate }) {
     if (!file) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = await uploadFileToAWS(file);
       setFormData({ ...formData, qr_image_url: file_url });
     } catch (error) {
       alert("Upload failed");
@@ -132,7 +133,7 @@ export default function QRCodeManagement({ onUpdate }) {
   return (
     <div className="space-y-6">
       {/* UTR Guide Image Section */}
-      <div className="p-4 bg-blue-900/30 border border-blue-500/30 rounded-xl space-y-3">
+      <div className="p-4 bg-blue-900/30 border border-orange-500/30 rounded-xl space-y-3">
         <div className="flex items-center gap-2">
           <HelpCircle className="w-5 h-5 text-blue-400" />
           <h3 className="font-bold text-blue-400">UTR Number Guide Image</h3>
@@ -145,7 +146,7 @@ export default function QRCodeManagement({ onUpdate }) {
           </div>
         )}
         <label className="cursor-pointer inline-block">
-          <div className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 w-fit">
+          <div className="bg-orange-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 w-fit">
             <Upload className="w-4 h-4" />
             {uploadingGuide ? "Uploading..." : utrGuideImage ? "Update Guide Image" : "Upload Guide Image"}
           </div>
@@ -228,7 +229,7 @@ export default function QRCodeManagement({ onUpdate }) {
               {qr.upi_id && <p className="text-xs text-gray-400 mb-3">UPI: {qr.upi_id}</p>}
               <div className="flex gap-2">
                 {qr.is_active ? (
-                  <Button size="sm" onClick={() => deactivateQR(qr.id)} className="flex-1 bg-orange-600 hover:bg-orange-700">
+                  <Button size="sm" onClick={() => deactivateQR(qr.id)} className="flex-1 bg-orange-700 hover:bg-orange-700">
                     Deactivate
                   </Button>
                 ) : (

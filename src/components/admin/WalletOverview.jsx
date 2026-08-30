@@ -163,7 +163,7 @@ export default function WalletOverview() {
   const filteredCodes = codes.filter(c => !f || c.user_ign?.toLowerCase().includes(f) || c.redeem_code?.toLowerCase().includes(f));
   const filteredTxns = allTxns.filter(t => !f || t.user_ign?.toLowerCase().includes(f) || t.description?.toLowerCase().includes(f));
 
-  if (loading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" /></div>;
+  if (loading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600" /></div>;
 
   return (
     <div className="space-y-6">
@@ -173,7 +173,7 @@ export default function WalletOverview() {
           { label: "Total Purchased (Verified)", value: `Rs.${totalPurchased}`, icon: Coins, color: "text-green-400" },
           { label: "Total Redeemed (Done)", value: `Rs.${totalRedeemed}`, icon: TrendingUp, color: "text-blue-400" },
           { label: "Pending Purchases", value: payments.filter(p => p.status === "Pending").length, icon: ArrowUpCircle, color: "text-yellow-400" },
-          { label: "Pending Redeems", value: redeems.filter(r => r.status === "Pending").length, icon: ArrowDownCircle, color: "text-orange-400" },
+          { label: "Pending Redeems", value: redeems.filter(r => r.status === "Pending").length, icon: ArrowDownCircle, color: "text-orange-500" },
         ].map((s, i) => (
           <Card key={i} className="bg-gray-900 border-gray-700">
             <CardContent className="p-4 flex items-center gap-3">
@@ -186,7 +186,7 @@ export default function WalletOverview() {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={downloadAllInvoices} className="bg-blue-600 hover:bg-blue-700 gap-2">
+        <Button onClick={downloadAllInvoices} className="bg-orange-600 hover:bg-blue-700 gap-2">
           <FileText className="w-4 h-4" />All Invoices (.txt)
         </Button>
         <Button onClick={downloadContactsCSV} variant="outline" className="border-green-600 text-green-400 hover:bg-green-500/10 gap-2">
@@ -204,7 +204,7 @@ export default function WalletOverview() {
       <div className="flex gap-2 flex-wrap">
         {TABS.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === tab.key ? "bg-orange-500 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === tab.key ? "bg-orange-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}>
             {tab.label} <span className="ml-1 bg-black/30 rounded-full px-1.5 text-xs">{tab.count}</span>
           </button>
         ))}
@@ -227,7 +227,7 @@ export default function WalletOverview() {
                   <p className="text-green-400 font-bold text-sm">Rs.{req.inr_amount} · {req.diamond_amount}🪙</p>
                   <Badge className={req.status === "Verified" ? "bg-green-500/20 text-green-400" : req.status === "Rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}>{req.status}</Badge>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 h-7 px-2 text-xs gap-1"
+                    <Button size="sm" variant="outline" className="border-orange-500/50 text-blue-400 hover:bg-orange-500/10 h-7 px-2 text-xs gap-1"
                       onClick={() => downloadText(generateInvoiceText(req), `BHFF-Invoice-${req.id?.slice(-8)}.txt`)}>
                       <FileText className="w-3 h-3" />Invoice
                     </Button>
@@ -257,7 +257,7 @@ export default function WalletOverview() {
                   <p className="text-xs text-gray-500">{format(new Date(req.created_date), "dd MMM yyyy, hh:mm a")}</p>
                 </div>
                 <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                  <p className="text-orange-400 font-bold text-sm">Rs.{req.inr_amount} · {req.diamond_amount}🪙</p>
+                  <p className="text-orange-500 font-bold text-sm">Rs.{req.inr_amount} · {req.diamond_amount}🪙</p>
                   <Badge className={req.status === "Completed" ? "bg-green-500/20 text-green-400" : req.status === "Rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}>{req.status}</Badge>
                   <Button size="sm" variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 h-7 px-2"
                     onClick={() => deleteItem(RedeemRequest, req.id, redeems, setRedeems)}>

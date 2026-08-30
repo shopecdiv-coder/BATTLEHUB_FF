@@ -33,7 +33,7 @@ export default function HeroSection({ user }) {
           </h1>
 
           <p className="text-xl md:text-2xl text-[#A0A0A0] max-w-3xl mx-auto font-medium leading-relaxed">
-            Join India's most competitive Free Fire tournament platform.<br />
+            Join India's most competitive Esports tournament platform.<br />
             <span className="text-[#00FFFF]">Fair play guaranteed</span>, <span className="text-[#FFD700]">real prizes</span>, <span className="text-[#00FF88]">anti-cheat protection</span>.
           </p>
 

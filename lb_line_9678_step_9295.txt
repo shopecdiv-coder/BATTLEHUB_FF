@@ -1,0 +1,103 @@
+Created At: 2026-08-23T08:28:56+05:30
+Completed At: 2026-08-23T08:28:56+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 3022
+Total Bytes: 161929
+Showing lines 2006 to 2100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2006: function LeaderboardTab({ 
+2007:   registrations, 
+2008:   leaderboardEntries, 
+2009:   tournament, 
+2010:   user, 
+2011:   isRegistered, 
+2012:   canMove, 
+2013:   isQualifierType, 
+2014:   isSemifinalType, 
+2015:   isGrandFinalType, 
+2016:   sfATournament, 
+2017:   sfBTournament, 
+2018:   gfTournament, 
+2019:   movingTeam, 
+2020:   moveTeam, 
+2021:   setShowReportModal,
+2022:   matchCredentials,
+2023:   setShowCredentialsModal,
+2024:   matches = []
+2025: }) {
+2026:   const [expandedId, setExpandedId] = useState(null);
+2027:   const [searchQuery, setSearchQuery] = useState("");
+2028:   const [selectedGroup, setSelectedGroup] = useState("all");
+2029:   const [selectedStage, setSelectedStage] = useState("all");
+2030:   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+2031: 
+2032:   if (registrations.length === 0) {
+2033:     return (
+2034:       <Card className="bg-slate-900/80 border-slate-800 rounded-2xl">
+2035:         <CardContent className="py-14 text-center">
+2036:           <Trophy className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+2037:           <p className="text-slate-400 font-bold text-sm">No standings data available yet</p>
+2038:           <p className="text-slate-500 text-xs mt-1">Teams will appear here once registered or matches begin.</p>
+2039:         </CardContent>
+2040:       </Card>
+2041:     );
+2042:   }
+2043: 
+2044:   // Dynamic Stages List from tournament data
+2045:   const defaultStages = [
+2046:     { id: "all", name: "All Stages" },
+2047:     { id: "qualifiers", name: "Qualifier" },
+2048:     { id: "league", name: "League" },
+2049:     { id: "semifinals", name: "Semifinal" },
+2050:     { id: "grand_final", name: "Grand Final" }
+2051:   ];
+2052: 
+2053:   const stagesList = (tournament?.stages && Array.isArray(tournament.stages) && tournament.stages.length > 0)
+2054:     ? [
+2055:         { id: "all", name: "All Stages" },
+2056:         ...tournament.stages.map((st, i) => {
+2057:           const rawName = typeof st === 'string' ? st : (st.name || st.id || `Stage ${i + 1}`);
+2058:           const id = (typeof st === 'object' && st.id) 
+2059:             ? String(st.id).toLowerCase().replace(/[^a-z0-9]+/g, '_') 
+2060:             : rawName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+2061:           return { id, name: rawName, idx: i };
+2062:         })
+2063:       ]
+2064:     : defaultStages;
+2065: 
+2066:   const allRealStages = stagesList.filter(s => s.id !== "all");
+2067: 
+2068:   // Find the highest ongoing stage of the tournament
+2069:   const ongoingStageIdx = (() => {
+2070:     if (!allRealStages || allRealStages.length === 0) return 0;
+2071:     let maxIdx = 0;
+2072:     (registrations || []).forEach(r => {
+2073:       const rStage = String(r.stage || r.stage_id || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+2074:       const sIdx = allRealStages.findIndex(s => {
+2075:         const sId = String(s.id || s).toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+2076:         const sName = String(s.name || s).toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+2077:         return rStage === sId || rStage === sName || (sName && rStage.includes(sName)) || (sId && rStage.includes(sId));
+2078:       });
+2079:       if (sIdx > maxIdx) maxIdx = sIdx;
+2080:     });
+2081:     return maxIdx;
+2082:   })();
+2083: 
+2084:   const ongoingStageObj = allRealStages[ongoingStageIdx] || allRealStages[0];
+2085:   const ongoingStageNorm = String(ongoingStageObj?.id || ongoingStageObj?.name || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+2086: 
+2087: 
+2088:   // Raw row generation - Merges leaderboardEntries with all registrations so ALL registered teams are visible!
+2089:   const rawRows = (() => {
+2090:     const lbList = leaderboardEntries || [];
+2091:     const rows = [];
+2092: 
+2093:     // When "all" is selected, Option 1 displays the current ongoing stage's scoreboard across all groups
+2094:     const selNorm = (selectedStage || "all").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+2095:     const isAllStagesView = selNorm === "all" || selNorm === "qualified";
+2096:     const targetStageNorm = isAllStagesView ? ongoingStageNorm : selNorm;
+2097: 
+2098:     if (registrations && registrations.length > 0) {
+2099:       registrations.forEach((reg, i) => {
+2100:         // 1. Find stage-specific leaderboard entry strictly for targetStageNorm
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

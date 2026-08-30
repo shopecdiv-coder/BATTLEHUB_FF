@@ -1,0 +1,64 @@
+Created At: 2026-08-23T06:04:50+05:30
+Completed At: 2026-08-23T06:04:50+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2598
+Total Bytes: 136470
+Showing lines 1770 to 1825
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1770: 
+1771:     const rows = [];
+1772: 
+1773:     // If registered teams exist, use registrations as the master list so count matches SLOTS exactly
+1774:     if (registrations && registrations.length > 0) {
+1775:       registrations.forEach((reg, i) => {
+1776:         const lb = (reg.team_leader_id && lbMap.get(`user_${reg.team_leader_id}`)) ||
+1777:                    (reg.id && lbMap.get(`id_${reg.id}`)) ||
+1778:                    (reg.team_name && lbMap.get(`name_${String(reg.team_name).trim().toLowerCase()}`));
+1779: 
+1780:         if (lb) {
+1781:           rows.push({
+1782:             ...lb,
+1783:             _rowUid: `reg-${i}-${reg.id || reg.team_leader_id || i}`,
+1784:             id: lb.id || reg.id,
+1785:             team_name: reg.team_name || lb.team_name || reg.team_leader_ign || `Team ${i + 1}`,
+1786:             player_ign: reg.team_leader_ign || lb.player_ign || "Leader",
+1787:             player_uid: reg.team_members?.[0]?.uid || reg.team_leader_uid || lb.player_uid || '-',
+1788:             kills: lb.kills !== undefined ? lb.kills : (reg.total_kills || 0),
+1789:             points: lb.points !== undefined ? lb.points : (reg.total_points || 0),
+1790:             team_members: (reg.team_members && reg.team_members.length > 0) ? reg.team_members : (lb.team_members || []),
+1791:             user_id: reg.team_leader_id || lb.user_id,
+1792:             team_logo_url: reg.team_logo_url || lb.team_logo_url || "",
+1793:             is_qualified: Boolean(lb.is_qualified || reg.is_qualified || reg.status === "Qualified"),
+1794:             stage: reg.stage || lb.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+1795:             group_number: String(lb.group_number || reg.group_number || Math.floor(i / 12) + 1),
+1796:             match_results: lb.match_results || reg.match_results || []
+1797:           });
+1798:         } else {
+1799:           rows.push({
+1800:             _rowUid: `reg-${i}-${reg.id || reg.team_leader_id || i}`,
+1801:             id: reg.id,
+1802:             rank: 999 + i,
+1803:             team_name: reg.team_name || reg.team_leader_ign || `Team ${i + 1}`,
+1804:             player_ign: reg.team_leader_ign || "Leader",
+1805:             player_uid: reg.team_members?.[0]?.uid || reg.team_leader_uid || '-',
+1806:             kills: reg.total_kills || 0,
+1807:             points: reg.total_points || 0,
+1808:             placement: 0,
+1809:             wins: 0,
+1810:             team_members: reg.team_members || [],
+1811:             user_id: reg.team_leader_id,
+1812:             team_logo_url: reg.team_logo_url || "",
+1813:             is_qualified: Boolean(reg.is_qualified || reg.status === "Qualified"),
+1814:             stage: reg.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+1815:             group_number: String(reg.group_number || Math.floor(i / 12) + 1),
+1816:             match_results: reg.match_results || []
+1817:           });
+1818:         }
+1819:       });
+1820:     } else {
+1821:       // Fallback if no registrations exist yet
+1822:       (leaderboardEntries || []).forEach((lb, idx) => {
+1823:         rows.push({
+1824:           ...lb,
+1825:           _rowUid: `lb-${idx}-${lb.id || lb.user_id || idx}`,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

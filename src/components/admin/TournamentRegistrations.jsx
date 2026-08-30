@@ -174,8 +174,23 @@ ${membersText}
   const handleUnregister = async (reg) => {
     setUnregistering(true);
     try {
-      await Registration.delete(reg.id);
-      // Update tournament team count
+      // 1. Mark status as Cancelled first (guarantees filtering even if delete fails)
+      await Registration.update(reg.id, { status: "Cancelled", is_cancelled: true }).catch(() => null);
+
+      // 2. Delete main registration record
+      await Registration.delete(reg.id).catch(err => console.warn("Delete doc warning:", err));
+
+      // 2. Delete any matching Leaderboard entries to prevent team showing up in standings/manage kills
+      try {
+        const lbs = await TournamentLeaderboard.filter({ tournament_id: reg.tournament_id, user_id: reg.team_leader_id }).catch(() => []);
+        for (const lb of lbs) {
+          await TournamentLeaderboard.delete(lb.id).catch(() => {});
+        }
+      } catch (e) {
+        console.warn("Could not delete leaderboard entry on unregister:", e);
+      }
+
+      // 3. Update tournament team count
       const tourney = getTournament(reg.tournament_id);
       if (tourney) {
         const currentCount = Math.max(0, (tourney.current_teams || 1) - 1);
@@ -203,7 +218,7 @@ ${membersText}
       content += `Team: ${reg.team_name}\n`;
       content += `Leader: ${reg.team_leader_ign} (${reg.team_leader_uid})\n`;
       content += `Phone: ${reg.team_leader_phone || 'N/A'}\n`;
-      content += `Registered: ${format(new Date(reg.created_date), "dd MMM yyyy hh:mm a")}\n`;
+      content += `Registered: ${reg.created_date && !isNaN(new Date(reg.created_date).getTime()) ? format(new Date(reg.created_date), "dd MMM yyyy hh:mm a") : "N/A"}\n`;
       content += `Payment: ${reg.payment_method || 'N/A'} - ${reg.payment_status}\n`;
       content += `Status: ${reg.status}\n`;
       content += `\nTeam Members:\n`;
@@ -260,12 +275,14 @@ ${membersText}
               <SelectValue placeholder="All Tournaments" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>All Tournaments</SelectItem>
-              {tournaments.map(t => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.title} • {format(new Date(t.date_time), "dd MMM yyyy")}
-                </SelectItem>
-              ))}
+              {tournaments.map(t => {
+                const isValid = t.date_time && !isNaN(new Date(t.date_time).getTime());
+                return (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.title} • {isValid ? format(new Date(t.date_time), "dd MMM yyyy") : "No Date"}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -321,7 +338,10 @@ ${membersText}
                     </div>
                     <div className="text-xs text-gray-500 space-y-1 mb-3">
                       <p>🏆 {tournament?.title || 'Unknown Tournament'}</p>
-                      <p>📅 {format(new Date(reg.created_date), "dd MMM yyyy, hh:mm a")}</p>
+                      {(() => {
+                        const isValid = reg.created_date && !isNaN(new Date(reg.created_date).getTime());
+                        return <p>📅 {isValid ? format(new Date(reg.created_date), "dd MMM yyyy, hh:mm a") : "Unknown Date"}</p>;
+                      })()}
                       <p>🎮 {tournament?.mode} • {reg.team_members?.length || 0} members</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">

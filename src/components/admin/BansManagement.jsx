@@ -1,10 +1,11 @@
 import React from "react";
 import { User } from "@/entities/User";
+import { UserGroup } from "@/api/entities";
 import { BanRecord } from "@/entities/BanRecord";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Ban, Calendar, ShieldCheck } from "lucide-react";
+import { Ban, Calendar, ShieldCheck, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 
@@ -13,14 +14,24 @@ export default function BansManagement({ bans, onRefresh }) {
 
   const handleUnban = async (ban) => {
     if (!confirm(`Unban ${ban.user_ign}?`)) return;
-    setUnbanning(ban.user_id);
+    const isGroup = ban.target_type === 'group' || !!ban.group_id;
+    const trackingId = isGroup ? ban.group_id : ban.user_id;
+    setUnbanning(trackingId);
     try {
-      // Update user to unban
-      await User.update(ban.user_id, {
-        is_banned: false,
-        ban_reason: null,
-        ban_until: null
-      });
+      if (isGroup) {
+        await UserGroup.update(ban.group_id, {
+          is_banned: false,
+          ban_reason: null,
+          banned_at: null,
+          banned_by: null
+        });
+      } else {
+        await User.update(ban.user_id, {
+          is_banned: false,
+          ban_reason: null,
+          ban_until: null
+        });
+      }
       
       // Also update the ban record to mark as inactive/expired
       await BanRecord.update(ban.id, {
@@ -32,16 +43,39 @@ export default function BansManagement({ bans, onRefresh }) {
       if (onRefresh) await onRefresh();
     } catch (e) {
       console.error("Error:", e);
-      alert("❌ Failed to unban user. Please try again.");
+      alert("❌ Failed to unban. Please try again.");
     }
     setUnbanning(null);
   };
+
+  const handleDelete = async (banId) => {
+    if (!confirm("Are you sure you want to completely delete this ban record?")) return;
+    try {
+      await BanRecord.delete(banId);
+      if (onRefresh) await onRefresh();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete record.");
+    }
+  };
+
   const activeBans = bans.filter(b => {
+    // If it was explicitly unbanned/approved
+    if (b.appeal_status === "Approved") return false;
+
+    // If it has an end date and it's in the past
+    if (b.end_date && new Date(b.end_date) <= new Date()) return false;
+
+    // Permanent bans (that aren't approved/unbanned) remain active
     if (b.severity === "Permanent") return true;
+
+    // Temporary bans with future end dates remain active
     if (b.end_date) {
       return new Date(b.end_date) > new Date();
     }
-    return false;
+    
+    // Default to true if no end date but not marked as approved
+    return true;
   });
 
   if (activeBans.length === 0) {
@@ -93,7 +127,7 @@ export default function BansManagement({ bans, onRefresh }) {
                   ban.severity === "Permanent" 
                     ? "bg-red-500/20 text-red-400" 
                     : ban.severity === "Temporary"
-                    ? "bg-orange-500/20 text-orange-400"
+                    ? "bg-orange-600/20 text-orange-500"
                     : "bg-yellow-500/20 text-yellow-400"
                 }>
                   {ban.severity}
@@ -138,16 +172,27 @@ export default function BansManagement({ bans, onRefresh }) {
                   </div>
                 </div>
               )}
-              
-              <Button
-                onClick={() => handleUnban(ban)}
-                disabled={unbanning === ban.user_id}
-                className="w-full bg-green-600 hover:bg-green-700"
-                size="sm"
-              >
-                <ShieldCheck className="w-4 h-4 mr-2" />
-                {unbanning === ban.user_id ? "Unbanning..." : "Unban User"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleUnban(ban)}
+                  disabled={unbanning === (ban.target_type === 'group' || !!ban.group_id ? ban.group_id : ban.user_id)}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  size="sm"
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  {unbanning === (ban.target_type === 'group' || !!ban.group_id ? ban.group_id : ban.user_id) 
+                    ? "Unbanning..." 
+                    : (ban.target_type === 'group' || !!ban.group_id) ? "Unban Group" : "Unban User"}
+                </Button>
+                <Button
+                  onClick={() => handleDelete(ban.id)}
+                  variant="destructive"
+                  size="sm"
+                  className="w-10 p-0 shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>

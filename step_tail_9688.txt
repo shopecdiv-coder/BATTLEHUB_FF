@@ -1,0 +1,99 @@
+Created At: 2026-08-23T08:29:46+05:30
+Completed At: 2026-08-23T08:29:46+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 3022
+Total Bytes: 161942
+Showing lines 2750 to 2840
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2750:                   </React.Fragment>
+2751:                 );
+2752:               })}
+2753:             </tbody>
+2754:           </table>
+2755:         </div>
+2756:       </Card>
+2757:     </div>
+2758:   );
+2759: }
+2760: 
+2761: function InfoCard({ icon: Icon, label, value, color }) {
+2762:   return (
+2763:     <div className={`p-4 rounded-lg bg-gradient-to-br ${
+2764:       color === 'purple' ? 'from-purple-900/30 to-purple-800/10 border border-purple-500/20' : 'from-cyan-900/30 to-cyan-800/10 border border-cyan-500/20'
+2765:     }`}>
+2766:       <Icon className={`w-5 h-5 mb-2 ${color === 'purple' ? 'text-purple-400' : 'text-cyan-400'}`} />
+2767:       <div className="text-xl font-bold text-gray-100">{value}</div>
+2768:       <div className="text-xs text-gray-400">{label}</div>
+2769:     </div>
+2770:   );
+2771: }
+2772: 
+2773: function DetailRow({ icon: Icon, label, value }) {
+2774:   return (
+2775:     <div className="flex items-center gap-3">
+2776:       <Icon className="w-5 h-5 text-purple-400" />
+2777:       <div className="flex-1">
+2778:         <p className="text-sm text-gray-400">{label}</p>
+2779:         <p className="font-semibold text-gray-100">{value}</p>
+2780:       </div>
+2781:     </div>
+2782:   );
+2783: }
+2784: 
+2785: function MoveCell({ reg, isQualifierType, isSemifinalType, sfATournament, sfBTournament, gfTournament, movingTeam, moveTeam }) {
+2786:   const isMoving = movingTeam && (movingTeam.id === reg.id || movingTeam.user_id === reg.team_leader_id);
+2787:   
+2788:   return (
+2789:     <td className="py-3 px-2 text-center">
+2790:       <div className="flex gap-1 justify-center">
+2791:         {isQualifierType && (
+2792:           <>
+2793:             {sfATournament ? (
+2794:               <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "semifinal", "A")} className="bg-purple-600 hover:bg-purple-700 text-xs h-7 px-2">
+2795:                 {isMoving && movingTeam?.group === "A" ? "..." : "SF-A"}
+2796:               </Button>
+2797:             ) : (
+2798:               <span className="text-gray-600 text-xs px-1" title="No Semifinal A tournament exists">SF-A</span>
+2799:             )}
+2800:             {sfBTournament ? (
+2801:               <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "semifinal", "B")} className="bg-purple-500 hover:bg-purple-600 text-xs h-7 px-2">
+2802:                 {isMoving && movingTeam?.group === "B" ? "..." : "SF-B"}
+2803:               </Button>
+2804:             ) : (
+2805:               <span className="text-gray-600 text-xs px-1" title="No Semifinal B tournament exists">SF-B</span>
+2806:             )}
+2807:           </>
+2808:         )}
+2809:         {(isQualifierType || isSemifinalType) && (
+2810:           gfTournament ? (
+2811:             <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "grand_final")} className="bg-red-600 hover:bg-red-700 text-xs h-7 px-2">
+2812:               {isMoving && movingTeam?.stage === "grand_final" ? "..." : "GF"}
+2813:             </Button>
+2814:           ) : (
+2815:             <span className="text-gray-600 text-xs px-1" title="No Grand Final tournament exists">GF</span>
+2816:           )
+2817:         )}
+2818:       </div>
+2819:     </td>
+2820:   );
+2821: }
+2822: 
+2823: function TeamCard({ reg, index, stageGroup, stageSlot, isSolo, showPoints, grandFinal, showGroupBadge = true, currentStageIdx = 0, stagesList = [] }) {
+2824:   const [expanded, setExpanded] = useState(false);
+2825:   const [memberAvatars, setMemberAvatars] = useState({});
+2826: 
+2827:   const statusLower = String(reg.status || "").toLowerCase();
+2828:   const isDisqualified = Boolean(reg.is_disqualified || reg.is_eliminated || statusLower === "disqualified" || statusLower === "eliminated" || statusLower === "rejected");
+2829:   
+2830:   // Find team's highest reached stage index
+2831:   const teamStageIdx = stagesList.findIndex(s => {
+2832:     const raw = String(reg.stage || reg.stage_id || "").toLowerCase().trim().replace(/\s+/g, '_');
+2833:     const sId = String(s.id || s).toLowerCase().trim().replace(/\s+/g, '_');
+2834:     const sName = String(s.name || s).toLowerCase().trim().replace(/\s+/g, '_');
+2835:     return raw === sId || raw === sName || (sName && raw.includes(sName)) || (sId && raw.includes(sId));
+2836:   });
+2837: 
+2838:   const isMovedAhead = teamStageIdx !== -1 && teamStageIdx > currentStageIdx;
+2839:   const isQualified = !isDisqualified && (isMovedAhead || Boolean(reg.is_qualified || statusLower === "qualified" || statusLower === "finalist" || reg.is_finalist || reg.is_semifinalist));
+2840: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

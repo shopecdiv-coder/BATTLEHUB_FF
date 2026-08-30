@@ -123,7 +123,7 @@ export default function Ratings() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 flex items-center gap-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center gap-3">
             <Star className="w-10 h-10 text-yellow-400 fill-yellow-400" />
             App Ratings & Reviews
           </h1>
@@ -166,7 +166,7 @@ export default function Ratings() {
               <Button
                 onClick={submitRating}
                 disabled={myRating === 0 || submitting}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700"
               >
                 <Send className="w-4 h-4 mr-2" />
                 {submitting ? 'Submitting...' : existingRating ? 'Update Rating' : 'Submit Rating'}
@@ -205,7 +205,7 @@ export default function Ratings() {
                     <div className="flex items-start gap-4">
                       <Avatar className="w-12 h-12 ring-2 ring-yellow-500/30">
                         <AvatarImage src={rating.user_avatar} />
-                        <AvatarFallback className="bg-gradient-to-br from-yellow-500 to-orange-500 text-white">
+                        <AvatarFallback className="bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
                           {rating.user_ign?.[0] || rating.user_name?.[0] || 'U'}
                         </AvatarFallback>
                       </Avatar>

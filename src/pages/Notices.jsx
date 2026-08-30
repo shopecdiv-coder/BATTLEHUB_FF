@@ -7,10 +7,10 @@ import { Search, Megaphone, Calendar, Trophy, Bell, Wrench, Wallet, Sparkles, Gi
 import { motion } from "framer-motion";
 
 const CATEGORIES = [
-  { value: "announcement", label: "🔔 Announcements", icon: Megaphone, color: "from-red-500 to-orange-500" },
-  { value: "upcoming_event", label: "📆 Upcoming Events", icon: Calendar, color: "from-blue-500 to-cyan-500" },
-  { value: "winners", label: "🏅 Winners", icon: Trophy, color: "from-yellow-500 to-orange-500" },
-  { value: "rule_change", label: "⚠️ Rule Changes", icon: Bell, color: "from-orange-500 to-red-500" },
+  { value: "announcement", label: "🔔 Announcements", icon: Megaphone, color: "from-red-500 to-orange-600" },
+  { value: "upcoming_event", label: "📆 Upcoming Events", icon: Calendar, color: "from-orange-500 to-cyan-500" },
+  { value: "winners", label: "🏅 Winners", icon: Trophy, color: "from-yellow-500 to-orange-600" },
+  { value: "rule_change", label: "⚠️ Rule Changes", icon: Bell, color: "from-orange-600 to-red-500" },
   { value: "maintenance", label: "🛠️ Maintenance", icon: Wrench, color: "from-gray-500 to-gray-600" },
   { value: "wallet_update", label: "💰 Wallet", icon: Wallet, color: "from-green-500 to-emerald-500" },
   { value: "new_feature", label: "✨ New Features", icon: Sparkles, color: "from-purple-500 to-pink-500" },
@@ -50,7 +50,7 @@ export default function Notices() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 flex items-center gap-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-400 flex items-center gap-3">
             📢 App Notices
           </h1>
           <p className="text-gray-400 mt-1">Important updates, events, winners, and announcements</p>
@@ -76,7 +76,7 @@ export default function Notices() {
         {/* Notices by Category */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
           </div>
         ) : filteredNotices.length === 0 ? (
           <Card className="p-12 text-center bg-gray-900/50 border-gray-800">
@@ -117,14 +117,14 @@ export default function Notices() {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="p-4 bg-gray-800/50 rounded-lg border-2 border-gray-700 hover:border-orange-500/50 transition-all"
+                          className="p-4 bg-gray-800/50 rounded-lg border-2 border-gray-700 hover:border-orange-600/50 transition-all"
                         >
                           <div className="flex items-start gap-3">
                             <div className="flex-1">
                               <h4 className="text-lg font-bold text-gray-100 mb-2">{notice.title}</h4>
                               <p className="text-gray-300 text-sm whitespace-pre-wrap">{notice.content}</p>
                             </div>
-                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/50 flex-shrink-0">
+                            <Badge className="bg-orange-600/20 text-orange-500 border-orange-600/50 flex-shrink-0">
                               Priority {notice.priority}
                             </Badge>
                           </div>

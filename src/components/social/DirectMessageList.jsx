@@ -13,7 +13,22 @@ export default function DirectMessageList({ user }) {
   useEffect(() => {
     // Basic implementation: Load friends to chat with
     const loadFriends = async () => {
-      setLoading(true);
+      const cacheKey = `bh_dm_convos_${user.id}`;
+      
+      // Load from cache first for instant UI
+      if (conversations.length === 0) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (parsed.length > 0) {
+              setConversations(parsed);
+              setLoading(false);
+            }
+          } catch(e) {}
+        }
+      }
+
       try {
         const [sent, received] = await Promise.all([
           Friendship.filter({ user_id: user.id }),
@@ -36,7 +51,9 @@ export default function DirectMessageList({ user }) {
           uniqueConvos.map(async (otherId) => await User.get(otherId).catch(() => null))
         );
         
-        setConversations(convos.filter(Boolean));
+        const validConvos = convos.filter(Boolean);
+        setConversations(validConvos);
+        localStorage.setItem(cacheKey, JSON.stringify(validConvos));
       } catch(e) { console.error(e); }
       setLoading(false);
     };

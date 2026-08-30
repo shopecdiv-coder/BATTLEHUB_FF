@@ -51,7 +51,7 @@ export default function RegistrationCloseTimer({ closingDate }) {
   }, [closingDate]);
 
   return (
-    <div className="flex items-center gap-2 text-orange-400 font-semibold">
+    <div className="flex items-center gap-2 text-orange-500 font-semibold">
       <Clock className="w-4 h-4" />
       <span>{timeLeft}</span>
     </div>

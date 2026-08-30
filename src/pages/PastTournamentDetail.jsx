@@ -55,7 +55,7 @@ export default function PastTournamentDetail() {
   const getMedalColor = (rank) => {
     if (rank === 1) return "from-yellow-400 to-yellow-600";
     if (rank === 2) return "from-gray-300 to-gray-500";
-    if (rank === 3) return "from-orange-400 to-orange-600";
+    if (rank === 3) return "from-orange-500 to-orange-700";
     return "from-gray-600 to-gray-700";
   };
 
@@ -127,7 +127,7 @@ export default function PastTournamentDetail() {
                     className={`p-4 rounded-lg bg-gradient-to-r ${getMedalColor(winner.rank)} bg-opacity-10 border-2 ${
                       winner.rank === 1 ? 'border-yellow-500/50' :
                       winner.rank === 2 ? 'border-gray-400/50' :
-                      winner.rank === 3 ? 'border-orange-500/50' :
+                      winner.rank === 3 ? 'border-orange-600/50' :
                       'border-gray-700'
                     }`}
                   >
@@ -181,9 +181,9 @@ export default function PastTournamentDetail() {
                   <div className="text-2xl font-bold text-gray-300">{tournament.reward_structure.second} 🪙</div>
                   <div className="text-sm text-gray-400">2nd Place</div>
                 </div>
-                <div className="text-center p-4 bg-orange-500/10 rounded-lg border border-orange-500/30">
-                  <Trophy className="w-8 h-8 mx-auto text-orange-500 mb-2" />
-                  <div className="text-2xl font-bold text-orange-400">{tournament.reward_structure.third} 🪙</div>
+                <div className="text-center p-4 bg-orange-600/10 rounded-lg border border-orange-600/30">
+                  <Trophy className="w-8 h-8 mx-auto text-orange-600 mb-2" />
+                  <div className="text-2xl font-bold text-orange-500">{tournament.reward_structure.third} 🪙</div>
                   <div className="text-sm text-gray-400">3rd Place</div>
                 </div>
               </div>

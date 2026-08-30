@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Save, X, FileText, Lock, Scale, HelpCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, FileText, Lock, Scale, HelpCircle, ShieldAlert } from "lucide-react";
 
 export default function LegalFAQManagement() {
   const [faqs, setFaqs] = useState([]);
@@ -136,6 +136,11 @@ export default function LegalFAQManagement() {
         title: type === "privacy_policy" ? "Privacy Policy" : 
                type === "terms_conditions" ? "Terms & Conditions" : 
                type === "refund_policy" ? "Refund Policy" : 
+               type === "shipping_policy" ? "Shipping Policy" : 
+               type === "support" ? "Help Center & Support" : 
+               type === "seller_terms" ? "Seller Terms & Conditions" : 
+               type === "disclaimer" ? "Platform Disclaimer" :
+               type === "fair_play" ? "Fair Play & Anti-Cheat Policy" :
                "Tournament Rules",
         content: "",
         version: "1.0"
@@ -154,9 +159,14 @@ export default function LegalFAQManagement() {
         <TabsList className="bg-gray-800">
           <TabsTrigger value="faq">FAQs ({faqs.length})</TabsTrigger>
           <TabsTrigger value="privacy">Privacy Policy</TabsTrigger>
-          <TabsTrigger value="terms">Terms & Conditions</TabsTrigger>
-          <TabsTrigger value="refund">Refund Policy</TabsTrigger>
+          <TabsTrigger value="terms">Terms</TabsTrigger>
+          <TabsTrigger value="refund">Refund</TabsTrigger>
+          <TabsTrigger value="disclaimer">Disclaimer</TabsTrigger>
+          <TabsTrigger value="fair_play">Fair Play</TabsTrigger>
+          <TabsTrigger value="shipping">Shipping</TabsTrigger>
+          <TabsTrigger value="support">Support</TabsTrigger>
           <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="seller_terms">Seller Terms</TabsTrigger>
         </TabsList>
 
         {/* FAQ Management */}
@@ -165,7 +175,7 @@ export default function LegalFAQManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-white flex items-center gap-2">
-                  <HelpCircle className="w-5 h-5 text-orange-400" />
+                  <HelpCircle className="w-5 h-5 text-orange-500" />
                   FAQ Management
                 </CardTitle>
                 <Button onClick={() => setShowFAQForm(true)} className="bg-green-600 hover:bg-green-700">
@@ -272,7 +282,7 @@ export default function LegalFAQManagement() {
                           <p className="font-semibold text-white">{faq.question}</p>
                           <p className="text-sm text-gray-400 mt-1">{faq.answer.substring(0, 100)}...</p>
                           <div className="flex gap-2 mt-2">
-                            <Badge className="bg-orange-500/20 text-orange-400">{faq.category}</Badge>
+                            <Badge className="bg-orange-600/20 text-orange-500">{faq.category}</Badge>
                             {!faq.is_active && <Badge className="bg-gray-500/20 text-gray-400">Hidden</Badge>}
                           </div>
                         </div>
@@ -345,6 +355,38 @@ export default function LegalFAQManagement() {
           />
         </TabsContent>
 
+        {/* Shipping Policy */}
+        <TabsContent value="shipping" className="mt-6">
+          <LegalDocEditor
+            type="shipping_policy"
+            icon={FileText}
+            title="Shipping Policy"
+            doc={legalDocs.shipping_policy}
+            isEditing={editingDoc === "shipping_policy"}
+            onEdit={() => startEditDoc("shipping_policy")}
+            onCancel={() => setEditingDoc(null)}
+            form={docForm}
+            setForm={setDocForm}
+            onSave={handleSaveDoc}
+          />
+        </TabsContent>
+
+        {/* Support Content */}
+        <TabsContent value="support" className="mt-6">
+          <LegalDocEditor
+            type="support"
+            icon={FileText}
+            title="Help Center & Support"
+            doc={legalDocs.support}
+            isEditing={editingDoc === "support"}
+            onEdit={() => startEditDoc("support")}
+            onCancel={() => setEditingDoc(null)}
+            form={docForm}
+            setForm={setDocForm}
+            onSave={handleSaveDoc}
+          />
+        </TabsContent>
+
         {/* Rules */}
         <TabsContent value="rules" className="mt-6">
           <LegalDocEditor
@@ -354,6 +396,54 @@ export default function LegalFAQManagement() {
             doc={legalDocs.rules}
             isEditing={editingDoc === "rules"}
             onEdit={() => startEditDoc("rules")}
+            onCancel={() => setEditingDoc(null)}
+            form={docForm}
+            setForm={setDocForm}
+            onSave={handleSaveDoc}
+          />
+        </TabsContent>
+
+        {/* Seller Terms */}
+        <TabsContent value="seller_terms" className="mt-6">
+          <LegalDocEditor
+            type="seller_terms"
+            icon={FileText}
+            title="Seller Terms & Conditions"
+            doc={legalDocs.seller_terms}
+            isEditing={editingDoc === "seller_terms"}
+            onEdit={() => startEditDoc("seller_terms")}
+            onCancel={() => setEditingDoc(null)}
+            form={docForm}
+            setForm={setDocForm}
+            onSave={handleSaveDoc}
+          />
+        </TabsContent>
+
+        {/* Disclaimer */}
+        <TabsContent value="disclaimer" className="mt-6">
+          <LegalDocEditor
+            type="disclaimer"
+            icon={ShieldAlert}
+            title="Platform Disclaimer"
+            doc={legalDocs.disclaimer}
+            isEditing={editingDoc === "disclaimer"}
+            onEdit={() => startEditDoc("disclaimer")}
+            onCancel={() => setEditingDoc(null)}
+            form={docForm}
+            setForm={setDocForm}
+            onSave={handleSaveDoc}
+          />
+        </TabsContent>
+
+        {/* Fair Play */}
+        <TabsContent value="fair_play" className="mt-6">
+          <LegalDocEditor
+            type="fair_play"
+            icon={Scale}
+            title="Fair Play & Anti-Cheat Policy"
+            doc={legalDocs.fair_play}
+            isEditing={editingDoc === "fair_play"}
+            onEdit={() => startEditDoc("fair_play")}
             onCancel={() => setEditingDoc(null)}
             form={docForm}
             setForm={setDocForm}

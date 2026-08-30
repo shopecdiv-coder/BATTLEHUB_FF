@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Send } from 'lucide-react';
 import { format } from 'date-fns';
+import SharedReelCard from '@/components/chat/SharedReelCard';
 
 export default function ChatWindow({ user, recipient, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -13,6 +14,22 @@ export default function ChatWindow({ user, recipient, onBack }) {
   const scrollRef = useRef(null);
 
   const loadMessages = async () => {
+    const cacheKey = `bh_chat_${Math.min(user.id.charCodeAt(0), recipient.id.charCodeAt(0))}_${user.id}_${recipient.id}`;
+    
+    // Load from cache first for instant UI
+    if (messages.length === 0) {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.length > 0) {
+            setMessages(parsed);
+            setLoading(false);
+          }
+        } catch(e) {}
+      }
+    }
+
     try {
       // Basic poll since we removed real-time presence/sockets for now
       // A full implementation would use Firebase onSnapshot for real-time
@@ -23,8 +40,10 @@ export default function ChatWindow({ user, recipient, onBack }) {
       const allMsgs = [
         ...sent.filter(m => m.recipient_id === recipient.id), 
         ...received.filter(m => m.recipient_id === user.id)
-      ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      ].sort((a, b) => new Date(a.created_at || a.created_date) - new Date(b.created_at || b.created_date));
+      
       setMessages(allMsgs);
+      localStorage.setItem(cacheKey, JSON.stringify(allMsgs));
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -92,12 +111,35 @@ export default function ChatWindow({ user, recipient, onBack }) {
         ) : (
           messages.map(msg => {
             const isMe = msg.sender_id === user.id;
+            
+            // Safe fallback for message content
+            const rawMessage = msg.message || msg.text || '';
+            
+            // Check for Reel Share Link
+            const isReelShare = rawMessage.includes('/media?postId=');
+            let textContent = rawMessage;
+            let reelPostId = null;
+            
+            if (isReelShare) {
+              const match = rawMessage.match(/postId=([^&\s]+)/);
+              if (match) {
+                reelPostId = match[1];
+                textContent = rawMessage.replace(/https?:\/\/[^\s]+/, '').trim();
+                if (!textContent) textContent = "Sent a reel";
+              }
+            }
+
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${isMe ? 'bg-purple-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-200 rounded-bl-sm'}`}>
-                  <p className="text-sm">{msg.message}</p>
+                  <p className="text-sm whitespace-pre-wrap">{textContent}</p>
+                  
+                  {reelPostId && (
+                    <SharedReelCard postId={reelPostId} />
+                  )}
+
                   <p className={`text-[10px] mt-1 ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
-                    {format(new Date(msg.created_at), 'hh:mm a')}
+                    {msg.created_at || msg.created_date ? format(new Date(msg.created_at || msg.created_date), 'hh:mm a') : 'Now'}
                   </p>
                 </div>
               </div>

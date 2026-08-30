@@ -1,0 +1,149 @@
+Created At: 2026-08-23T06:54:25+05:30
+Completed At: 2026-08-23T06:54:25+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2727
+Total Bytes: 145407
+Showing lines 2500 to 2640
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2500:               </Button>
+2501:             ) : (
+2502:               <span className="text-gray-600 text-xs px-1" title="No Semifinal B tournament exists">SF-B</span>
+2503:             )}
+2504:           </>
+2505:         )}
+2506:         {(isQualifierType || isSemifinalType) && (
+2507:           gfTournament ? (
+2508:             <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "grand_final")} className="bg-red-600 hover:bg-red-700 text-xs h-7 px-2">
+2509:               {isMoving && movingTeam?.stage === "grand_final" ? "..." : "GF"}
+2510:             </Button>
+2511:           ) : (
+2512:             <span className="text-gray-600 text-xs px-1" title="No Grand Final tournament exists">GF</span>
+2513:           )
+2514:         )}
+2515:       </div>
+2516:     </td>
+2517:   );
+2518: }
+2519: 
+2520: function TeamCard({ reg, index, isSolo, showPoints, grandFinal, showGroupBadge = true, currentStageIdx = 0, stagesList = [] }) {
+2521:   const [expanded, setExpanded] = useState(false);
+2522:   const [memberAvatars, setMemberAvatars] = useState({});
+2523: 
+2524:   const statusLower = String(reg.status || "").toLowerCase();
+2525:   const isDisqualified = Boolean(reg.is_disqualified || reg.is_eliminated || statusLower === "disqualified" || statusLower === "eliminated" || statusLower === "rejected");
+2526:   
+2527:   // Find team's highest reached stage index
+2528:   const teamStageIdx = stagesList.findIndex(s => {
+2529:     const raw = String(reg.stage || reg.stage_id || "").toLowerCase().trim().replace(/\s+/g, '_');
+2530:     const sId = String(s.id || s).toLowerCase().trim().replace(/\s+/g, '_');
+2531:     const sName = String(s.name || s).toLowerCase().trim().replace(/\s+/g, '_');
+2532:     return raw === sId || raw === sName || (sName && raw.includes(sName)) || (sId && raw.includes(sId));
+2533:   });
+2534: 
+2535:   const isMovedAhead = teamStageIdx !== -1 && teamStageIdx > currentStageIdx;
+2536:   const isQualified = !isDisqualified && (isMovedAhead || Boolean(reg.is_qualified || statusLower === "qualified" || statusLower === "finalist" || reg.is_finalist || reg.is_semifinalist));
+2537:   
+2538:   const qualifiedNextStageLabel = (() => {
+2539:     if (stagesList && stagesList.length > 0 && currentStageIdx < stagesList.length - 1) {
+2540:       const nextSt = stagesList[currentStageIdx + 1];
+2541:       const nextName = (nextSt?.name || nextSt?.id || `Stage ${currentStageIdx + 2}`).replace(/[_-]+/g, ' ');
+2542:       return `: ${nextName.toUpperCase()}`;
+2543:     }
+2544:     const raw = String(reg.stage || reg.stage_id || "").trim();
+2545:     if (!raw) return "";
+2546:     return `: ${raw.replace(/[_-]+/g, ' ').toUpperCase()}`;
+2547:   })();
+2548: 
+2549:   const hasMembers = !isSolo && reg.team_members && reg.team_members.length > 0;
+2550:   const userChosenSlot = reg.slot_number ?? reg.slot ?? reg.selected_slot ?? reg.slot_no ?? reg.group_slot;
+2551:   const userChosenGroup = reg.group_number ?? reg.group ?? reg.group_name;
+2552:   // Unique slot per team: use stored slot or globally unique index+1
+2553:   const slotNum = userChosenSlot !== undefined && userChosenSlot !== null && userChosenSlot !== "" 
+2554:     ? String(userChosenSlot).replace(/[^0-9]/g, '') || userChosenSlot 
+2555:     : ((index || 0) + 1);
+2556:   const groupNum = userChosenGroup !== undefined && userChosenGroup !== null && userChosenGroup !== ""
+2557:     ? String(userChosenGroup).replace(/[^0-9]/g, '') || userChosenGroup
+2558:     : (Math.floor((index || 0) / 12) + 1);
+2559: 
+2560:   // Dynamic Card Styling
+2561:   const cardStyle = isQualified
+2562:     ? "bg-emerald-950/25 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.12)]"
+2563:     : isDisqualified
+2564:       ? "bg-red-950/25 border-red-500/30 opacity-80"
+2565:       : "bg-slate-900/60 border-slate-800/80";
+2566: 
+2567:   React.useEffect(() => {
+2568:     if (!expanded || !hasMembers) return;
+2569:     let isMounted = true;
+2570: 
+2571:     const fetchMemberAvatars = async () => {
+2572:       const avatarMap = {};
+2573:       await Promise.all(reg.team_members.map(async (m) => {
+2574:         const mUid = m.uid || m.game_id || m.in_game_id;
+2575:         const key = mUid || m.ign;
+2576:         const existingDp = m.avatar_url || m.avatar || m.logo_url || m.logo || m.image || m.photoURL || m.dp;
+2577:         if (existingDp) {
+2578:           avatarMap[key] = existingDp;
+2579:           return;
+2580:         }
+2581: 
+2582:         try {
+2583:           let uObj = null;
+2584:           if (mUid) {
+2585:             const byUid = await User.filter({ game_uid: mUid }).catch(() => []);
+2586:             if (byUid && byUid.length > 0) uObj = byUid[0];
+2587:             else {
+2588:               const byUid2 = await User.filter({ game_id: mUid }).catch(() => []);
+2589:               if (byUid2 && byUid2.length > 0) uObj = byUid2[0];
+2590:               else {
+2591:                 const byUid3 = await User.filter({ uid: mUid }).catch(() => []);
+2592:                 if (byUid3 && byUid3.length > 0) uObj = byUid3[0];
+2593:               }
+2594:             }
+2595:           }
+2596:           if (!uObj && m.ign) {
+2597:             const byIgn = await User.filter({ ign: m.ign }).catch(() => []);
+2598:             if (byIgn && byIgn.length > 0) uObj = byIgn[0];
+2599:           }
+2600: 
+2601:           if (uObj) {
+2602:             const dp = uObj.avatar_url || uObj.avatar || uObj.dp || uObj.photoURL;
+2603:             if (dp) avatarMap[key] = dp;
+2604:           }
+2605:         } catch (e) {}
+2606:       }));
+2607: 
+2608:       if (isMounted && Object.keys(avatarMap).length > 0) {
+2609:         setMemberAvatars(prev => ({ ...prev, ...avatarMap }));
+2610:       }
+2611:     };
+2612: 
+2613:     fetchMemberAvatars();
+2614:     return () => { isMounted = false; };
+2615:   }, [expanded, hasMembers, reg.team_members]);
+2616: 
+2617:   return (
+2618:     <div className={`rounded-lg overflow-hidden border transition-all ${cardStyle}`}>
+2619:       {/* Compact Main Row */}
+2620:       <div
+2621:         className={`flex items-center gap-2.5 px-3 py-2 ${hasMembers ? 'cursor-pointer hover:bg-slate-800/50 transition-colors' : ''}`}
+2622:         onClick={() => hasMembers && setExpanded(!expanded)}
+2623:       >
+2624:         {/* Compact Logo / Rank Badge */}
+2625:         {reg.team_logo_url ? (
+2626:           <img 
+2627:             src={reg.team_logo_url} 
+2628:             alt="logo" 
+2629:             className="w-7 h-7 rounded-md object-cover border border-slate-700/80 flex-shrink-0" 
+2630:             onError={e => e.target.style.display='none'} 
+2631:           />
+2632:         ) : (
+2633:           <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${
+2634:             grandFinal && index === 0 ? 'bg-amber-500 text-slate-950 font-black' :
+2635:             grandFinal && index === 1 ? 'bg-slate-400 text-slate-950 font-black' :
+2636:             grandFinal && index === 2 ? 'bg-amber-700 text-white font-black' :
+2637:             isQualified ? 'bg-emerald-600 text-white font-bold' :
+2638:             isDisqualified ? 'bg-red-700 text-white font-bold' :
+2639:             'bg-slate-800 border border-slate-700/80 text-orange-400 font-bold'
+2640:           }`}>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

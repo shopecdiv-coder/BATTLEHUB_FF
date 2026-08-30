@@ -95,7 +95,7 @@ export default function AppNoticeManagement({ notices, onUpdate }) {
         </div>
         <Button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-orange-600 hover:bg-blue-700"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add App Notice
@@ -188,7 +188,7 @@ export default function AppNoticeManagement({ notices, onUpdate }) {
                         <img
                           src={formData.image_url}
                           alt="Notice"
-                          className="w-full h-48 object-cover rounded border-2 border-blue-500/50"
+                          className="w-full h-48 object-cover rounded border-2 border-orange-500/50"
                         />
                         <button
                           type="button"
@@ -200,7 +200,7 @@ export default function AppNoticeManagement({ notices, onUpdate }) {
                       </div>
                     ) : (
                       <label className="cursor-pointer">
-                        <div className="border-2 border-dashed border-gray-700 hover:border-blue-500/50 rounded p-6 text-center">
+                        <div className="border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded p-6 text-center">
                           {uploading ? (
                             <p className="text-sm text-gray-400">Uploading...</p>
                           ) : (
@@ -232,7 +232,7 @@ export default function AppNoticeManagement({ notices, onUpdate }) {
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-orange-600 hover:bg-blue-700"
                       disabled={uploading}
                     >
                       <Send className="w-4 h-4 mr-2" />
@@ -267,8 +267,8 @@ export default function AppNoticeManagement({ notices, onUpdate }) {
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className={
                         notice.priority === "Urgent" ? "bg-red-500/20 text-red-400" :
-                        notice.priority === "High" ? "bg-orange-500/20 text-orange-400" :
-                        "bg-blue-500/20 text-blue-400"
+                        notice.priority === "High" ? "bg-orange-600/20 text-orange-500" :
+                        "bg-orange-500/20 text-blue-400"
                       }>
                         {notice.type}
                       </Badge>

@@ -1,105 +1,112 @@
 import React, { useState, useEffect } from "react";
 import { SupportTicket } from "@/entities/SupportTicket";
-import { SupportContact } from "@/entities/SupportContact";
 import { User } from "@/entities/User";
-import { UploadFile } from "@/integrations/Core";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MessageCircle, Send, Paperclip, Plus, X, Image as ImageIcon, Video, ExternalLink, Clock, RefreshCw, Upload, MessageSquare, HelpCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-
+import { 
+  Plus, X, HelpCircle, ArrowLeft, RefreshCw, MessageCircle, Paperclip, Video, Trash2, MoreVertical, Star, MessageSquare
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { Notification } from "@/entities/Notification";
-import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+import SharedChatInterface from "@/components/chat/SharedChatInterface";
 
 export default function Support() {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Create Ticket State
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [newSubject, setNewSubject] = useState("");
   const [newMessage, setNewMessage] = useState("");
-  const [replyMessage, setReplyMessage] = useState("");
-  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [attachments, setAttachments] = useState([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // State for in-app media viewer
-  const [showMediaViewer, setShowMediaViewer] = useState(false);
-  const [mediaToView, setMediaToView] = useState({ url: "", type: "" });
+  // Feedback State
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackTicket, setFeedbackTicket] = useState(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackText, setFeedbackText] = useState("");
 
-  // New state for selected ticket loading
-  const [selectedTicketLoading, setSelectedTicketLoading] = useState(false);
-  
-  // Admin controls
-  const [sendingSystemMessage, setSendingSystemMessage] = useState(false);
-  const [supportContacts, setSupportContacts] = useState([]);
-
-  const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfoPt-p_9qKtY6EM1rrDzq6qIVOyC78vXOd9ji75eaTjIBD5g/viewform?usp=sharing&ouid=103119406315975933219";
+  const [activeTab, setActiveTab] = useState("active");
+  const [category, setCategory] = useState("");
 
   useEffect(() => {
-    SupportContact.list("order", 10).then(c => setSupportContacts(c || [])).catch(() => {});
     loadData();
   }, []);
 
-  // Optimize: Real-time polling reduced to 60 seconds
+  // Poll for status updates
   useEffect(() => {
     if (!selectedTicket) return;
-    
     const pollInterval = setInterval(async () => {
       try {
         const updatedTickets = await SupportTicket.filter({ id: selectedTicket.id });
         if (updatedTickets.length > 0) {
           const newTicket = updatedTickets[0];
-          if (JSON.stringify(newTicket.messages) !== JSON.stringify(selectedTicket.messages)) {
+          if (newTicket.status !== selectedTicket.status) {
             setSelectedTicket(newTicket);
-            const chatContainer = document.getElementById('chat-messages');
-            if (chatContainer) {
-              chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
+            loadData(); // refresh list to show updated status
           }
         }
       } catch (error) {}
-    }, 60000); // Optimized: Poll every 60 seconds
-
+    }, 30000);
     return () => clearInterval(pollInterval);
-  }, [selectedTicket?.id]);
+  }, [selectedTicket?.id, selectedTicket?.status]);
 
   const loadData = async () => {
     try {
-      setLoading(true); // Set loading true at the start of data load
+      setLoading(true);
       const currentUser = await User.me();
       setUser(currentUser);
 
-      let fetchedTickets;
-      if (currentUser.role === 'admin') {
-        fetchedTickets = await SupportTicket.list("-last_message_at");
-      } else {
-        fetchedTickets = await SupportTicket.filter(
-          { user_id: currentUser.id },
-          "-last_message_at"
-        );
-      }
-      setTickets(fetchedTickets);
+      const fetchedTickets = await SupportTicket.filter(
+        { user_id: currentUser.id },
+        "-created_date" 
+      );
+      
+      const sorted = (fetchedTickets || []).sort((a, b) => 
+        new Date(b.created_date || 0) - new Date(a.created_date || 0)
+      );
+      
+      setTickets(sorted);
 
-      // Update selected ticket if exists and its content has changed
       if (selectedTicket) {
-        const updatedSelectedTicket = fetchedTickets.find(t => t.id === selectedTicket.id);
-        if (updatedSelectedTicket && JSON.stringify(updatedSelectedTicket.messages) !== JSON.stringify(selectedTicket.messages)) {
+        const updatedSelectedTicket = sorted.find(t => t.id === selectedTicket.id);
+        if (updatedSelectedTicket) {
           setSelectedTicket(updatedSelectedTicket);
         }
       }
     } catch (error) {
       console.error("Error loading support tickets:", error);
     } finally {
-      setLoading(false); // Set loading false after data is loaded or if an error occurs
+      setLoading(false);
     }
   };
 
@@ -109,6 +116,7 @@ export default function Support() {
 
     setUploadingFiles(true);
     const uploadedUrls = [];
+    const { UploadFile } = await import('@/integrations/Core');
 
     for (const file of files) {
       try {
@@ -116,718 +124,723 @@ export default function Support() {
         uploadedUrls.push(file_url);
       } catch (error) {
         console.error("Error uploading file:", error);
-        alert(`Failed to upload ${file.name}. Please try again.`);
+        alert(`Failed to upload ${file.name}.`);
       }
     }
 
-    setAttachments([...attachments, ...uploadedUrls]);
+    setAttachments(prev => [...prev, ...uploadedUrls]);
     setUploadingFiles(false);
   };
 
   const createNewTicket = async () => {
-    if (!newSubject.trim() || !newMessage.trim()) {
-      alert("Please fill in both subject and message");
+    const finalSubject = category === "Other" ? newSubject : category;
+    if (!finalSubject.trim() || !newMessage.trim()) {
+      alert("Please select a subject and enter a message for your ticket.");
       return;
     }
 
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      await SupportTicket.create({
+      const newTicketData = {
         user_id: user.id,
-        user_name: user.full_name,
-        user_ign: user.ign || user.full_name,
-        subject: newSubject,
+        user_name: user.full_name || user.username || "Player",
+        user_ign: user.ign || user.full_name || "Player",
+        subject: finalSubject,
         status: "Open",
         priority: "Medium",
-        messages: [{
-          sender_id: user.id,
-          sender_name: user.ign || user.full_name,
-          sender_role: user.role,
-          message: newMessage,
-          attachments: attachments,
-          timestamp: now
-        }],
-        last_message_at: now
+        created_date: now
+      };
+      
+      const created = await SupportTicket.create(newTicketData);
+      
+      // Inject initial messages into Firebase for SharedChatInterface to pick up
+      const { GroupChatMessage } = await import('@/api/entities');
+      
+      // Create the text message
+      await GroupChatMessage.create({
+         user_id: user.id,
+         username: user.full_name || user.username || "Player",
+         user_ign: user.ign || user.full_name || "Player",
+         avatar_url: user.avatar_url || null,
+         sender_email: user.email || "",
+         sender_role: user.role || "user",
+         message: newMessage,
+         message_type: 'text',
+         is_deleted: false,
+         is_pinned: false,
+         is_read: false,
+         created_at: new Date().toISOString(),
+         group_id: created.id
+      });
+      
+      // Create attachment messages individually
+      if (attachments.length > 0) {
+         for (const mediaUrl of attachments) {
+             const isVideo = mediaUrl.match(/\.(mp4|webm|mov)$/i);
+             await GroupChatMessage.create({
+                user_id: user.id,
+                username: user.full_name || user.username || "Player",
+                user_ign: user.ign || user.full_name || "Player",
+                avatar_url: user.avatar_url || null,
+                sender_email: user.email || "",
+                sender_role: user.role || "user",
+                message: mediaUrl,
+                message_type: isVideo ? 'video' : 'image',
+                is_deleted: false,
+                is_pinned: false,
+                is_read: false,
+                created_at: new Date().toISOString(),
+                group_id: created.id
+             });
+         }
+      }
+
+      // Create Auto-Reply Bot Message
+      await GroupChatMessage.create({
+         user_id: "system_bot",
+         username: "Support Bot",
+         user_ign: "Support Bot",
+         avatar_url: null,
+         sender_email: "support@battlehub.in",
+         sender_role: "admin",
+         message: "Aapki ticket ban gayi hai! Hamari team jald hi reply karegi. Kripya apna Game UID aur zaroori proof (agar koi ho) yahan bhej dein.",
+         message_type: 'text',
+         is_deleted: false,
+         is_pinned: false,
+         is_read: false,
+         created_at: new Date(Date.now() + 1000).toISOString(),
+         group_id: created.id
       });
 
       setShowNewTicket(false);
       setNewSubject("");
+      setCategory("");
       setNewMessage("");
       setAttachments([]);
-      await loadData();
+      
+      setTickets(prev => [created, ...prev]);
+      setSelectedTicket(created);
+      
     } catch (error) {
       console.error("Error creating ticket:", error);
-      alert("Failed to create ticket. Please try again.");
-    }
-    setSubmitting(false);
-  };
-
-  const sendReply = async () => {
-    if (!replyMessage.trim() && attachments.length === 0) return;
-    if (!selectedTicket) return;
-
-    setSubmitting(true);
-    try {
-      const now = new Date().toISOString();
-      const newMessageObj = {
-        sender_id: user.id,
-        sender_name: user.ign || user.full_name,
-        sender_role: user.role,
-        message: replyMessage,
-        attachments: attachments,
-        timestamp: now
-      };
-
-      await SupportTicket.update(selectedTicket.id, {
-        messages: [...(selectedTicket.messages || []), newMessageObj],
-        last_message_at: now,
-        status: user.role === 'admin' && selectedTicket.status === 'Open' ? "In Progress" : selectedTicket.status
-      });
-
-      // If admin sends message, create notification for user
-      if (user.role === 'admin' && selectedTicket.user_id !== user.id) {
-        await Notification.create({
-          recipient_id: selectedTicket.user_id,
-          type: "Support Message",
-          title: "💬 Support Team Reply",
-          message: `New message in ticket: ${selectedTicket.subject}`,
-          link: createPageUrl("Support"),
-          priority: "High",
-          dismissable: true,
-          created_at: now
-        });
-      }
-
-      setReplyMessage("");
-      setAttachments([]);
-      await loadData();
-
-      // After sending reply, explicitly refresh selected ticket to show new message
-      // This is a direct update to reflect the change immediately
-      setSelectedTicket(prevTicket => {
-        if (!prevTicket) return null;
-        return {
-          ...prevTicket,
-          messages: [...(prevTicket.messages || []), newMessageObj],
-          last_message_at: now,
-          status: user.role === 'admin' && prevTicket.status === 'Open' ? "In Progress" : prevTicket.status
-        };
-      });
-
-    } catch (error) {
-      console.error("Error sending reply:", error);
-      alert("Failed to send message. Please try again.");
-    }
-    setSubmitting(false);
-  };
-
-  const updateTicketStatus = async (status) => {
-    if (!selectedTicket) return;
-    setSubmitting(true); // Disable buttons while status is updating
-    try {
-      await SupportTicket.update(selectedTicket.id, { status });
-      await loadData();
-      setSelectedTicket({ ...selectedTicket, status });
-    } catch (error) {
-      console.error("Error updating ticket status:", error);
-      alert("Failed to update ticket status. Please try again.");
+      alert("Failed to create ticket.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleViewMedia = (url) => {
-    let type = "other";
-    if (url.match(/\.(jpg|jpeg|png|gif)$/i)) {
-      type = "image";
-    } else if (url.match(/\.(mp4|webm|mov)$/i)) {
-      type = "video";
+  const hasActiveTicket = tickets.some(t => t.status !== "Resolved" && t.status !== "Closed");
+
+  const handleNewTicketClick = () => {
+    if (hasActiveTicket) {
+      alert("You already have an active ticket. Please wait for it to be resolved before creating a new one.");
+      return;
     }
-    setMediaToView({ url, type });
-    setShowMediaViewer(true);
+    setShowNewTicket(true);
   };
 
-  const refreshSelectedTicket = async () => {
-    if (!selectedTicket) return;
-    setSelectedTicketLoading(true);
+  const handleMarkResolved = async () => {
+    if (!selectedTicket || selectedTicket.status === "Resolved" || selectedTicket.status === "Closed") return;
     try {
-      const updatedTicket = await SupportTicket.get(selectedTicket.id);
+      await SupportTicket.update(selectedTicket.id, { status: "Resolved" });
+      const updatedTicket = { ...selectedTicket, status: "Resolved" };
       setSelectedTicket(updatedTicket);
+      setTickets(prev => prev.map(t => t.id === selectedTicket.id ? updatedTicket : t));
+
+      // Fetch chat history for the email
+      const { GroupChatMessage } = await import('@/api/entities');
+      const { SendEmail } = await import('@/api/integrations');
+      
+      const chatHistory = await GroupChatMessage.filter({ group_id: selectedTicket.id });
+      // Sort by creation date
+      chatHistory.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+      const messagesHtml = chatHistory.map(msg => {
+        const isBot = msg.sender_role === 'admin' || msg.user_id === 'system_bot';
+        const senderName = isBot ? 'Support Team' : (msg.username || 'You');
+        const color = isBot ? '#3b82f6' : '#64748b'; 
+        const time = new Date(msg.created_at).toLocaleString();
+        
+        let contentHtml = '';
+        if (msg.message_type === 'image') contentHtml = `<p style="font-style: italic; color: #94a3b8;">[Image attachment sent]</p>`;
+        else if (msg.message_type === 'video') contentHtml = `<p style="font-style: italic; color: #94a3b8;">[Video attachment sent]</p>`;
+        else contentHtml = `<p style="margin: 5px 0;">${msg.message}</p>`;
+
+        return `
+          <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 13px; color: ${color}; font-weight: bold;">${senderName} <span style="color: #94a3b8; font-weight: normal; font-size: 11px; margin-left: 10px;">${time}</span></p>
+            <div style="font-size: 15px; color: #334155; margin-top: 4px;">
+              ${contentHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const plainTextBody = `Hello ${user?.full_name || 'Player'},\n\nYour support ticket has been resolved.\n\nTicket ID: ${selectedTicket.id}\nSubject: ${selectedTicket.subject}\nStatus: Resolved\n\nThank you for using BattleHub!\nOfficial Support Team`;
+      
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <div style="background-color: #0f172a; padding: 25px; text-align: center; border-bottom: 4px solid #3b82f6;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 1px;">BATTLEHUB FF</h1>
+              <p style="color: #94a3b8; margin: 5px 0 0 0; font-size: 14px;">Official Support Team</p>
+            </div>
+            
+            <div style="padding: 30px;">
+              <h2 style="color: #1e293b; font-size: 22px; margin-top: 0;">Ticket Resolved ✅</h2>
+              <p style="font-size: 16px; line-height: 1.6; color: #475569;">
+                Hi <strong>${user?.full_name || 'Player'}</strong>,<br/><br/>
+                Your support ticket has been marked as resolved. Below are the details and full conversation history of your request:
+              </p>
+              
+              <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+                <p style="margin: 0 0 10px 0; font-size: 15px;"><strong>Ticket ID:</strong> <span style="color: #64748b;">${selectedTicket.id}</span></p>
+                <p style="margin: 0 0 10px 0; font-size: 15px;"><strong>Subject:</strong> <span style="color: #64748b;">${selectedTicket.subject}</span></p>
+                <p style="margin: 0; font-size: 15px;"><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">Resolved</span></p>
+              </div>
+
+              <h3 style="color: #1e293b; font-size: 18px; margin-top: 35px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Conversation History</h3>
+              <div style="background-color: #ffffff; margin-top: 15px;">
+                ${messagesHtml.length > 0 ? messagesHtml : '<p style="color: #64748b;">No conversation history available.</p>'}
+              </div>
+
+              <div style="margin-top: 30px;">
+                <a href="https://play.google.com/store/apps/details?id=com.battlehub.ff" style="display: inline-block; background-color: #3b82f6; color: #ffffff; text-decoration: none; padding: 12px 25px; border-radius: 6px; font-weight: bold;">Return to App</a>
+              </div>
+            </div>
+            
+            <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; font-size: 12px; color: #64748b;">
+                © ${new Date().getFullYear()} BattleHub FF. All rights reserved.<br/>
+                This is an automated message, please do not reply to this email.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      if (user?.email) {
+        await SendEmail({
+          to: user.email,
+          subject: `Resolved: Support Ticket - ${selectedTicket.subject}`,
+          body: plainTextBody,
+          html: emailHtml
+        });
+      }
+
     } catch (error) {
-      console.error("Error refreshing selected ticket:", error);
-      alert("Failed to refresh ticket. Please try again.");
-    } finally {
-      setSelectedTicketLoading(false);
+      console.error("Error marking ticket as resolved:", error);
     }
   };
 
-  const sendSystemMessage = async (messageType) => {
-    if (!selectedTicket || sendingSystemMessage) return;
-    setSendingSystemMessage(true);
-    
-    const messages = {
-      enablePhoto: "To help us resolve your issue faster, you can now upload the required image in this ticket.",
-      telegramPhoto: "For better clarity, please upload the required images on our official Telegram support: @BattleHubFF.\nOur support team will assist you further there.",
-      telegramSupport: `Further support for this issue will be handled on our official Telegram support channel: @BattleHubFF.\nPlease contact us there with your Ticket ID: ${selectedTicket.id.substring(0, 8).toUpperCase()}`
-    };
-    
+  const handleDeleteTicket = async (e, ticketId) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this ticket?")) {
+      try {
+        await SupportTicket.delete(ticketId);
+        setTickets(prev => prev.filter(t => t.id !== ticketId));
+      } catch (error) {
+        console.error("Error deleting ticket:", error);
+      }
+    }
+  };
+
+  const handleOpenFeedback = (e, ticket) => {
+    e.stopPropagation();
+    setFeedbackTicket(ticket);
+    setFeedbackRating(5);
+    setFeedbackText("");
+    setShowFeedbackModal(true);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackTicket) return;
+    setSubmitting(true);
     try {
-      const now = new Date().toISOString();
-      const systemMsg = {
-        sender_id: "system",
-        sender_name: "BattleHub Support",
-        sender_role: "admin",
-        message: messages[messageType],
-        is_system_message: true,
-        timestamp: now
-      };
-      
-      await SupportTicket.update(selectedTicket.id, {
-        messages: [...(selectedTicket.messages || []), systemMsg],
-        last_message_at: now
+      await SupportTicket.update(feedbackTicket.id, { 
+        feedback_rating: feedbackRating,
+        feedback_text: feedbackText
       });
-      
-      // Send notification
-      await Notification.create({
-        recipient_id: selectedTicket.user_id,
-        type: "Support Message",
-        title: "📢 Support Team Update",
-        message: messages[messageType].substring(0, 100),
-        link: createPageUrl("Support"),
-        priority: "High",
-        dismissable: true,
-        created_at: now
-      });
-      
-      await loadData();
-      setSelectedTicket(prev => ({
-        ...prev,
-        messages: [...(prev.messages || []), systemMsg],
-        last_message_at: now
-      }));
+      setTickets(prev => prev.map(t => 
+        t.id === feedbackTicket.id ? { ...t, feedback_rating: feedbackRating, feedback_text: feedbackText } : t
+      ));
+      if (selectedTicket && selectedTicket.id === feedbackTicket.id) {
+        setSelectedTicket(prev => ({ ...prev, feedback_rating: feedbackRating, feedback_text: feedbackText }));
+      }
+      // Try to add a chat message if possible
+      try {
+        const { GroupChatMessage } = await import('@/api/entities');
+        await GroupChatMessage.create({
+          user_id: user.id,
+          username: user.full_name || user.username || "Player",
+          user_ign: user.ign || user.full_name || "Player",
+          avatar_url: user.avatar_url || null,
+          sender_email: user.email || "",
+          sender_role: user.role || "user",
+          message: `Left Feedback: ${feedbackRating} Stars\n${feedbackText}`,
+          message_type: 'text',
+          is_deleted: false,
+          is_pinned: false,
+          is_read: false,
+          created_at: new Date().toISOString(),
+          group_id: feedbackTicket.id
+        });
+      } catch (e) {
+        console.error("Could not add chat message", e);
+      }
+      setShowFeedbackModal(false);
+      alert("Thank you for your feedback!");
     } catch (error) {
-      console.error("Error sending system message:", error);
+      console.error("Error submitting feedback:", error);
+    } finally {
+      setSubmitting(false);
     }
-    setSendingSystemMessage(false);
   };
 
-
-  if (loading && tickets.length === 0) { // Only show full loading screen on initial load
+  if (loading && tickets.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="h-[calc(100vh-64px)] overflow-y-auto bg-slate-950 text-slate-100 pb-24 ">
+        {/* Sticky Header Skeleton */}
+        <div className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-white/5">
+          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/5 animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
+                <div className="h-3 w-16 bg-white/5 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="w-24 h-9 bg-white/5 rounded-xl animate-pulse" />
+          </div>
+        </div>
+
+        {/* Tickets Skeletons */}
+        <div className="max-w-2xl mx-auto px-4 mt-4 space-y-2.5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-white/[0.02] border border-white/[0.03] rounded-2xl p-4 flex items-center justify-between h-20 animate-pulse">
+              <div className="flex-1 pr-4 space-y-3">
+                <div className="h-4 w-3/4 bg-white/5 rounded" />
+                <div className="flex gap-2">
+                   <div className="h-3 w-16 bg-white/5 rounded" />
+                   <div className="h-3 w-20 bg-white/5 rounded" />
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 shrink-0" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 p-4 pb-24">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="text-center mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 mb-2">
-              Customer Support
-            </h1>
-            <p className="text-gray-400 text-lg">Choose your preferred support channel</p>
+  // ═══════════════════════════════════════════════════════════
+  // 1. ACTIVE CHAT CONVERSATION VIEW (Fullscreen via SharedChatInterface)
+  // ═══════════════════════════════════════════════════════════
+  if (selectedTicket) {
+    return createPortal(
+      <div className="fixed top-16 left-0 right-0 bottom-0 z-[9999] bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+        
+        {/* Custom Header for Support Ticket */}
+        <div className="flex-shrink-0 bg-slate-950 border-b border-white/5 px-3 py-2 flex items-center justify-between z-10 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button
+              onClick={() => setSelectedTicket(null)}
+              variant="ghost"
+              size="icon"
+              className="w-9 h-9 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold text-white truncate">
+                {selectedTicket.subject}
+              </h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0 border-0 ${
+                  selectedTicket.status === "Open" ? "bg-orange-600/15 text-orange-500" :
+                  selectedTicket.status === "In Progress" ? "bg-yellow-500/15 text-yellow-400" :
+                  selectedTicket.status === "Resolved" ? "bg-emerald-500/15 text-emerald-400" :
+                  "bg-slate-800 text-slate-400"
+                }`}>
+                  {selectedTicket.status}
+                </Badge>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  ID: {selectedTicket.id.substring(0,6).toUpperCase()}
+                </span>
+              </div>
+            </div>
           </div>
-
-          {/* Support Options - Priority Order */}
-          <div className="grid md:grid-cols-4 gap-4 mb-8">
-            {supportContacts.map((contact, idx) => (
-              <a
-                key={contact.id}
-                href={`https://wa.me/${contact.whatsapp_number}?text=${encodeURIComponent('Hello, I need help with BattleHub FF')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
+          
+          <div className="flex items-center gap-2 flex-shrink-0 relative z-20">
+            {selectedTicket.status !== "Resolved" && selectedTicket.status !== "Closed" && (
+              <Button
+                onClick={handleMarkResolved}
+                size="sm"
+                className="h-7 px-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] uppercase font-bold hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors rounded-lg"
               >
-                <Card className="bg-gradient-to-br from-green-900/40 to-green-800/20 border-2 border-green-500/50 hover:border-green-400 transition-all cursor-pointer h-full group">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-green-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <MessageCircle className="w-8 h-8 text-green-400" />
-                    </div>
-                    {idx === 0 && <Badge className="bg-green-500 text-white mb-2">🔥 RECOMMENDED</Badge>}
-                    <h3 className="text-xl font-bold text-white mb-2">{contact.name}</h3>
-                    <p className="text-gray-300 text-sm">{contact.role || "Direct support via WhatsApp - Fast response"}</p>
-                  </CardContent>
-                </Card>
-              </a>
-            ))}
-
-            {/* 3. Email Support */}
-            <a href="mailto:helpbattlehub@gmail.com" className="block">
-              <Card className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 border-2 border-purple-500/50 hover:border-purple-400 transition-all cursor-pointer h-full group">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-purple-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <ExternalLink className="w-8 h-8 text-purple-400" />
-                  </div>
-                  <Badge className="bg-purple-500 text-white mb-2">📧 EMAIL</Badge>
-                  <h3 className="text-xl font-bold text-white mb-2">Email Support</h3>
-                  <p className="text-gray-300 text-sm">
-                    helpbattlehub@gmail.com
-                  </p>
-                </CardContent>
-              </Card>
-            </a>
-
-            {/* 4. Create Ticket - PRIORITY 4 */}
-            {user?.role !== 'admin' && (
-              <Card 
-                onClick={() => setShowNewTicket(true)}
-                className="bg-gradient-to-br from-orange-900/40 to-orange-800/20 border-2 border-orange-500/50 hover:border-orange-400 transition-all cursor-pointer h-full group"
-              >
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-orange-500/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <HelpCircle className="w-8 h-8 text-orange-400" />
-                  </div>
-                  <Badge className="bg-orange-500 text-white mb-2">🎫 TICKET</Badge>
-                  <h3 className="text-xl font-bold text-white mb-2">Create Support Ticket</h3>
-                  <p className="text-gray-300 text-sm">
-                    Submit a detailed support request with attachments
-                  </p>
-                </CardContent>
-              </Card>
+                Mark Resolved
+              </Button>
             )}
           </div>
         </div>
+        {/* Shared Chat Interface taking up the rest of the screen */}
+        <div className="flex-1 relative bg-slate-950">
+           <SharedChatInterface 
+              roomType="group" 
+              groupId={selectedTicket.id} 
+              roomTitle={selectedTicket.subject}
+              user={user}
+              hideHeader={true} // We use our custom header above
+           />
+           
+           {/* If resolved/closed, overlay a blocker to prevent typing */}
+           {(selectedTicket.status === "Resolved" || selectedTicket.status === "Closed") && (
+             <div className="absolute bottom-0 left-0 right-0 h-20 bg-slate-950/80 backdrop-blur-md border-t border-emerald-500/20 flex items-center justify-center z-20">
+               <span className="text-emerald-400 text-sm font-bold bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
+                  This ticket has been {selectedTicket.status.toLowerCase()}.
+               </span>
+             </div>
+           )}
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
-        {/* Existing Ticket System */}
-        <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
-          <Card className="lg:col-span-1 bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-gray-100 text-sm lg:text-base">
-                {user?.role === 'admin' ? 'All Tickets' : 'My Tickets'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 max-h-[400px] lg:max-h-[600px] overflow-y-auto">
-              {tickets.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No tickets yet</p>
-              ) : (
-                tickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    onClick={() => setSelectedTicket(ticket)}
-                    className={`p-4 rounded-lg cursor-pointer transition-all ${
-                      selectedTicket?.id === ticket.id
-                        ? 'bg-orange-500/20 border-2 border-orange-500/50'
-                        : 'bg-gray-800/50 hover:bg-gray-800 border-2 border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-100 text-sm truncate">
-                        {ticket.subject}
-                      </h4>
-                      <Badge className={
-                        ticket.status === "Open" ? "bg-blue-500/20 text-blue-400" :
-                        ticket.status === "In Progress" ? "bg-yellow-500/20 text-yellow-400" :
-                        ticket.status === "Resolved" ? "bg-green-500/20 text-green-400" :
-                        "bg-gray-500/20 text-gray-400"
-                      }>
-                        {ticket.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      {ticket.user_ign} • {format(new Date(ticket.created_date), "MMM d")}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {ticket.messages?.length || 0} messages
-                    </p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+  // ═══════════════════════════════════════════════════════════
+  // 2. TICKETS LIST VIEW
+  // ═══════════════════════════════════════════════════════════
+  return (
+    <div className="h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar bg-slate-950 text-slate-100 pb-24 ">
+      
+      {/* ── Sticky Header ── */}
+      <div className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => navigate(-1)}
+              variant="ghost"
+              size="icon"
+              className="w-9 h-9 rounded-full hover:bg-white/5 border border-white/5 text-slate-400 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-base font-bold text-white">Support Center</h1>
+              <p className="text-[11px] text-slate-500">{tickets.length} Ticket{tickets.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          
+          <Button 
+            onClick={handleNewTicketClick}
+            className={`font-bold h-9 rounded-xl px-4 shadow-sm transition-all text-xs ${hasActiveTicket ? 'bg-slate-800 text-slate-500 hover:bg-slate-800' : 'bg-orange-700 hover:bg-sky-700 text-white'}`}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            New Ticket
+          </Button>
+        </div>
+      </div>
 
-          <Card className="lg:col-span-2 bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-            {selectedTicket ? (
-              <>
-                <CardHeader className="border-b border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-gray-100">{selectedTicket.subject}</CardTitle>
-                      <p className="text-sm text-gray-400 mt-1">
-                        Ticket by {selectedTicket.user_ign}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {/* Refresh button for all tickets handled by the main refresh button */}
-                      <div className="flex gap-2 flex-wrap">
-                        {user?.role === 'admin' ? (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={async () => {
-                                const newStatus = !selectedTicket.allow_user_attachments;
-                                await SupportTicket.update(selectedTicket.id, {
-                                  allow_user_attachments: newStatus
-                                });
-                                setSelectedTicket({...selectedTicket, allow_user_attachments: newStatus});
-                                if (newStatus) {
-                                  await sendSystemMessage('enablePhoto');
-                                }
-                              }}
-                              className="border-purple-700 text-purple-400"
-                              disabled={submitting || sendingSystemMessage}
-                            >
-                              <Upload className="w-3 h-3 mr-1" />
-                              {selectedTicket.allow_user_attachments ? 'Disable' : 'Enable'} Photo
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => sendSystemMessage('telegramPhoto')}
-                              className="border-blue-700 text-blue-400"
-                              disabled={sendingSystemMessage}
-                            >
-                              Telegram Photo
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => sendSystemMessage('telegramSupport')}
-                              className="border-cyan-700 text-cyan-400"
-                              disabled={sendingSystemMessage}
-                            >
-                              Switch to Telegram
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateTicketStatus("In Progress")}
-                              className="border-gray-700"
-                              disabled={submitting}
-                            >
-                              In Progress
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => updateTicketStatus("Resolved")}
-                              className="bg-green-500 hover:bg-green-600"
-                              disabled={submitting}
-                            >
-                              Resolve
-                            </Button>
-                          </>
-                        ) : selectedTicket.status !== "Resolved" && (
-                          <Button
-                            size="sm"
-                            onClick={() => updateTicketStatus("Resolved")}
-                            className="bg-green-500 hover:bg-green-600"
-                            disabled={submitting}
-                          >
-                            Mark as Resolved
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="flex justify-between items-center p-6 pb-2">
-                    <h3 className="text-lg font-bold text-gray-100">Messages</h3>
-                    <Button
-                      onClick={refreshSelectedTicket}
-                      size="sm"
-                      variant="outline"
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                      disabled={selectedTicketLoading}
-                    >
-                      {selectedTicketLoading ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+      {/* ── Tickets List & Tabs ── */}
+      <div className="max-w-2xl mx-auto px-4 mt-4 space-y-2.5">
+        <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab} className="mb-4">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-900 border border-white/5">
+            <TabsTrigger value="active" className="data-[state=active]:bg-orange-700 data-[state=active]:text-white">Active Tickets</TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">History</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {tickets.filter(t => activeTab === "active" ? (t.status === "Open" || t.status === "In Progress") : (t.status === "Resolved" || t.status === "Closed")).length === 0 ? (
+          <div className="mt-20 flex flex-col items-center text-center px-6">
+            <div className="w-16 h-16 bg-white/[0.02] rounded-full flex items-center justify-center mb-4 border border-white/5">
+              <HelpCircle className="w-7 h-7 text-slate-500" />
+            </div>
+            <h3 className="text-base font-bold text-slate-200 mb-1">No {activeTab === "active" ? "Active" : "Past"} Tickets</h3>
+            <p className="text-xs text-slate-500 max-w-xs mb-6">
+              {activeTab === "active" ? "Need help? Create a ticket to chat with our support team." : "You have no resolved tickets yet."}
+            </p>
+            {activeTab === "active" && (
+              <Button 
+                onClick={handleNewTicketClick}
+                className={`font-bold h-10 rounded-xl px-6 transition-all ${hasActiveTicket ? 'bg-slate-800 text-slate-500 hover:bg-slate-800' : 'bg-white text-slate-950 hover:bg-slate-200'}`}
+              >
+                Create Support Ticket
+              </Button>
+            )}
+          </div>
+        ) : (
+          tickets.filter(t => activeTab === "active" ? (t.status === "Open" || t.status === "In Progress") : (t.status === "Resolved" || t.status === "Closed")).map((ticket) => (
+            <div
+              key={ticket.id}
+              onClick={() => setSelectedTicket(ticket)}
+              className="bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.03] hover:border-white/[0.06] rounded-2xl p-4 cursor-pointer transition-all flex items-center justify-between group"
+            >
+              <div className="flex-1 min-w-0 pr-4">
+                <h3 className="text-sm font-bold text-slate-200 truncate mb-1">
+                  {ticket.subject}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <Badge className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0 border-0 ${
+                    ticket.status === "Open" ? "bg-orange-600/15 text-orange-500" :
+                    ticket.status === "In Progress" ? "bg-yellow-500/15 text-yellow-400" :
+                    ticket.status === "Resolved" ? "bg-emerald-500/15 text-emerald-400" :
+                    "bg-slate-800 text-slate-400"
+                  }`}>
+                    {ticket.status}
+                  </Badge>
+                  <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                    <MessageCircle className="w-3 h-3" />
+                    Chat
+                  </span>
+                  <span className="text-[10px] text-slate-600">
+                    {format(new Date(ticket.created_date || Date.now()), "MMM d, yyyy")}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {ticket.status === "Resolved" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button className="w-8 h-8 rounded-full bg-white/[0.02] hover:bg-white/[0.05] text-slate-400 flex items-center justify-center transition-colors border border-white/5">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-slate-900 border-white/10" onClick={(e) => e.stopPropagation()}>
+                      {ticket.feedback_rating ? (
+                        <DropdownMenuItem disabled className="cursor-not-allowed text-slate-500 bg-white/5">
+                          <Star className="w-4 h-4 mr-2 text-slate-500 fill-slate-500" />
+                          Feedback Submitted
+                        </DropdownMenuItem>
                       ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
+                        <DropdownMenuItem 
+                          className="cursor-pointer text-slate-200 hover:text-white hover:bg-white/5"
+                          onClick={(e) => handleOpenFeedback(e, ticket)}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2 text-slate-400" />
+                          Provide Feedback
+                        </DropdownMenuItem>
                       )}
-                      Refresh
-                    </Button>
-                  </div>
-                  <div id="chat-messages" className="h-[300px] lg:h-[400px] overflow-y-auto p-3 lg:p-6 space-y-4">
-                    {selectedTicket.messages?.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`flex gap-3 ${
-                          msg.sender_id === user.id ? 'flex-row-reverse' : 'flex-row'
-                        }`}
+                      
+                      <DropdownMenuItem 
+                        className="cursor-pointer text-red-400 focus:text-red-300 focus:bg-red-500/10"
+                        onClick={(e) => handleDeleteTicket(e, ticket.id)}
                       >
-                        <Avatar className="w-8 h-8 ring-2 ring-orange-500/30">
-                          <AvatarFallback className="bg-orange-500/20 text-orange-400">
-                            {msg.sender_name?.[0] || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className={`flex-1 max-w-[70%] ${
-                          msg.sender_id === user.id ? 'text-right' : 'text-left'
-                        }`}>
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="text-xs font-semibold text-gray-400">
-                              {msg.sender_name}
-                            </span>
-                            {msg.sender_role === 'admin' && (
-                              <Badge className="bg-red-500/20 text-red-400 text-xs">Admin</Badge>
-                            )}
-                            <span className="text-xs text-gray-500">
-                              {format(new Date(msg.timestamp), "MMM d, h:mm a")}
-                            </span>
-                            <span className="text-[10px] text-green-400">✓✓</span>
-                          </div>
-                          <div className={`p-3 rounded-lg ${
-                            msg.is_system_message
-                              ? 'bg-blue-500/20 text-blue-100 border-l-4 border-blue-500'
-                              : msg.sender_id === user.id
-                              ? 'bg-orange-500/20 text-gray-100'
-                              : 'bg-gray-800 text-gray-100'
-                          }`}>
-                            <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                            {msg.attachments && msg.attachments.length > 0 && (
-                              <div className="mt-2 space-y-2">
-                                {msg.attachments.map((url, i) => {
-                                  const isImage = url.match(/\.(jpg|jpeg|png|gif)$/i);
-                                  const isVideo = url.match(/\.(mp4|webm|mov)$/i);
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Ticket
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-                                  if (isImage || isVideo) {
-                                    return (
-                                      <div
-                                        key={i}
-                                        className="cursor-pointer block"
-                                        onClick={() => handleViewMedia(url)}
-                                      >
-                                        {isImage ? (
-                                          <img
-                                            src={url}
-                                            alt="Attachment"
-                                            className="max-w-full rounded border border-gray-700 hover:border-orange-500 transition-colors"
-                                          />
-                                        ) : ( // isVideo
-                                          <video
-                                            src={url}
-                                            controls
-                                            className="max-w-full rounded border border-gray-700"
-                                          />
-                                        )}
-                                      </div>
-                                    );
-                                  } else {
-                                    // For other file types, open externally
-                                    return (
-                                      <a
-                                        key={i}
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block"
-                                      >
-                                        <div className="flex items-center gap-2 p-2 bg-gray-900/50 rounded text-xs hover:bg-gray-900 transition-colors">
-                                          <Paperclip className="w-4 h-4" />
-                                          <span>Attachment {i + 1}</span>
-                                        </div>
-                                      </a>
-                                    );
-                                  }
-                                })}
-                              </div>
-                            )}
+                <div className="w-8 h-8 rounded-full bg-white/[0.02] group-hover:bg-white/[0.05] flex items-center justify-center transition-colors border border-white/5">
+                   <ArrowLeft className="w-4 h-4 text-slate-400 rotate-180" />
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ═══ Create Ticket Modal ═══ */}
+      {showNewTicket && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => !submitting && setShowNewTicket(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="w-full max-w-sm bg-slate-950 rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
+          >
+            <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <h2 className="text-base font-bold text-white">Create Ticket</h2>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setShowNewTicket(false)}
+                className="rounded-full hover:bg-white/10 text-slate-400 w-8 h-8"
+                disabled={submitting}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
+              {/* FAQ Banner */}
+              <div className="bg-orange-600/10 border border-orange-600/20 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-orange-500 mb-0.5">Common Questions</h3>
+                  <p className="text-[10px] text-sky-200/70">Check FAQs before creating a ticket</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate('/faqs')}
+                  className="h-7 text-[10px] px-3 border-orange-600/30 text-orange-500 hover:bg-orange-600/10 rounded-lg bg-transparent"
+                >
+                  Read FAQs
+                </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-400">What do you need help with?</Label>
+                <Select value={category} onValueChange={setCategory} disabled={submitting}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-slate-200 text-sm h-12 rounded-xl focus:border-orange-600/40 focus:ring-0">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000] bg-slate-900 border-white/10">
+                    <SelectItem value="Payment / Diamond Issue" className="text-slate-200">Payment / Diamond Issue</SelectItem>
+                    <SelectItem value="Tournament Dispute" className="text-slate-200">Tournament Dispute</SelectItem>
+                    <SelectItem value="Profile Update" className="text-slate-200">Profile Update</SelectItem>
+                    <SelectItem value="Other" className="text-slate-200">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {category === "Other" && (
+                  <Input
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    placeholder="Enter custom subject..."
+                    className="mt-3 bg-white/5 border-white/10 text-slate-200 text-sm placeholder:text-slate-600 rounded-xl h-12 focus:border-orange-600/40"
+                    disabled={submitting}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-400">Detailed Message</Label>
+                <Textarea
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Explain the problem in detail..."
+                  className="bg-white/5 border-white/10 text-slate-200 text-sm placeholder:text-slate-600 rounded-xl min-h-[100px] resize-none focus:border-orange-600/40"
+                  disabled={submitting}
+                />
+              </div>
+
+              {/* Attachments Section */}
+              <div className="space-y-2">
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-black/20 rounded-xl border border-white/5">
+                    {attachments.map((url, index) => (
+                      <div key={index} className="relative group">
+                        {url.match(/\.(mp4|webm|mov)$/i) ? (
+                          <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center border border-white/10">
+                            <Video className="w-5 h-5 text-slate-400" />
                           </div>
-                        </div>
+                        ) : (
+                          <img src={url} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-white/10" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       </div>
                     ))}
                   </div>
-
-                  {selectedTicket.status !== "Closed" && selectedTicket.status !== "Resolved" && (
-                    <div className="border-t border-gray-700 p-4">
-                      {attachments.length > 0 && (
-                        <div className="mb-3 flex flex-wrap gap-2">
-                          {attachments.map((url, index) => (
-                            <div key={index} className="relative group">
-                              {url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                                <img
-                                  src={url}
-                                  alt="Preview"
-                                  className="w-16 h-16 object-cover rounded border-2 border-orange-500/50"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 bg-gray-800 rounded border-2 border-orange-500/50 flex items-center justify-center">
-                                  <Paperclip className="w-6 h-6 text-orange-400" />
-                                </div>
-                              )}
-                              <button
-                                onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
-                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100"
-                              >
-                                <X className="w-3 h-3 text-white" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        <Input
-                          value={replyMessage}
-                          onChange={(e) => setReplyMessage(e.target.value)}
-                          placeholder="Type your message..."
-                          className="bg-gray-800 border-gray-700 text-gray-100"
-                          onKeyPress={(e) => e.key === 'Enter' && !submitting && sendReply()}
-                          disabled={submitting || uploadingFiles}
-                        />
-                        {(user?.role === 'admin' || selectedTicket.allow_user_attachments) && (
-                          <label className="cursor-pointer">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="outline"
-                              className="border-gray-700"
-                              disabled={uploadingFiles || submitting}
-                              asChild
-                            >
-                              <div>
-                                <Paperclip className="w-4 h-4" />
-                              </div>
-                            </Button>
-                            <input
-                              type="file"
-                              accept="image/*,video/*,.pdf"
-                              multiple
-                              onChange={handleFileUpload}
-                              className="hidden"
-                              disabled={uploadingFiles || submitting}
-                            />
-                          </label>
-                        )}
-                        <Button
-                          onClick={sendReply}
-                          disabled={(!replyMessage.trim() && attachments.length === 0) || uploadingFiles || submitting}
-                          className="bg-orange-500 hover:bg-orange-600"
-                        >
-                          {submitting ? "Sending..." : <Send className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </>
-            ) : (
-              <CardContent className="p-12 text-center">
-                <MessageCircle className="w-16 h-16 mx-auto text-gray-700 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">No ticket selected</h3>
-                <p className="text-gray-500">Select a ticket to view the conversation</p>
-              </CardContent>
-            )}
-          </Card>
-        </div>
-
-        {showNewTicket && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => !submitting && setShowNewTicket(false)}>
-            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl my-8">
-                <Card className="bg-gray-900 border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="text-gray-100">Create New Support Ticket</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-gray-300">Subject</Label>
-                      <Input
-                        value={newSubject}
-                        onChange={(e) => setNewSubject(e.target.value)}
-                        placeholder="Brief description of your issue"
-                        className="bg-gray-800 border-gray-700 text-gray-100"
-                        disabled={submitting}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-gray-300">Message</Label>
-                      <Textarea
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Describe your issue in detail..."
-                        className="bg-gray-800 border-gray-700 text-gray-100 min-h-[120px]"
-                        disabled={submitting}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      {attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {attachments.map((url, index) => (
-                            <div key={index} className="relative group">
-                              {url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                                <img src={url} alt="Preview" className="w-16 h-16 object-cover rounded border-2 border-orange-500/50" />
-                              ) : (
-                                <div className="w-16 h-16 bg-gray-800 rounded border-2 border-orange-500/50 flex items-center justify-center">
-                                  <Paperclip className="w-6 h-6 text-orange-400" />
-                                </div>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
-                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100"
-                              >
-                                <X className="w-3 h-3 text-white" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 hover:border-gray-600 rounded-lg text-sm text-gray-300 hover:text-white transition-colors">
-                        <Paperclip className="w-4 h-4" />
-                        {uploadingFiles ? "Uploading..." : "Attach Photos/Files"}
-                        <input
-                          type="file"
-                          accept="image/*,video/*,.pdf"
-                          multiple
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          disabled={uploadingFiles || submitting}
-                        />
-                      </label>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (!submitting) {
-                            setShowNewTicket(false);
-                            setNewSubject("");
-                            setNewMessage("");
-                            setAttachments([]);
-                          }
-                        }}
-                        className="border-gray-700"
-                        disabled={submitting}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={createNewTicket}
-                        disabled={!newSubject.trim() || !newMessage.trim() || submitting}
-                        className="bg-orange-500 hover:bg-orange-600"
-                      >
-                        {submitting ? "Creating..." : "Create Ticket"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                )}
+                
+                <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors">
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {uploadingFiles ? "Uploading..." : "Attach Proof (Images/Videos)"}
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={uploadingFiles || submitting}
+                  />
+                </label>
               </div>
-            </div>
-          )}
 
-        {showMediaViewer && (
-          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4" onClick={() => setShowMediaViewer(false)}>
-            <div onClick={(e) => e.stopPropagation()} className="relative w-full h-full max-w-5xl max-h-[90vh] flex items-center justify-center">
-              <Button onClick={() => setShowMediaViewer(false)} className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full" size="icon">
-                <X className="w-5 h-5" />
+            </div>
+
+            <div className="p-5 border-t border-white/5 bg-white/[0.01]">
+              <Button
+                onClick={createNewTicket}
+                disabled={!category || (category === "Other" && !newSubject.trim()) || !newMessage.trim() || submitting || uploadingFiles}
+                className="w-full bg-white text-slate-950 hover:bg-slate-200 font-bold h-12 rounded-xl transition-all"
+              >
+                {submitting ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Create Ticket"
+                )}
               </Button>
-              {mediaToView.type === "image" && (
-                <img src={mediaToView.url} alt="Full size media" className="max-w-full max-h-full object-contain" />
-              )}
-              {mediaToView.type === "video" && (
-                <video src={mediaToView.url} controls autoPlay className="max-w-full max-h-full object-contain" />
-              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ═══ Feedback Modal ═══ */}
+      {showFeedbackModal && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => !submitting && setShowFeedbackModal(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="w-full max-w-sm bg-slate-950 rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden"
+          >
+            <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <h2 className="text-base font-bold text-white">Provide Feedback</h2>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setShowFeedbackModal(false)}
+                className="rounded-full hover:bg-white/10 text-slate-400 w-8 h-8"
+                disabled={submitting}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              <div className="flex flex-col items-center space-y-3">
+                <Label className="text-sm font-semibold text-slate-300">How would you rate our support?</Label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setFeedbackRating(star)}
+                      className="transition-transform hover:scale-110 active:scale-95"
+                    >
+                      <Star 
+                        className={`w-8 h-8 ${star <= feedbackRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-600'}`} 
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-400">Additional Comments (Optional)</Label>
+                <Textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Tell us what you liked or how we can improve..."
+                  className="bg-white/5 border-white/10 text-slate-200 text-sm placeholder:text-slate-600 rounded-xl min-h-[80px] resize-none focus:border-emerald-500/40"
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-white/5 bg-white/[0.01]">
+              <Button
+                onClick={handleSubmitFeedback}
+                disabled={submitting}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-12 rounded-xl transition-all"
+              >
+                {submitting ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Submit Feedback"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -53,7 +53,7 @@ export default function LanguageSelector() {
               onClick={() => changeLanguage(lang.code)}
               className={`p-3 ${
                 currentLang === lang.code
-                  ? "bg-orange-500/20 text-orange-400 font-bold"
+                  ? "bg-orange-600/20 text-orange-500 font-bold"
                   : "text-gray-300 hover:bg-gray-800"
               }`}
             >
@@ -61,7 +61,7 @@ export default function LanguageSelector() {
               <div className="flex-1">
                 <p className="font-medium">{lang.name}</p>
                 {currentLang === lang.code && (
-                  <p className="text-xs text-orange-400">✓ Currently Active</p>
+                  <p className="text-xs text-orange-500">✓ Currently Active</p>
                 )}
               </div>
             </DropdownMenuItem>

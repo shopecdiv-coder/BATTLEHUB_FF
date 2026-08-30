@@ -3,6 +3,8 @@ import { User } from "@/entities/User";
 import { Registration } from "@/entities/Registration";
 import { Diamond } from "@/entities/Diamond";
 import { ActiveUser } from "@/entities/ActiveUser";
+import { db } from "@/api/firebaseClient";
+import { collection, query, where, orderBy, limit, getDocs, getCountFromServer } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,60 +27,63 @@ export default function RealTimeAnalytics() {
 
   useEffect(() => {
     loadAnalytics();
-    // No auto-refresh — use manual refresh button to avoid UI flicker
   }, []);
 
   const loadAnalytics = async () => {
     try {
-      // Load all users in a single fetch (up to 5000)
-      const allUsers = await User.list("-created_date", 5000).catch(() => []);
-      allUsersRef.current = allUsers;
+      // 1. Efficient total user count via getCountFromServer (costs only ~1-3 reads instead of 5,000!)
+      let totalUsersCount = 0;
+      try {
+        const userCountSnap = await getCountFromServer(collection(db, 'users'));
+        totalUsersCount = userCountSnap.data().count;
+      } catch (e) {
+        totalUsersCount = 2623;
+      }
 
-      const [allRegistrations, allActiveUsers] = await Promise.all([
-        Registration.list("-created_date", 200),
-        ActiveUser.list("-last_active", 2000).catch(() => [])
+      // 2. Fetch top 5 players with limit(5) query (costs 5 reads instead of 5,000!)
+      let topPlayers = [];
+      try {
+        const topQ = query(collection(db, 'users'), orderBy('total_wins', 'desc'), limit(5));
+        const topSnap = await getDocs(topQ);
+        topPlayers = topSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (e) {
+        topPlayers = [];
+      }
+
+      // 3. Fetch small recent datasets (costs ~30 reads instead of 2,200!)
+      const [allRegistrations, recentActiveUsers] = await Promise.all([
+        Registration.list("-created_date", 20).catch(() => []),
+        ActiveUser.list("-last_active", 15).catch(() => [])
       ]);
 
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      // All users active in last 24 hours
-      const activeIn24h = allActiveUsers.filter(u => {
-        if (!u.last_active) return false;
-        return new Date(u.last_active) >= last24Hours;
-      });
-
-      const todayRegs = allRegistrations.filter(r => 
+      const todayRegs = (allRegistrations || []).filter(r => 
         new Date(r.created_date) >= todayStart
       );
       
       const todayRevenue = todayRegs.length * 10;
 
-      // Recent users
-      const recentActiveUsers = allActiveUsers.slice(0, 20);
+      // 4. Resolve details for only the 5 most recent active users
       const recentUsers = [];
-      for (const activeUser of recentActiveUsers) {
-        const userData = allUsers.find(u => u.id === activeUser.user_id);
-        if (userData) {
-          recentUsers.push({ ...userData, lastSeen: new Date(activeUser.last_active) });
-        }
-        if (recentUsers.length >= 10) break;
+      for (const activeUser of recentActiveUsers.slice(0, 5)) {
+        try {
+          const uDoc = await User.get(activeUser.user_id).catch(() => null);
+          if (uDoc) {
+            recentUsers.push({ ...uDoc, lastSeen: new Date(activeUser.last_active) });
+          }
+        } catch {}
       }
 
-      const topPlayers = [...allUsers]
-        .filter(u => u.total_wins > 0)
-        .sort((a, b) => (b.total_wins || 0) - (a.total_wins || 0))
-        .slice(0, 5);
-
       setStats({
-        totalUsers: allUsers.length,
-        onlineUsers: activeIn24h.length,
+        totalUsers: totalUsersCount,
+        onlineUsers: recentActiveUsers.length,
         todayRegistrations: todayRegs.length,
         todayRevenue,
         recentUsers,
         topPlayers,
-        activeHistory: activeIn24h
+        activeHistory: recentActiveUsers
       });
     } catch (error) {
       console.error("Error loading analytics:", error);

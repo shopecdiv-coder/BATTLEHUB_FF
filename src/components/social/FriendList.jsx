@@ -74,10 +74,25 @@ export default function FriendList({ user }) {
     } catch (e) { toast.error("Error rejecting request"); }
   };
 
-  const handleRemove = async (relId) => {
-    if (!window.confirm("Remove this friend?")) return;
+  const handleRemove = async (relId, friendId) => {
+    if (!window.confirm("Remove this friend? All chat history will be deleted.")) return;
     try {
       await Friendship.delete(relId);
+      
+      if (friendId && user) {
+        const chatId = `direct_${[user.id, friendId].sort().join('_')}`;
+        const { deleteDoc, doc, collection, getDocs, query, where, writeBatch } = await import('firebase/firestore');
+        const { db } = await import('@/api/firebaseClient');
+        await deleteDoc(doc(db, "direct_chats", chatId)).catch(() => {});
+        const q = query(collection(db, "group_chat_messages"), where("group_id", "==", chatId));
+        const snap = await getDocs(q).catch(() => ({ empty: true }));
+        if (snap && !snap.empty) {
+           const batch = writeBatch(db);
+           snap.docs.forEach(d => batch.delete(d.ref));
+           await batch.commit().catch(() => {});
+        }
+      }
+
       toast.success("Friend removed");
       loadFriends();
     } catch (e) { toast.error("Error removing friend"); }
@@ -149,7 +164,7 @@ export default function FriendList({ user }) {
                       <p className="text-xs text-gray-400">{friend.otherUser.activity_status || 'Offline'}</p>
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => handleRemove(friend.id)} className="text-gray-500 hover:text-red-400 hover:bg-red-900/20">
+                  <Button size="icon" variant="ghost" onClick={() => handleRemove(friend.id, friend.otherUser?.id)} className="text-gray-500 hover:text-red-400 hover:bg-red-900/20">
                     <UserMinus className="w-4 h-4" />
                   </Button>
                 </div>

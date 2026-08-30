@@ -1,0 +1,109 @@
+Created At: 2026-08-21T13:44:55+05:30
+Completed At: 2026-08-21T13:44:56+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2640
+Total Bytes: 138052
+Showing lines 2250 to 2350
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2250:                           {entry.placement_points !== undefined ? entry.placement_points : Math.max(0, (entry.points || 0) - (entry.kills || 0))}
+2251:                         </span>
+2252:                       </td>
+2253: 
+2254:                       <td className="py-2.5 px-1 text-center">
+2255:                         <span className="font-black text-cyan-400 text-[11px]">
+2256:                           {entry.points || 0}
+2257:                         </span>
+2258:                       </td>
+2259: 
+2260:                       <td className="py-2.5 text-center text-slate-500 text-[9px]">
+2261:                         {isExpanded ? '▲' : '▼'}
+2262:                       </td>
+2263:                     </tr>
+2264: 
+2265:                     {/* Expanded Team Breakdown Drawer */}
+2266:                     {isExpanded && (
+2267:                       <tr className="border-b border-slate-800/80">
+2268:                         <td colSpan={6} className="px-3 py-2.5 bg-slate-950/95">
+2269:                           <div className="space-y-2">
+2270: 
+2271:                             {/* Squad Roster — Clean Compact 4-Col Grid */}
+2272:                             {members.length > 0 && (
+2273:                               <div className="bg-slate-900/60 border border-slate-800/70 rounded-lg p-2">
+2274:                                 <div className="flex items-center justify-between mb-1.5 px-0.5">
+2275:                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+2276:                                     <Users className="w-3.5 h-3.5 text-amber-400" /> Squad Roster
+2277:                                   </span>
+2278:                                   {user && isRegistered && entry.user_id !== user.id && (
+2279:                                     <button
+2280:                                       onClick={(e) => { e.stopPropagation(); setShowReportModal(entry); }}
+2281:                                       className="text-red-400 hover:text-red-300 flex items-center gap-1 text-[10px] font-semibold"
+2282:                                     >
+2283:                                       <AlertTriangle className="w-3 h-3" /> Report
+2284:                                     </button>
+2285:                                   )}
+2286:                                 </div>
+2287:                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+2288:                                   {members.map((m, idx) => {
+2289:                                     const avatarSrc = m.avatar_url || m.avatar || m.dp || m.photoURL;
+2290:                                     return (
+2291:                                       <div key={idx} className="flex items-center justify-between px-2 py-1.5 bg-slate-950/70 border border-slate-800/50 rounded-lg">
+2292:                                         <div className="flex items-center gap-1.5 min-w-0">
+2293:                                           {avatarSrc ? (
+2294:                                             <img
+2295:                                               src={avatarSrc}
+2296:                                               alt={m.ign}
+2297:                                               className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+2298:                                               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+2299:                                             />
+2300:                                           ) : null}
+2301:                                           <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${avatarSrc ? 'hidden' : 'flex'}`}>
+2302:                                             {m.ign?.charAt(0).toUpperCase() || (idx + 1)}
+2303:                                           </div>
+2304:                                           <div className="min-w-0">
+2305:                                             <div className="flex items-center gap-1">
+2306:                                               <span className="font-bold text-slate-200 text-[11px] truncate max-w-[65px]">{m.ign}</span>
+2307:                                               {m.isLeader && <span className="text-[7.5px] font-black text-amber-400 bg-amber-500/20 px-1 py-0.2 rounded shrink-0">IGL</span>}
+2308:                                             </div>
+2309:                                           </div>
+2310:                                         </div>
+2311:                                         <div className="flex items-center gap-1 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold text-red-400 shrink-0 ml-1">
+2312:                                           <span className="text-[9px]">💀</span>
+2313:                                           <span>{m.kills || 0} Kills</span>
+2314:                                         </div>
+2315:                                       </div>
+2316:                                     );
+2317:                                   })}
+2318:                                 </div>
+2319:                               </div>
+2320:                             )}
+2321: 
+2322:                             {/* Match Breakdown — Clean Grid */}
+2323:                             {matchResults.length > 0 && (() => {
+2324:                               const sortedMatches = [...matchResults]
+2325:                                 .filter(mr => mr)
+2326:                                 .sort((a, b) => {
+2327:                                   const numA = parseInt(String(a.match_number || '').replace(/\D/g, '')) || 0;
+2328:                                   const numB = parseInt(String(b.match_number || '').replace(/\D/g, '')) || 0;
+2329:                                   return numA - numB;
+2330:                                 });
+2331:                               const totalMatchKills = sortedMatches.reduce((sum, mr) => sum + (mr.kills || 0), 0);
+2332:                               const totalMatchPts = sortedMatches.reduce((sum, mr) => sum + (mr.points || 0), 0);
+2333:                               const totalBooyahs = sortedMatches.filter(mr => mr.placement === 1).length;
+2334: 
+2335:                               return (
+2336:                                 <div className="bg-slate-900/60 border border-slate-800/70 rounded-lg p-2">
+2337:                                   {/* Section header with totals */}
+2338:                                   <div className="flex items-center justify-between mb-1.5 px-0.5">
+2339:                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+2340:                                       <Trophy className="w-3.5 h-3.5 text-cyan-400" /> Match Breakdown
+2341:                                       <span className="text-slate-600 font-normal normal-case">({sortedMatches.length} matches)</span>
+2342:                                     </span>
+2343:                                     <div className="flex items-center gap-2 text-[10px]">
+2344:                                       {totalBooyahs > 0 && <span className="text-amber-400 font-bold">🏆 {totalBooyahs}x</span>}
+2345:                                       <span className="text-slate-400">Total: <span className="text-red-400 font-bold">{totalMatchKills} Kills</span></span>
+2346:                                       <span className="text-slate-600">·</span>
+2347:                                       <span className="text-cyan-400 font-bold">{totalMatchPts} Pts</span>
+2348:                                     </div>
+2349:                                   </div>
+2350: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

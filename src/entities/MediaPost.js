@@ -22,12 +22,17 @@ class MediaPostEntity extends FirestoreEntity {
   // is_featured: boolean
   // status: string ('published', 'draft', etc)
 
-  async incrementView(postId) {
+  async incrementView(postId, userId) {
     // Only increment view if we haven't viewed it in this session
     // We can handle local session cache in the frontend component to avoid over-fetching
+    if (!userId) return;
     const post = await this.get(postId);
     if (!post) return;
-    await this.update(postId, { views: (post.views || 0) + 1 });
+    const viewers = post.viewers || [];
+    if (!viewers.includes(userId)) {
+      viewers.push(userId);
+      await this.update(postId, { viewers, views: viewers.length });
+    }
   }
 
   async toggleLike(postId, userId) {
@@ -43,6 +48,20 @@ class MediaPostEntity extends FirestoreEntity {
     await this.update(postId, { likes });
     return likes.includes(userId); // Return current state
   }
+  async toggleDislike(postId, userId) {
+    const post = await this.get(postId);
+    if (!post) return;
+    const dislikes = post.dislikes || [];
+    const index = dislikes.indexOf(userId);
+    if (index === -1) {
+      dislikes.push(userId);
+    } else {
+      dislikes.splice(index, 1);
+    }
+    await this.update(postId, { dislikes });
+    return dislikes.includes(userId); // Return current state
+  }
+
 
   async toggleSave(postId, userId) {
     const post = await this.get(postId);

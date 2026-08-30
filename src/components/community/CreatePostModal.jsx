@@ -1,5 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { CommunityPost } from '@/entities/CommunityPost';
+import { Notification } from '@/entities/Notification';
+import { Follower } from '@/api/entities';
+import { uploadFileToAWS } from '@/utils/awsStorage';
 import { X, Image as ImageIcon, BarChart2, CheckSquare, Plus, Loader2, UploadCloud, Trash2 } from 'lucide-react';
 import { containsProfanity } from '@/utils/profanityFilter';
 import { base44 } from "@/api/base44Client";
@@ -16,7 +19,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
   const [postType, setPostType] = useState('text'); // default text, changes when clicking options
   
   // States for different types
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState([]);
   const [options, setOptions] = useState([{ text: '', image_url: '' }, { text: '', image_url: '' }]);
   const [correctAnswer, setCorrectAnswer] = useState(0); // for quiz
 
@@ -29,7 +32,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
   const resetState = () => {
     setText('');
     setPostType('text');
-    setImageUrl('');
+    setImageUrls([]);
     setOptions([{ text: '', image_url: '' }, { text: '', image_url: '' }]);
     setCorrectAnswer(0);
   };
@@ -42,20 +45,31 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
   const handleFileUpload = async (file) => {
     if (!file) return null;
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      return file_url;
+      return await uploadFileToAWS(file);
     } catch (error) {
-      alert("Error uploading file.");
+      alert("Error uploading file to AWS.");
       return null;
     }
   };
 
   const handleMainImageUpload = async (e) => {
+    setPostType('image');
     setUploadingImage(true);
-    const url = await handleFileUpload(e.target.files[0]);
-    if (url) {
-      setImageUrl(url);
-      setPostType('image');
+    const files = Array.from(e.target.files);
+    if (imageUrls.length + files.length > 5) {
+      alert("You can upload a maximum of 5 images.");
+      setUploadingImage(false);
+      return;
+    }
+    
+    const uploadedUrls = [];
+    for (let file of files) {
+      const url = await handleFileUpload(file);
+      if (url) uploadedUrls.push(url);
+    }
+    
+    if (uploadedUrls.length > 0) {
+      setImageUrls(prev => [...prev, ...uploadedUrls]);
     }
     setUploadingImage(false);
   };
@@ -134,7 +148,8 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
       };
 
       if (postType === 'image') {
-        postData.image_url = imageUrl;
+        postData.image_urls = imageUrls;
+        postData.image_url = imageUrls[0] || ''; // for backwards compatibility
       } else if (postType === 'text_poll' || postType === 'image_poll' || postType === 'quiz') {
         postData.options = options.map(o => ({ text: o.text.trim(), image_url: o.image_url }));
         postData.votes = {}; // map of userId -> optionIndex
@@ -143,7 +158,33 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
         }
       }
 
-      await CommunityPost.create(postData);
+      const newPost = await CommunityPost.create(postData);
+      
+      // Notify friends/followers
+      try {
+        const friends = user.friends || [];
+        const followersSnap = await Follower.filter({ following_id: user.id });
+        const followerIds = followersSnap.map(f => f.follower_id);
+        
+        const allToNotify = Array.from(new Set([...friends, ...followerIds]));
+
+        if (allToNotify.length > 0) {
+          const notifyPromises = allToNotify.map(targetId => 
+            Notification.create({
+              recipient_id: targetId,
+              title: 'New Community Post',
+              message: `${user.ign || user.name || 'Someone you follow'} posted a new update.`,
+              type: 'social',
+              link: '/profile?tab=activity_feed',
+              is_read: false,
+              created_at: new Date().toISOString()
+            }).catch(e => console.error("Notification failed", e))
+          );
+          await Promise.all(notifyPromises);
+        }
+      } catch (notifyErr) {
+        console.error("Failed to notify followers", notifyErr);
+      }
       onPostCreated();
       handleClose();
     } catch (err) {
@@ -189,16 +230,47 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
           />
 
           {/* Type Specific Inputs */}
-          {postType === 'image' && imageUrl && (
-            <div className="relative w-full h-48 bg-black rounded-lg overflow-hidden mb-4 border border-gray-800">
-              <img src={imageUrl} alt="Preview" className="w-full h-full object-contain" />
-              <button 
-                type="button"
-                onClick={() => { setImageUrl(''); setPostType('text'); }}
-                className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/80"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          {(imageUrls.length > 0 || uploadingImage) && postType === 'image' && (
+            <div className="w-full mb-4 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {imageUrls.map((url, idx) => (
+                  <div key={idx} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-black rounded-lg overflow-hidden border border-gray-800 shrink-0">
+                    <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newUrls = imageUrls.filter((_, i) => i !== idx);
+                        setImageUrls(newUrls);
+                        if (newUrls.length === 0 && !uploadingImage) setPostType('text');
+                      }}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                
+                {uploadingImage && (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 border border-gray-700 bg-gray-800/50 rounded-lg flex flex-col items-center justify-center text-orange-500 shrink-0">
+                    <Loader2 className="w-5 h-5 mb-1 animate-spin" />
+                    <span className="text-[10px] font-medium">Uploading</span>
+                  </div>
+                )}
+
+                {(!postType || postType === 'text' || postType === 'image') && imageUrls.length < 5 && !uploadingImage && (
+                  <label className="w-20 h-20 sm:w-24 sm:h-24 border border-dashed border-gray-700 rounded-lg flex flex-col items-center justify-center hover:bg-gray-800/50 cursor-pointer transition-colors text-gray-500 hover:text-white shrink-0">
+                    <Plus className="w-5 h-5 mb-1" />
+                    <span className="text-[10px]">Add more</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      multiple 
+                      className="hidden" 
+                      onChange={handleMainImageUpload} 
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           )}
 
@@ -221,7 +293,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
                       value={opt.text}
                       onChange={(e) => updateOptionText(idx, e.target.value)}
                       placeholder={`Option ${idx + 1}`}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-500"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder:text-gray-500 focus:outline-none focus:border-orange-600"
                     />
                   </div>
                   {options.length > 2 && (
@@ -232,7 +304,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
                 </div>
               ))}
               {options.length < 4 && (
-                <button type="button" onClick={addOption} className="text-orange-500 text-sm font-medium hover:underline p-2">
+                <button type="button" onClick={addOption} className="text-orange-600 text-sm font-medium hover:underline p-2">
                   + Add Option
                 </button>
               )}
@@ -264,7 +336,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
                     value={opt.text}
                     onChange={(e) => updateOptionText(idx, e.target.value)}
                     placeholder={`Option ${idx + 1}`}
-                    className="w-full bg-transparent border-b border-gray-700 px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-500"
+                    className="w-full bg-transparent border-b border-gray-700 px-1 py-1 text-sm text-white focus:outline-none focus:border-orange-600"
                   />
                 </div>
               ))}
@@ -281,7 +353,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
         <div className="px-5 py-4 border-t border-gray-800 shrink-0">
           {/* Post Type Selectors */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleMainImageUpload} />
+            <input type="file" accept="image/*" multiple className="hidden" ref={fileInputRef} onChange={handleMainImageUpload} />
             
             {POST_TYPES.map((type) => {
               const Icon = type.icon;
@@ -300,7 +372,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
                     isActive 
-                      ? 'bg-orange-500/20 text-orange-500 border-orange-500/30' 
+                      ? 'bg-orange-600/20 text-orange-600 border-orange-600/30' 
                       : 'bg-gray-800/50 text-gray-400 border-gray-700 hover:bg-gray-800'
                   }`}
                 >
@@ -315,7 +387,7 @@ export default function CreatePostModal({ isOpen, onClose, user, onPostCreated }
             <button
               onClick={handleSubmit}
               disabled={loading || uploadingImage || (!text.trim() && postType === 'text')}
-              className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-full font-bold shadow-lg shadow-orange-900/20 transition-all flex items-center justify-center min-w-[100px]"
+              className="bg-orange-700 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-full font-bold shadow-lg shadow-orange-900/20 transition-all flex items-center justify-center min-w-[100px]"
             >
               {loading || uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : "Post"}
             </button>

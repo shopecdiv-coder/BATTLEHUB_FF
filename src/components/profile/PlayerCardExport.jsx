@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from '@/components/ui/drawer';
 import { Share2, Download, Star, Shield, Target, Skull, Swords, Zap, CheckCircle2, Copy, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { QRCodeSVG } from 'qrcode.react';
+import { calculateLevelFromXP } from '@/api/entities';
 
-export default function PlayerCardExport({ player = {}, stats = {}, inline = false }) {
+export default function PlayerCardExport({ player = {}, stats = {}, inline = false, isMe = false, isFriend = false, scrollContainerRef = undefined }) {
   const cardRef = useRef(null);
   const containerRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
@@ -17,10 +19,11 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
   // Smooth scroll-to-scale animation linked exactly to page scroll
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start 95%", "center center"]
+    ...(scrollContainerRef ? { container: scrollContainerRef } : {}),
+    offset: ["start 95%", "start 70%"]
   });
   
-  const scrollScale = useTransform(scrollYProgress, [0, 1], [0.65, 1]);
+  const scrollScale = useTransform(scrollYProgress, [0, 1], [0.85, 1]);
 
   useEffect(() => {
     if (!inline || !containerRef.current) return;
@@ -34,7 +37,7 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
       for (let entry of entries) {
         // Calculate scale to fit 800px card into container width
         const width = entry.contentRect.width;
-        setScale(Math.min(width / 800, 1));
+        setScale(width / 800);
         
         // Ensure height is always accurate
         if (cardRef.current) {
@@ -100,7 +103,7 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: 'My Profile Card',
-            text: 'this is my battlehub ff card see my profile',
+            text: `Check out my BATTLEHUB FF Player Card!`,
             files: [file],
           });
         } else {
@@ -124,7 +127,7 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
       
       {/* Main Card Background */}
       <div 
-        className="w-full h-full relative z-10 p-8 flex flex-col gap-6 bg-[#0a0a0c] bg-cover bg-center rounded-[29px]"
+        className="w-full h-full relative z-10 p-8 flex flex-col gap-6 bg-slate-950 bg-cover bg-center rounded-[29px]"
         style={{ 
           backgroundImage: `linear-gradient(to bottom right, rgba(10,10,12,0.95), rgba(0,0,0,0.98), rgba(251,146,60,0.08)), url('YOUR_IMAGE_URL_HERE')` 
         }}
@@ -139,19 +142,28 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
             <div className="relative">
               <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-b from-white to-[#fb923c]">
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#0a0a0c] bg-black">
-                  {player.avatar_url ? (
-                    <img src={player.avatar_url} alt="Avatar" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#fb923c] to-orange-600 text-4xl font-black text-white">
-                      {(player.ign?.[0] || player.username?.[0] || 'U').toUpperCase()}
-                    </div>
-                  )}
+                    {(!isMe && !isFriend && player?.is_private) ? (
+                      <div className="w-full h-full bg-[#0a0a0c] flex items-center justify-center font-bold text-4xl text-white">
+                        {player?.ign ? player.ign[0].toUpperCase() : 'U'}
+                      </div>
+                    ) : player?.avatar_url ? (
+                      <img 
+                        src={player.avatar_url} 
+                        alt={player.ign || 'Avatar'} 
+                        className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#0a0a0c] flex items-center justify-center font-bold text-4xl text-white">
+                        {player?.ign ? player.ign[0].toUpperCase() : 'U'}
+                      </div>
+                    )}
                 </div>
               </div>
               {/* Level Badge (replaces Rank) */}
               <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 bg-[#fb923c] text-white text-[11px] font-black px-3 py-1 rounded-full shadow-[0_0_15px_rgba(251,146,60,0.6)] whitespace-nowrap border-2 border-[#0a0a0c] flex items-center gap-1 z-20">
                 <Star className="w-3 h-3 fill-white" />
-                LVL {player.level || '125'}
+                LVL {calculateLevelFromXP(player.xp || 0)}
               </div>
             </div>
 
@@ -159,7 +171,9 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
             <div className="flex flex-col justify-center pt-2">
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-4xl font-black text-white">{player.ign || player.username || 'GUEST_PLAYER'}</h2>
-                <CheckCircle2 className="w-6 h-6 text-[#fb923c] fill-[#fb923c]/20" />
+                {player?.role === 'admin' && (
+                  <CheckCircle2 className="w-6 h-6 text-[#fb923c] fill-[#fb923c]/20" />
+                )}
               </div>
               <div className="flex items-center gap-2 mb-4 mt-3">
                 <span className="text-white/80 font-mono text-sm">BATTLEHUB ID: {player.unique_id || player.id?.substring(0,8) || 'BH7X9K2M1'}</span>
@@ -173,11 +187,16 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
             </div>
           </div>
 
-          {/* Right: Logo */}
+          {/* Right: Logo and QR */}
           <div className="flex flex-col items-end">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-4">
               <span className="text-2xl font-black text-white italic">BATTLEHUB <span className="text-[#fb923c]">FF</span></span>
             </div>
+            {player?.unique_id && (
+              <div className="bg-white p-2 rounded-xl shadow-[0_0_20px_rgba(251,146,60,0.2)] ring-2 ring-white/30">
+                <QRCodeSVG value={player.unique_id} size={84} level="M" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -188,7 +207,7 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
             <p className="text-white/80 text-[10px] font-bold mb-3">FOLLOWERS</p>
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-[#fb923c]" />
-              <span className="text-xl font-black text-white">{player.followers_count || '2.45K'}</span>
+              <span className="text-xl font-black text-white">{(!isMe && !isFriend && player?.is_private) ? '***' : (player.followers_count || '2.45K')}</span>
             </div>
           </div>
           {/* Reputation */}
@@ -230,14 +249,14 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
           {/* Background image for bottom section */}
           <div 
             className="absolute inset-0 opacity-10 bg-cover bg-center" 
-            style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop)' }} 
+            style={{ backgroundImage: `url(${player?.banner_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'})` }} 
           />
           
           <div className="relative z-10 max-w-md">
             <p className="text-white/80 text-[10px] font-bold mb-2">PLAYING STYLE</p>
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-6 h-6 text-[#fb923c] fill-[#fb923c]" />
-              <span className="text-2xl font-black text-white">RUSHER</span>
+              <span className="text-2xl font-black text-white uppercase">{player?.playing_style || 'RUSHER'}</span>
             </div>
             <p className="text-sm text-white/90 leading-relaxed font-medium">
               {player.bio || 'Aggressive player who loves to take fights and lead the way to victory.'}
@@ -250,14 +269,23 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
 
   if (inline) {
     return (
-      <div className="w-full mt-2 mb-4" ref={containerRef}>
-        <div className="flex flex-col items-center justify-center w-full relative">
+      <div className="w-full mt-10 mb-4 relative" ref={containerRef}>
+        <div className="flex flex-col items-center justify-center w-full relative z-10">
           <div className="flex justify-center w-full relative z-10">
-            <div 
-              className="origin-top"
-              style={{ transform: `scale(${scale})`, height: `${cardHeight * scale}px` }}
-            >
-              {cardElement}
+              <div 
+                className="origin-top"
+                style={{ transform: `scale(${scale})`, height: `${cardHeight * scale}px` }}
+              >
+                <motion.div style={{ scale: isMe ? scrollScale : 1 }} className="relative origin-top">
+                  {/* Centered background text that scales together with the card */}
+                <div className="absolute -top-[110px] left-0 right-0 flex justify-center pointer-events-none z-[-1]">
+                  <span className="text-[100px] font-black text-white/10 whitespace-nowrap tracking-widest uppercase">
+                    BH CARD
+                  </span>
+                </div>
+                
+                {cardElement}
+              </motion.div>
             </div>
           </div>
         </div>
@@ -272,11 +300,11 @@ export default function PlayerCardExport({ player = {}, stats = {}, inline = fal
           <Share2 className="w-4 h-4 mr-2" /> Share Card
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="bg-[#0a0a0c] border-gray-800 text-white outline-none">
+      <DrawerContent className="bg-slate-950 border-gray-800 text-white outline-none">
         <DrawerHeader className="text-center pt-6 pb-2">
           <DrawerTitle className="text-2xl font-black italic tracking-wider text-white/40 uppercase">MY CARD</DrawerTitle>
           <DrawerDescription className="text-white/80 text-sm mt-2 font-medium">
-            this is my battlehub ff card see my profile
+            Check out my BATTLEHUB FF Player Card!
           </DrawerDescription>
         </DrawerHeader>
         

@@ -1,0 +1,89 @@
+Created At: 2026-08-21T22:52:10+05:30
+Completed At: 2026-08-21T22:52:11+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2660
+Total Bytes: 139597
+Showing lines 500 to 580
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+500:         status: "Qualified",
+501:         payment_status: "Paid"
+502:       });
+503: 
+504:       await Tournament.update(targetTournament.id, { current_teams: (targetTournament.current_teams || 0) + 1 }).catch(() => null);
+505:       alert(`✅ "${playerName}" successfully "${targetTournament.title}" mein move ho gaya!`);
+506:       await loadData();
+507:     } catch (error) {
+508:       console.error("Move error:", error);
+509:       alert(`❌ Move fail hua: ${error.message || "Unknown error"}`);
+510:     }
+511:     setMovingTeam(null);
+512:   };
+513: 
+514:   const generate500DummyTeams = async () => {
+515:     if (!confirm("Generate 500 FULL dummy teams with match results, kills, standings & points for testing?")) return;
+516: 
+517:     setLoading(true);
+518:     try {
+519:       const dummyTeams = [];
+520:       const dummyLbEntries = [];
+521: 
+522:       const teamPrefixes = ["ALPHA", "DELTA", "OMEGA", "CYBER", "VIPER", "PHOENIX", "TITAN", "APEX", "LEGEND", "DRAGON", "WARRIORS", "GHOST", "SHADOW", "STORM", "HYDRA", "RAVEN", "VALOR", "NINJA", "KINGS", "BEAST"];
+523:       const playerPrefixes = ["RASTAR", "BADSHAH", "DEVIL", "KILLER", "DEADLY", "PRO", "KING", "NINJA", "GHOST", "BOSS", "SHADOW", "TITAN", "HUNTER", "SNIPER", "MAFIA", "RIDER"];
+524: 
+525:       const now = Date.now();
+526: 
+527:       for (let i = 1; i <= 500; i++) {
+528:         const teamPrefix = teamPrefixes[(i - 1) % teamPrefixes.length];
+529:         const teamName = `${teamPrefix} ESPORTS #${String(i).padStart(3, '0')}`;
+530:         const leaderIgn = `${playerPrefixes[(i - 1) % playerPrefixes.length]}_${i}`;
+531:         const leaderUid = String(203500000 + i);
+532:         const groupNum = Math.floor((i - 1) / 12) + 1;
+533:         const slotNum = ((i - 1) % 12) + 1;
+534: 
+535:         // Generate 3 match results for each team
+536:         const m1Place = ((i - 1) % 12) + 1;
+537:         const m1Kills = Math.floor((500 - i) / 50) + (i % 5);
+538:         const m1PlacPts = m1Place === 1 ? 12 : m1Place === 2 ? 9 : m1Place === 3 ? 8 : Math.max(0, 12 - m1Place);
+539:         const m1Pts = m1PlacPts + m1Kills;
+540: 
+541:         const m2Place = Math.floor((i * 7) % 12) + 1;
+542:         const m2Kills = Math.floor(i % 6);
+543:         const m2PlacPts = m2Place === 1 ? 12 : m2Place === 2 ? 9 : m2Place === 3 ? 8 : Math.max(0, 12 - m2Place);
+544:         const m2Pts = m2PlacPts + m2Kills;
+545: 
+546:         const m3Place = Math.floor((i * 13) % 12) + 1;
+547:         const m3Kills = Math.floor((i * 3) % 8);
+548:         const m3PlacPts = m3Place === 1 ? 12 : m3Place === 2 ? 9 : m3Place === 3 ? 8 : Math.max(0, 12 - m3Place);
+549:         const m3Pts = m3PlacPts + m3Kills;
+550: 
+551:         const totalKills = m1Kills + m2Kills + m3Kills;
+552:         const totalPlacPts = m1PlacPts + m2PlacPts + m3PlacPts;
+553:         const totalPoints = m1Pts + m2Pts + m3Pts;
+554:         const wins = (m1Place === 1 ? 1 : 0) + (m2Place === 1 ? 1 : 0) + (m3Place === 1 ? 1 : 0);
+555:         const isQual = m1Place <= 2 || i <= 50;
+556: 
+557:         const p2Ign = `Player2_${i}`;
+558:         const p3Ign = `Player3_${i}`;
+559:         const p4Ign = `Player4_${i}`;
+560: 
+561:         const matchResults = [
+562:           {
+563:             match_number: "Match 1", placement: m1Place, kills: m1Kills, points: m1Pts,
+564:             player_kills: [
+565:               { ign: leaderIgn, kills: Math.ceil(m1Kills * 0.4) },
+566:               { ign: p2Ign, kills: Math.floor(m1Kills * 0.3) },
+567:               { ign: p3Ign, kills: Math.floor(m1Kills * 0.2) },
+568:               { ign: p4Ign, kills: Math.max(0, m1Kills - Math.ceil(m1Kills * 0.4) - Math.floor(m1Kills * 0.3) - Math.floor(m1Kills * 0.2)) }
+569:             ]
+570:           },
+571:           {
+572:             match_number: "Match 2", placement: m2Place, kills: m2Kills, points: m2Pts,
+573:             player_kills: [
+574:               { ign: leaderIgn, kills: Math.ceil(m2Kills * 0.4) },
+575:               { ign: p2Ign, kills: Math.floor(m2Kills * 0.3) },
+576:               { ign: p3Ign, kills: Math.floor(m2Kills * 0.2) },
+577:               { ign: p4Ign, kills: Math.max(0, m2Kills - Math.ceil(m2Kills * 0.4) - Math.floor(m2Kills * 0.3) - Math.floor(m2Kills * 0.2)) }
+578:             ]
+579:           },
+580:           {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

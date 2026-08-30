@@ -130,16 +130,16 @@ export default function AnnouncementManagement() {
   const getPriorityColor = (priority) => {
     switch (priority) {
       case "Urgent": return "bg-red-500/20 text-red-400 border-red-500/50";
-      case "High": return "bg-orange-500/20 text-orange-400 border-orange-500/50";
+      case "High": return "bg-orange-600/20 text-orange-500 border-orange-600/50";
       case "Medium": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/50";
-      default: return "bg-blue-500/20 text-blue-400 border-blue-500/50";
+      default: return "bg-orange-500/20 text-blue-400 border-orange-500/50";
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
       </div>
     );
   }
@@ -149,13 +149,13 @@ export default function AnnouncementManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Megaphone className="w-6 h-6 text-orange-400" />
+          <Megaphone className="w-6 h-6 text-orange-500" />
           <h2 className="text-xl font-bold text-white">Announcements</h2>
-          <Badge className="bg-orange-500/20 text-orange-400">{announcements.length}</Badge>
+          <Badge className="bg-orange-600/20 text-orange-500">{announcements.length}</Badge>
         </div>
         <Button
           onClick={() => { resetForm(); setShowForm(true); }}
-          className="bg-gradient-to-r from-orange-500 to-red-500"
+          className="bg-gradient-to-r from-orange-600 to-red-500"
         >
           <Plus className="w-4 h-4 mr-2" />
           New Announcement
@@ -250,7 +250,7 @@ export default function AnnouncementManagement() {
                     </div>
                   ) : (
                     <label className="cursor-pointer">
-                      <div className="border-2 border-dashed border-gray-600 rounded p-4 text-center hover:border-orange-500/50">
+                      <div className="border-2 border-dashed border-gray-600 rounded p-4 text-center hover:border-orange-600/50">
                         {uploading ? "Uploading..." : (
                           <>
                             <Upload className="w-6 h-6 mx-auto text-gray-500 mb-1" />
@@ -283,7 +283,7 @@ export default function AnnouncementManagement() {
                 <Button
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500"
+                  className="w-full bg-gradient-to-r from-orange-600 to-red-500"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {saving ? "Saving..." : editingId ? "Update" : "Create Announcement"}

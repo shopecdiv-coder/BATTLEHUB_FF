@@ -64,10 +64,12 @@ import PastTournamentDetail from './pages/PastTournamentDetail';
 import PastTournaments from './pages/PastTournaments';
 import PlayerProfile from './pages/PlayerProfile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import LegalPolicies from './pages/LegalPolicies';
 import Profile from './pages/Profile';
 import Ratings from './pages/Ratings';
 import Referrals from './pages/Referrals';
 import RefundPolicy from './pages/RefundPolicy';
+import FairPlayPolicy from './pages/FairPlayPolicy';
 import Rules from './pages/Rules';
 import ShareApp from './pages/ShareApp';
 import Support from './pages/Support';
@@ -75,10 +77,11 @@ import TermsConditions from './pages/TermsConditions';
 import TeamProfile from './pages/TeamProfile';
 import TournamentDetail from './pages/TournamentDetail';
 import Tournaments from './pages/Tournaments';
-import Wallet from './pages/Wallet';
+import Wallet from './pages/WalletWeb';
 import JourneyHistory from './pages/JourneyHistory';
 import MediaFeed from './pages/MediaFeed';
 import ResetPassword from './pages/ResetPassword';
+import SellerDashboard from './pages/SellerDashboard';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -99,10 +102,12 @@ export const PAGES = {
     "PastTournaments": PastTournaments,
     "PlayerProfile": PlayerProfile,
     "PrivacyPolicy": PrivacyPolicy,
+    "LegalPolicies": LegalPolicies,
     "Profile": Profile,
     "Ratings": Ratings,
     "Referrals": Referrals,
     "RefundPolicy": RefundPolicy,
+    "FairPlayPolicy": FairPlayPolicy,
     "Rules": Rules,
     "ShareApp": ShareApp,
     "Support": Support,
@@ -114,6 +119,7 @@ export const PAGES = {
     "JourneyHistory": JourneyHistory,
     "MediaFeed": MediaFeed,
     "ResetPassword": ResetPassword,
+    "seller": SellerDashboard,
 }
 
 export const pagesConfig = {

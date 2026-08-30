@@ -1,0 +1,109 @@
+Created At: 2026-08-21T22:52:16+05:30
+Completed At: 2026-08-21T22:52:16+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2660
+Total Bytes: 139597
+Showing lines 580 to 680
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+580:           {
+581:             match_number: "Match 3", placement: m3Place, kills: m3Kills, points: m3Pts,
+582:             player_kills: [
+583:               { ign: leaderIgn, kills: Math.ceil(m3Kills * 0.4) },
+584:               { ign: p2Ign, kills: Math.floor(m3Kills * 0.3) },
+585:               { ign: p3Ign, kills: Math.floor(m3Kills * 0.2) },
+586:               { ign: p4Ign, kills: Math.max(0, m3Kills - Math.ceil(m3Kills * 0.4) - Math.floor(m3Kills * 0.3) - Math.floor(m3Kills * 0.2)) }
+587:             ]
+588:           }
+589:         ];
+590: 
+591:         const members = [
+592:           { ign: leaderIgn, uid: leaderUid, isLeader: true, kills: Math.ceil(totalKills * 0.4) },
+593:           { ign: p2Ign, uid: String(203500000 + i + 1000), isLeader: false, kills: Math.floor(totalKills * 0.3) },
+594:           { ign: p3Ign, uid: String(203500000 + i + 2000), isLeader: false, kills: Math.floor(totalKills * 0.2) },
+595:           { ign: p4Ign, uid: String(203500000 + i + 3000), isLeader: false, kills: Math.max(0, totalKills - Math.ceil(totalKills * 0.4) - Math.floor(totalKills * 0.3) - Math.floor(totalKills * 0.2)) }
+596:         ];
+597: 
+598:         const regObj = {
+599:           id: `dummy-reg-${i}-${now}`,
+600:           tournament_id: String(tournamentId),
+601:           tournament_title: tournament?.title || "Tournament",
+602:           team_name: teamName,
+603:           team_leader_id: `BH${String(890000 + i)}`,
+604:           team_leader_ign: leaderIgn,
+605:           team_leader_uid: leaderUid,
+606:           team_members: members,
+607:           slot_number: slotNum,
+608:           group_number: groupNum,
+609:           status: "PAID & CONFIRMED",
+610:           payment_status: "Paid",
+611:           total_kills: totalKills,
+612:           total_points: totalPoints,
+613:           placement_points: totalPlacPts,
+614:           wins: wins,
+615:           is_qualified: isQual,
+616:           stage: "Qualifier",
+617:           match_results: matchResults
+618:         };
+619:         dummyTeams.push(regObj);
+620: 
+621:         dummyLbEntries.push({
+622:           id: `dummy-lb-${i}-${now}`,
+623:           tournament_id: String(tournamentId),
+624:           user_id: regObj.team_leader_id,
+625:           unique_id: regObj.id,
+626:           team_name: teamName,
+627:           player_ign: leaderIgn,
+628:           player_uid: leaderUid,
+629:           rank: i,
+630:           kills: totalKills,
+631:           points: totalPoints,
+632:           placement_points: totalPlacPts,
+633:           wins: wins,
+634:           is_qualified: isQual,
+635:           stage: "Qualifier",
+636:           group_number: groupNum,
+637:           team_members: members,
+638:           match_results: matchResults
+639:         });
+640:       }
+641: 
+642:       setRegistrations(dummyTeams);
+643:       setLeaderboardEntries(dummyLbEntries);
+644:       setTournament(prev => ({ ...prev, max_teams: 500, current_teams: 500 }));
+645: 
+646:       // Save to background without blocking UI
+647:       Promise.all([
+648:         ...dummyTeams.slice(0, 50).map(t => Registration.create(t).catch(() => null)),
+649:         ...dummyLbEntries.slice(0, 50).map(l => TournamentLeaderboard.create(l).catch(() => null)),
+650:         Tournament.update(tournamentId, { max_teams: 500, current_teams: 500 }).catch(() => null)
+651:       ]);
+652: 
+653:       alert("🎉 500 FULL Dummy Teams & Match Results Generated Successfully! Standings, Kills, Points, Booyahs & Groups are 100% filled!");
+654:     } catch (e) {
+655:       console.error("Error:", e);
+656:       alert("Error generating dummy teams: " + e.message);
+657:     }
+658:     setLoading(false);
+659:   };
+660: 
+661:   const isAdmin = user?.role === "admin";
+662:   const isQualifierType = tournament?.tournament_type === "Qualifier";
+663:   const isSemifinalType = tournament?.tournament_type === "Semifinal";
+664:   const canMove = isAdmin && (isQualifierType || isSemifinalType);
+665: 
+666:   if (loading) {
+667:     return (
+668:       <div className="min-h-screen bg-[#07070a] text-slate-100 pb-2 animate-pulse">
+669:         <div className="max-w-4xl mx-auto px-3 sm:px-4 pt-3 space-y-4">
+670:           {/* Skeleton Hero Banner Card */}
+671:           <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800/80 h-64 sm:h-72 p-4 flex flex-col justify-between">
+672:             <div className="flex items-center justify-between">
+673:               <div className="h-8 w-20 bg-slate-800 rounded-full" />
+674:               <div className="h-6 w-24 bg-slate-800 rounded-full" />
+675:             </div>
+676:             <div className="space-y-2">
+677:               <div className="h-7 w-3/4 bg-slate-800 rounded-lg" />
+678:               <div className="h-4 w-1/2 bg-slate-800/60 rounded-lg" />
+679:               <div className="flex gap-2 pt-2">
+680:                 <div className="h-6 w-20 bg-slate-800/60 rounded-md" />
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

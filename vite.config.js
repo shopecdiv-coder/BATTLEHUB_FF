@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename)
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
   ],
@@ -20,6 +21,18 @@ export default defineConfig({
     host: true,
     watch: {
       ignored: ['**/users*.csv', '**/*.csv', '**/*.mjs']
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          aws: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+          ui: ['lucide-react', 'framer-motion', 'clsx', 'tailwind-merge'],
+        }
+      }
     }
   }
 });

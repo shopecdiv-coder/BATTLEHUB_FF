@@ -110,7 +110,7 @@ export default function RazorpayPayment({ amount, user, onSuccess, onFailure }) 
     <Button
       onClick={handlePayment}
       disabled={loading || amount < 1}
-      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 py-6 text-base font-bold"
+      className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:opacity-90 py-6 text-base font-bold"
     >
       {loading ? (
         <span className="flex items-center gap-2">

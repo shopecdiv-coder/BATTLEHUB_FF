@@ -1,0 +1,44 @@
+Created At: 2026-08-23T07:00:57+05:30
+Completed At: 2026-08-23T07:00:57+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2719
+Total Bytes: 144860
+Showing lines 2630 to 2665
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2630:         ) : (
+2631:           <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${
+2632:             grandFinal && index === 0 ? 'bg-amber-500 text-slate-950 font-black' :
+2633:             grandFinal && index === 1 ? 'bg-slate-400 text-slate-950 font-black' :
+2634:             grandFinal && index === 2 ? 'bg-amber-700 text-white font-black' :
+2635:             isDisqualified ? 'bg-red-700 text-white font-bold' :
+2636:             'bg-slate-800 border border-slate-700/80 text-orange-400 font-bold'
+2637:           }`}>
+2638:             {index + 1}
+2639:           </div>
+2640:         )}
+2641: 
+2642:         {/* Team Name */}
+2643:         <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+2644:           <p className={`font-bold text-xs truncate ${isDisqualified ? 'text-red-400 line-through' : 'text-white'}`}>
+2645:             {isSolo ? (reg.team_members?.[0]?.ign || reg.team_leader_ign) : reg.team_name}
+2646:           </p>
+2647:           {isDisqualified && (
+2648:             <span className="text-[9px] font-black uppercase tracking-wider text-red-400 bg-red-500/20 border border-red-500/40 px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0 shadow-sm">
+2649:               <span>✕</span> ELIMINATED
+2650:             </span>
+2651:           )}
+2652:         </div>
+2653: 
+2654:         {/* Group & Slot Badge + Controls */}
+2655:         <div className="flex items-center gap-2 flex-shrink-0">
+2656:           {showGroupBadge ? (
+2657:             <span className="text-[10px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-md">
+2658:               G{groupNum} • #{slotNum}
+2659:             </span>
+2660:           ) : (
+2661:             <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+2662:               Slot #{slotNum}
+2663:             </span>
+2664:           )}
+2665: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

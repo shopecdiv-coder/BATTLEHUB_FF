@@ -50,7 +50,7 @@ export default function MediaAnalytics() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
       </div>
     );
   }
@@ -58,7 +58,7 @@ export default function MediaAnalytics() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-6">
-        <BarChart2 className="w-8 h-8 text-orange-400" />
+        <BarChart2 className="w-8 h-8 text-orange-500" />
         <h2 className="text-2xl font-bold text-white">Media Analytics</h2>
       </div>
 

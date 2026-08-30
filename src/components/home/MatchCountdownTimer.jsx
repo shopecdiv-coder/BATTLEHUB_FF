@@ -118,7 +118,7 @@ export default function MatchCountdownTimer({ user, registrations, tournaments }
               <div className="p-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                    time.isLive ? 'bg-red-500/20 text-red-400' : isUrgent ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-800 text-gray-400'
+                    time.isLive ? 'bg-red-500/20 text-red-400' : isUrgent ? 'bg-orange-600/20 text-orange-500' : 'bg-gray-800 text-gray-400'
                   }`}>
                     {time.isLive ? <Flame className="w-5 h-5 animate-pulse" /> : <Trophy className="w-5 h-5" />}
                   </div>
@@ -141,23 +141,23 @@ export default function MatchCountdownTimer({ user, registrations, tournaments }
                 {!time.isLive && (
                   <div className="flex flex-col items-end gap-1">
                     <div className="flex items-center gap-0.5">
-                      <Clock className={`w-3 h-3 ${isUrgent ? 'text-orange-400' : 'text-cyan-400'}`} />
+                      <Clock className={`w-3 h-3 ${isUrgent ? 'text-orange-500' : 'text-cyan-400'}`} />
                       <div className="flex gap-0.5 ml-1">
                         <div className="bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-center min-w-[24px]">
-                          <span className={`font-bold text-[10px] ${isUrgent ? 'text-orange-400' : 'text-cyan-400'}`}>{String(time.hours).padStart(2, '0')}</span>
+                          <span className={`font-bold text-[10px] ${isUrgent ? 'text-orange-500' : 'text-cyan-400'}`}>{String(time.hours).padStart(2, '0')}</span>
                         </div>
                         <span className="text-gray-500 font-bold text-[10px] mt-0.5">:</span>
                         <div className="bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-center min-w-[24px]">
-                          <span className={`font-bold text-[10px] ${isUrgent ? 'text-orange-400' : 'text-cyan-400'}`}>{String(time.minutes).padStart(2, '0')}</span>
+                          <span className={`font-bold text-[10px] ${isUrgent ? 'text-orange-500' : 'text-cyan-400'}`}>{String(time.minutes).padStart(2, '0')}</span>
                         </div>
                         <span className="text-gray-500 font-bold text-[10px] mt-0.5">:</span>
                         <div className="bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-center min-w-[24px]">
-                          <span className={`font-bold text-[10px] ${isUrgent ? 'text-orange-400' : 'text-cyan-400'}`}>{String(time.seconds).padStart(2, '0')}</span>
+                          <span className={`font-bold text-[10px] ${isUrgent ? 'text-orange-500' : 'text-cyan-400'}`}>{String(time.seconds).padStart(2, '0')}</span>
                         </div>
                       </div>
                     </div>
                     {isUrgent && (
-                      <span className="text-[8px] text-orange-400 uppercase font-bold animate-pulse tracking-wider">Starting Soon</span>
+                      <span className="text-[8px] text-orange-500 uppercase font-bold animate-pulse tracking-wider">Starting Soon</span>
                     )}
                   </div>
                 )}

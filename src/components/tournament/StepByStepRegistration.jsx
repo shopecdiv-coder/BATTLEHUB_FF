@@ -6,7 +6,10 @@ import { User } from "@/entities/User";
 import { BanRecord } from "@/entities/BanRecord";
 import { Referral } from "@/entities/Referral";
 import { TeamProfile } from "@/entities/TeamProfile";
+import { TournamentLeaderboard } from "@/entities/TournamentLeaderboard";
+import { Squad } from "@/api/entities";
 import { base44 } from "@/api/base44Client";
+import { SendEmail } from "@/api/integrations";
 import { sendBrevoEmail } from "@/utils/brevoEmail";
 import { UploadFile } from "@/integrations/Core";
 import { Link } from "react-router-dom";
@@ -27,8 +30,140 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import emailjs from '@emailjs/browser';
-import { Users, Plus, X, AlertTriangle, Coins, ArrowRight, ArrowLeft, CheckCircle, Crown } from "lucide-react";
+import { Users, Plus, X, AlertTriangle, Coins, ArrowRight, ArrowLeft, CheckCircle, Crown, Trophy, ShieldCheck, KeyRound, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+export function MatchLiveCountdown({ matchTimeStr }) {
+
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, isLive: false });
+
+  useEffect(() => {
+    let parsedIso = matchTimeStr;
+    if (parsedIso && typeof parsedIso === 'object') {
+      parsedIso = parsedIso.date_time || parsedIso.match_time || parsedIso.start_time || null;
+    }
+    const d = parsedIso ? new Date(parsedIso) : null;
+    const targetDate = (d && !isNaN(d.getTime())) ? d : new Date(Date.now() + 90 * 60 * 1000);
+
+    const updateTimer = () => {
+      const now = new Date();
+      const diffMs = targetDate - now;
+
+      if (diffMs <= 0) {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isLive: true });
+      } else {
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+        setTimeLeft({ hours, minutes, seconds, isLive: false });
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [matchTimeStr]);
+
+  if (timeLeft.isLive) {
+    return (
+      <div className="bg-gradient-to-r from-red-950/80 via-amber-950/60 to-red-950/80 border border-red-500/50 rounded-xl p-3 text-center shadow-lg animate-pulse">
+        <div className="flex items-center justify-center gap-2 text-red-400 font-black text-xs uppercase tracking-wider mb-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+          🚨 MATCH IS LIVE NOW!
+        </div>
+        <p className="text-[11px] text-slate-200 font-semibold">
+          Room ID & Password unlocked! Enter game immediately.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-slate-900 via-amber-950/20 to-slate-900 border border-amber-500/40 rounded-xl p-3 text-center shadow-md space-y-2">
+      <div className="flex items-center justify-center gap-1.5 text-amber-400 font-extrabold text-[11px] uppercase tracking-wider">
+        <Clock className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '4s' }} />
+        <span>MATCH STARTS IN</span>
+      </div>
+
+      {/* Digital Countdown Timer Box */}
+      <div className="flex items-center justify-center gap-2 py-1">
+        <div className="bg-slate-950/90 border border-amber-500/30 rounded-lg px-2.5 py-1.5 text-center min-w-[50px]">
+          <span className="text-amber-400 font-black text-lg font-mono leading-none block">
+            {String(timeLeft.hours).padStart(2, '0')}
+          </span>
+          <span className="text-[8px] text-slate-400 font-bold uppercase block mt-0.5">HOURS</span>
+        </div>
+        <span className="text-amber-400 font-black text-base">:</span>
+        <div className="bg-slate-950/90 border border-amber-500/30 rounded-lg px-2.5 py-1.5 text-center min-w-[50px]">
+          <span className="text-amber-400 font-black text-lg font-mono leading-none block">
+            {String(timeLeft.minutes).padStart(2, '0')}
+          </span>
+          <span className="text-[8px] text-slate-400 font-bold uppercase block mt-0.5">MINS</span>
+        </div>
+        <span className="text-amber-400 font-black text-base">:</span>
+        <div className="bg-slate-950/90 border border-amber-500/30 rounded-lg px-2.5 py-1.5 text-center min-w-[50px]">
+          <span className="text-amber-400 font-black text-lg font-mono leading-none block">
+            {String(timeLeft.seconds).padStart(2, '0')}
+          </span>
+          <span className="text-[8px] text-slate-400 font-bold uppercase block mt-0.5">SECS</span>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-slate-300 font-medium">
+        📢 Room ID & Password will be shared <span className="text-amber-400 font-bold">10 minutes</span> before match starts!
+      </p>
+    </div>
+  );
+}
+
+const playPaymentSuccessSound = () => {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const now = audioCtx.currentTime;
+
+    // Harmonic Note 1: E5 (659.25 Hz)
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(659.25, now);
+    gain1.gain.setValueAtTime(0.3, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.4);
+
+    // Harmonic Note 2: G#5 (830.61 Hz)
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(830.61, now + 0.08);
+    gain2.gain.setValueAtTime(0.35, now + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.5);
+
+    // Harmonic Note 3: B5 (987.77 Hz - Bright High Chime)
+    const osc3 = audioCtx.createOscillator();
+    const gain3 = audioCtx.createGain();
+    osc3.type = 'sine';
+    osc3.frequency.setValueAtTime(987.77, now + 0.16);
+    gain3.gain.setValueAtTime(0.4, now + 0.16);
+    gain3.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+    osc3.connect(gain3);
+    gain3.connect(audioCtx.destination);
+    osc3.start(now + 0.16);
+    osc3.stop(now + 0.85);
+  } catch (err) {
+    console.log("Audio play blocked", err);
+  }
+};
 
 export default function StepByStepRegistration({ tournament, user, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -38,6 +173,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
   const [currentMember, setCurrentMember] = useState({ ign: "", uid: "" });
   const [teamHeadIndex] = useState(0);
   const [confirmed, setConfirmed] = useState(false);
+  const [policyDrawer, setPolicyDrawer] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const maxSlots = tournament.max_slots || 12;
   const [submitting, setSubmitting] = useState(false);
@@ -45,35 +181,187 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
   const [diamondBalance, setDiamondBalance] = useState(0);
   const [error, setError] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [animatingSuccess, setAnimatingSuccess] = useState(true);
   const [successData, setSuccessData] = useState(null);
+
+  useEffect(() => {
+    if (showSuccessModal) {
+      setAnimatingSuccess(true);
+      playPaymentSuccessSound();
+      const timer = setTimeout(() => {
+        setAnimatingSuccess(false);
+      }, 1600);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessModal]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [savedSquads, setSavedSquads] = useState([]);
   const [showSavedSquads, setShowSavedSquads] = useState(false);
   const [bookedSlots, setBookedSlots] = useState([]);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [createdRegistration, setCreatedRegistration] = useState(null);
+  const maxTournamentTeams = Math.max(1, Number(tournament?.max_teams) || 32);
+  const [isSlotsFull, setIsSlotsFull] = useState(false);
 
-  const maxMembers = tournament.mode === "Solo" ? 1 : tournament.mode === "Duo" ? 2 : 4;
+
+  const modeLower = (tournament.mode || "").toLowerCase();
+  const maxMembers = modeLower.includes("solo") ? 1 : modeLower.includes("duo") ? 2 : 4;
   const requiredCoins = tournament.entry_fee || 0;
-  const isSolo = tournament.mode === "Solo";
+  const isSolo = modeLower.includes("solo");
+
+
+  const hasSquadFromUser = !isSolo && Boolean(user?.squad_id || user?.squad_name || user?.team_name);
+  const [squadLoading, setSquadLoading] = useState(!isSolo && Boolean(user?.squad_id || user?.squad_name));
 
   React.useEffect(() => {
     loadCoinBalance();
     loadUserPhone();
-    // Auto-add registering user as first member (team head) for non-solo
-    if (!isSolo && user.ign && user.game_uid) {
-      setTeamMembers([{ ign: user.ign, uid: user.game_uid, isLeader: true }]);
-    }
-    // Load saved squads (with logo)
-    if (!isSolo && user.saved_squads?.length > 0) {
-      setSavedSquads(user.saved_squads);
-    }
-    // Load booked slots
+
+    const loadSquadFromDB = async () => {
+      if (isSolo) {
+        if (user.ign && (user.game_uid || user.game_id || user.uid)) {
+          setTeamMembers([{ ign: user.ign, uid: user.game_uid || user.game_id || user.uid, isLeader: true, avatar_url: user.avatar_url || user.avatar || user.dp || user.photoURL }]);
+        }
+        setSquadLoading(false);
+        return;
+      }
+
+      let allSquads = [];
+
+      if (user?.squad_id) {
+        try {
+          // Parallel single-trip fetch for Squad & Members
+          const [sq, sqUsers] = await Promise.all([
+            Squad.get(user.squad_id).catch(() => null),
+            User.filter({ squad_id: user.squad_id }).catch(() => [])
+          ]);
+
+          if (sq) {
+            const mappedMembers = [];
+            const leaderUid = sq.leader_uid || sq.leader_id;
+            const leader = sqUsers.find(u => u.id === leaderUid || u.uid === leaderUid) || 
+              (user.id === leaderUid || user.uid === leaderUid ? user : sqUsers[0]);
+            
+            if (leader) {
+              mappedMembers.push({
+                ign: leader.ign || leader.full_name || user.ign,
+                uid: leader.game_id || leader.game_uid || leader.uid || "",
+                isLeader: true,
+                avatar_url: leader.avatar_url || leader.avatar || leader.dp || leader.photoURL
+              });
+            }
+
+            sqUsers.forEach(u => {
+              const uUid = u.game_id || u.game_uid || u.uid || "";
+              const leaderUidVal = leader ? (leader.game_id || leader.game_uid || leader.uid || "") : "";
+              if (u.id !== leader?.id && uUid !== leaderUidVal && mappedMembers.length < maxMembers) {
+                mappedMembers.push({
+                  ign: u.ign || u.full_name || "Member",
+                  uid: uUid,
+                  isLeader: false,
+                  avatar_url: u.avatar_url || u.avatar || u.dp || u.photoURL
+                });
+              }
+            });
+
+            if (mappedMembers.length === 0 && user.ign) {
+              mappedMembers.push({
+                ign: user.ign,
+                uid: user.game_uid || user.game_id || user.uid || "",
+                isLeader: true,
+                avatar_url: user.avatar_url || user.avatar || user.dp || user.photoURL
+              });
+            }
+
+            const officialSquad = {
+              squad_name: sq.name,
+              logo_url: sq.logo_url,
+              members: mappedMembers
+            };
+            allSquads.push(officialSquad);
+
+            setTeamName(sq.name || "");
+            if (sq.logo_url) setTeamLogoUrl(sq.logo_url);
+            setTeamMembers(mappedMembers);
+          }
+        } catch (err) {
+          console.error("Failed to load official squad from DB", err);
+        }
+      } else {
+        if (user.ign && (user.game_uid || user.game_id || user.uid)) {
+          setTeamMembers([{ ign: user.ign, uid: user.game_uid || user.game_id || user.uid, isLeader: true, avatar_url: user.avatar_url || user.avatar || user.dp || user.photoURL }]);
+        }
+      }
+
+      setSavedSquads(allSquads);
+      setSquadLoading(false);
+    };
+
+    loadSquadFromDB();
+
     Registration.filter({ tournament_id: tournament.id }).then(regs => {
-      const taken = (regs || []).map(r => r.time_slot).filter(Boolean);
+      const allRegs = regs || [];
+      const taken = allRegs.map(r => r.time_slot).filter(Boolean);
       setBookedSlots(taken);
+      if (allRegs.length >= maxTournamentTeams) {
+        setIsSlotsFull(true);
+        setError(`🚫 Registration is Full: All ${maxTournamentTeams} team slots have already been filled.`);
+      }
     }).catch(() => {});
-  }, []);
+  }, [tournament.id, maxTournamentTeams]);
+
+  // Fetch avatar URLs for squad members missing profile pics
+  React.useEffect(() => {
+    if (!teamMembers || teamMembers.length === 0) return;
+    const missing = teamMembers.filter(m => !m.avatar_url && !m.avatar && !m.dp && !m.photoURL && !m.image);
+    if (missing.length === 0) return;
+
+    let isMounted = true;
+    const fetchAvatars = async () => {
+      try {
+        const updated = await Promise.all(teamMembers.map(async (m) => {
+          if (m.avatar_url || m.avatar || m.dp || m.photoURL || m.image) return m;
+
+          if (user && (m.uid === (user.game_uid || user.game_id || user.uid) || m.ign === user.ign || m.isLeader)) {
+            const userDp = user.avatar_url || user.avatar || user.dp || user.photoURL;
+            if (userDp) return { ...m, avatar_url: userDp };
+          }
+
+          let foundUser = null;
+          if (m.uid) {
+            const byUid = await User.filter({ game_uid: m.uid }).catch(() => []);
+            if (byUid && byUid.length > 0) foundUser = byUid[0];
+            else {
+              const byUid2 = await User.filter({ game_id: m.uid }).catch(() => []);
+              if (byUid2 && byUid2.length > 0) foundUser = byUid2[0];
+            }
+          }
+          if (!foundUser && m.ign) {
+            const byIgn = await User.filter({ ign: m.ign }).catch(() => []);
+            if (byIgn && byIgn.length > 0) foundUser = byIgn[0];
+          }
+
+          if (foundUser) {
+            const dp = foundUser.avatar_url || foundUser.avatar || foundUser.dp || foundUser.photoURL;
+            if (dp) return { ...m, avatar_url: dp };
+          }
+          return m;
+        }));
+
+        if (isMounted) {
+          const changed = updated.some((m, idx) => m.avatar_url !== teamMembers[idx]?.avatar_url);
+          if (changed) {
+            setTeamMembers(updated);
+          }
+        }
+      } catch (e) {}
+    };
+
+    fetchAvatars();
+    return () => { isMounted = false; };
+  }, [teamMembers.map(m => m.uid || m.ign).join(",")]);
+
 
   const loadSavedSquad = (squad) => {
     const members = squad.members.slice(0, maxMembers);
@@ -81,7 +369,6 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
     setTeamName(squad.squad_name);
     setTeamLogoUrl(squad.logo_url || "");
     setShowSavedSquads(false);
-    if (members.length >= maxMembers) setStep(3);
   };
 
   const saveSquad = async () => {
@@ -110,6 +397,10 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
   };
 
   const nextStep = async () => {
+    if (isSlotsFull) {
+      setError(`🚫 Tournament is full! All ${maxTournamentTeams} team slots have been booked. Registration cannot proceed.`);
+      return;
+    }
     setError("");
 
     // Step 1 validation (IGN for Solo, Team Name for Duo/Squad)
@@ -205,48 +496,79 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
       return;
     }
 
-    if (!phoneNumber || phoneNumber.length < 10) {
-      setError("Please enter a valid phone number");
-      return;
-    }
+    const effectivePhone = phoneNumber || user.phone || user.mobile_number || "N/A";
+    const effectiveSlot = selectedSlot || "Auto-Assigned";
+    const effectivePaymentMethod = isFree ? "Free" : (paymentMethod || "BH Coin");
 
     if (!isFree && !paymentMethod) {
       setError("Please select payment method");
       return;
     }
-    const effectivePaymentMethod = isFree ? "Free" : paymentMethod;
-
-    if (!confirmed) {
-      setError("Please confirm that the details are correct");
+    if (!isSolo && teamMembers.length < maxMembers) {
+      setError(`Registration error: Exactly ${maxMembers} members are required for ${tournament.mode || "Squad"} mode (${teamMembers.length}/${maxMembers} added).`);
       return;
     }
 
+
     setSubmitting(true);
 
-      if (!selectedSlot) {
-        setError("Please select a time slot");
-        setSubmitting(false);
-        return;
-      }
-
-    // Check if user already registered
+    // 1. Strict real-time capacity check against tournament max_teams
     const allTournRegs = await Registration.filter({ tournament_id: tournament.id }).catch(() => []);
+    const maxAllowedTeams = Math.max(1, Number(tournament?.max_teams) || 32);
+
+    if (allTournRegs.length >= maxAllowedTeams) {
+      setError(`🚫 Registration is full! All ${maxAllowedTeams} team slots have already been filled. No more registrations can be accepted.`);
+      setIsSlotsFull(true);
+      setSubmitting(false);
+      return;
+    }
+
+    // 2. Check if user already registered
     if (allTournRegs.some(r => r.team_leader_id === user.id)) {
       setError("You have already registered for this tournament!");
       setSubmitting(false);
       return;
     }
 
-    const finalMembers = isSolo ? teamMembers : teamMembers.map((m, i) => ({
+    const rawMembers = isSolo ? teamMembers : teamMembers.map((m, i) => ({
       ...m,
       isLeader: i === teamHeadIndex
     }));
 
+    const finalMembers = await Promise.all(rawMembers.map(async (m) => {
+      if (m.avatar_url || m.avatar || m.dp || m.photoURL) return m;
+      if (user && (m.uid === (user.game_uid || user.game_id || user.uid) || m.ign === user.ign || m.isLeader)) {
+        const uDp = user.avatar_url || user.avatar || user.dp || user.photoURL;
+        if (uDp) return { ...m, avatar_url: uDp };
+      }
+      try {
+        const mUid = m.uid || m.game_id;
+        let foundU = null;
+        if (mUid) {
+          const byUid = await User.filter({ game_uid: mUid }).catch(() => []);
+          if (byUid && byUid.length > 0) foundU = byUid[0];
+          else {
+            const byUid2 = await User.filter({ game_id: mUid }).catch(() => []);
+            if (byUid2 && byUid2.length > 0) foundU = byUid2[0];
+          }
+        }
+        if (!foundU && m.ign) {
+          const byIgn = await User.filter({ ign: m.ign }).catch(() => []);
+          if (byIgn && byIgn.length > 0) foundU = byIgn[0];
+        }
+        if (foundU) {
+          const dp = foundU.avatar_url || foundU.avatar || foundU.dp || foundU.photoURL;
+          if (dp) return { ...m, avatar_url: dp };
+        }
+      } catch (e) {}
+      return m;
+    }));
+
     const leaderMember = finalMembers.find(m => m.isLeader) || finalMembers[0] || { ign: user.ign || user.full_name, uid: user.game_uid || "" };
 
-    // CRITICAL STEP: create the registration. Only this failing means registration failed.
+    let createdRegObj = null;
     try {
-      await Registration.create({
+      createdRegObj = await Registration.create({
         tournament_id: tournament.id,
         tournament_title: tournament.title,
         team_name: isSolo ? (user.ign || user.full_name) : teamName,
@@ -255,12 +577,89 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
         team_leader_uid: leaderMember.uid || "",
         team_leader_phone: phoneNumber,
         team_members: finalMembers,
+
         time_slot: selectedSlot,
         payment_status: "Paid",
         payment_method: effectivePaymentMethod,
         status: "Registered",
         team_logo_url: teamLogoUrl || ""
       });
+      setCreatedRegistration(createdRegObj);
+
+      // Trigger automatic SES Email for Registration Success
+      if (user?.email) {
+        try {
+          const emailSubject = `Registration Confirmed - ${tournament.title}`;
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; background: #0f0f11; color: #ffffff; border-radius: 12px; border: 1px solid #333;">
+              <h2 style="color: #f59e0b; text-align: center; margin-bottom: 20px;">🏆 BATTLEHUB REGISTRATION SUCCESS</h2>
+              <p style="font-size: 16px;">Hello <b>${user.ign || user.full_name}</b>,</p>
+              <p style="font-size: 15px; color: #cbd5e1;">Your registration for <b>${tournament.title}</b> is confirmed!</p>
+              
+              <div style="background: #1e1e24; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+                <p style="margin: 5px 0;"><b>Mode:</b> ${tournament.mode || "Squad"}</p>
+                <p style="margin: 5px 0;"><b>Map:</b> ${tournament.map || "Bermuda"}</p>
+                <p style="margin: 5px 0;"><b>Match Date:</b> ${tournament.date_time ? new Date(tournament.date_time).toLocaleString() : "TBA"}</p>
+              </div>
+              
+              <p style="font-size: 14px; color: #94a3b8;">Room ID and Password will be shared inside the app before the match starts.</p>
+              <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">Best of Luck,<br/><b>BattleHub Esports Team</b></p>
+            </div>
+          `;
+          await SendEmail({ 
+            to: user.email, 
+            subject: emailSubject, 
+            html: emailHtml 
+          });
+        } catch (emailErr) {
+          console.warn("Failed to queue email:", emailErr);
+        }
+      }
+
+      // Instantly persist to localStorage so any page refresh keeps registration intact
+      try {
+        const tIdStr = String(tournament.id || "");
+        const cId = user ? String(user.id || "") : "";
+        const cUid = user ? String(user.uid || "") : "";
+        if (cId) localStorage.setItem(`user_reg_${tIdStr}_${cId}`, JSON.stringify(createdRegObj));
+        if (cUid && cUid !== cId) localStorage.setItem(`user_reg_${tIdStr}_${cUid}`, JSON.stringify(createdRegObj));
+        localStorage.setItem(`user_reg_${tIdStr}_last`, JSON.stringify(createdRegObj));
+      } catch (e) {}
+
+      // Immediately create TournamentLeaderboard entry so team is in standings on refresh
+      try {
+        const uniqueId = `BH${String(user.id || "").replace(/-/g, "").slice(-8).toUpperCase()}`;
+        const membersWithKills = (finalMembers || []).map(m => ({ ...m, kills: 0 }));
+        await TournamentLeaderboard.create({
+          tournament_id: tournament.id,
+          tournament_title: tournament.title,
+          user_id: user.id,
+          unique_id: uniqueId,
+          team_name: isSolo ? (user.ign || user.full_name) : teamName,
+          player_ign: leaderMember.ign || user.ign || user.full_name,
+          player_uid: leaderMember.uid || "",
+          team_members: membersWithKills,
+          team_logo_url: teamLogoUrl || "",
+          kills: 0, wins: 0, points: 0, rank: 0, placement: 0,
+          registration_time: new Date().toISOString(),
+          is_finalized: false
+        }).catch(() => {});
+      } catch (e) {
+        console.error("Leaderboard entry creation sync failed:", e);
+      }
+
+      // Notify parent component immediately of new registration
+      if (onSuccess) {
+        try {
+          onSuccess(createdRegObj);
+        } catch (e) {}
+      }
+      
+      try {
+        await User.addXP(user.id, 50);
+      } catch (e) {
+        console.error("Failed to add registration XP:", e);
+      }
     } catch (error) {
       console.error("Registration error:", error);
       setError(`Registration failed: ${error.message || error}`);
@@ -281,7 +680,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
       if (user.email && user.email.trim()) {
         const invoiceId = `BHFF-${tournament.id?.slice(-4)?.toUpperCase()}-${user.id?.slice(-4)?.toUpperCase()}`;
         const matchDate = tournament.date_time ? new Date(tournament.date_time).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "TBD";
-        const membersList = finalMembers.map((m, i) => `  ${i+1}. ${m.ign} (UID: ${m.uid})${m.isLeader ? " [Team Head]" : ""}`).join("\n");
+        const membersList = finalMembers.map((m, i) => `  ${i+1}. ${m.ign} (UID: ${m.uid})${m.isLeader ? " [IGL]" : ""}`).join("\n");
         
         const isQualified = /semi|final|grand/i.test(tournament.title);
         const headerTitle = isQualified ? "🌟 QUALIFICATION CONFIRMED" : "🏆 REGISTRATION CONFIRMED";
@@ -350,30 +749,11 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
 
       if (pendingReferrals.length > 0) {
         const referral = pendingReferrals[0];
-        const rewardAmount = referral.reward_amount || 5;
 
         await Referral.update(referral.id, {
           status: "Completed",
-          tournament_played: tournament.id,
-          reward_credited: true
+          tournament_played: tournament.id
         });
-
-        const referrerAccounts = await Diamond.filter({ user_id: referral.referrer_id });
-        const now = new Date().toISOString();
-
-        if (referrerAccounts.length > 0) {
-          const refAcc = referrerAccounts[0];
-          await Diamond.update(refAcc.id, {
-            bh_coin_balance: (refAcc.bh_coin_balance || 0) + rewardAmount,
-            transactions: [...(refAcc.transactions || []), {
-              type: "Win",
-              coin_type: "BH Coin",
-              amount: rewardAmount,
-              description: `🎁 Referral Reward — ${user.ign || user.full_name} joined tournament`,
-              timestamp: now
-            }]
-          });
-        }
       }
     } catch (e) { console.error("Referral reward failed", e); }
 
@@ -428,7 +808,18 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
           total_kills: 0, total_points: 0, wins: 0
         });
       }
-    } catch (e) { console.error("TeamProfile upsert failed", e); }
+
+      // Permanently save to User profile saved_squads
+      if (!isSolo) {
+        const newSquad = { squad_name: teamName, members: finalMembers, logo_url: teamLogoUrl || "" };
+        const existingSquads = user.saved_squads || [];
+        if (!existingSquads.some(s => s.squad_name === teamName)) {
+          await User.updateMyUserData({
+            saved_squads: [...existingSquads, newSquad]
+          }).catch(() => {});
+        }
+      }
+    } catch (e) { console.error("TeamProfile & Squad save failed", e); }
 
     // Auto-generate initials logo if no logo provided (for squad/duo)
     let finalLogoUrl = teamLogoUrl;
@@ -460,28 +851,25 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
     setSubmitting(false);
   };
 
-  const totalSteps = isSolo ? 6 : 7;
+  const displayTotalSteps = 2;
+  const displayStep = step === 7 ? 2 : 1;
 
   return (
     <>
     <Dialog open={!showSuccessModal} onOpenChange={onClose}>
-      <DialogContent className="bg-gradient-to-br from-gray-950 via-blue-950 to-black border-2 border-blue-500/30 text-gray-100 max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+      <DialogContent className="bg-slate-950 border border-slate-800 text-slate-100 max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl p-4 sm:p-5 shadow-2xl">
+        <DialogHeader className="pb-2 border-b border-slate-800/80 pt-3">
+          <DialogTitle className="text-xl font-bold text-white tracking-wide text-center pt-2 px-8">
             {tournament.title}
           </DialogTitle>
-          <div className="flex items-center justify-between mt-2">
-            <Badge className="bg-blue-500/20 text-blue-400 border border-blue-500/50">
-              Step {step} of {totalSteps}
+          <div className="flex items-center justify-between mt-3">
+            <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/30 text-xs font-bold px-2.5 py-1 rounded-md">
+              Step {displayStep} of {displayTotalSteps}
             </Badge>
-            <div className="flex flex-col gap-1 text-right">
-              <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-gray-300">{coinBalance} BH🪙</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm text-gray-300">{diamondBalance} 💎</span>
+            <div className="flex items-center gap-3 text-xs font-bold">
+              <div className="flex items-center gap-1.5 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md">
+                <Coins className="w-3.5 h-3.5" />
+                <span>{coinBalance} BH🪙</span>
               </div>
             </div>
           </div>
@@ -494,28 +882,29 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
           </Alert>
         )}
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           {/* SOLO - Step 1: Enter IGN */}
           {isSolo && step === 1 && (
             <motion.div
               key="solo-step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.08 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
+              <Card className="bg-gray-900/50 border-orange-500/30">
                 <CardContent className="p-6 space-y-4">
                   <Label className="text-lg text-cyan-400">Enter Your In-Game Name</Label>
                   <Input
                     value={currentMember.ign}
                     onChange={(e) => setCurrentMember({ ...currentMember, ign: e.target.value })}
-                    placeholder="Your Free Fire IGN"
+                    placeholder="Your Game IGN"
                     className="bg-gray-800 border-gray-700 text-white text-lg"
                     autoFocus
                   />
                   <p className="text-xs text-gray-500">Minimum 3 characters required</p>
-                  <Button onClick={nextStep} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold py-6">
+                  <Button onClick={nextStep} className="w-full bg-gradient-to-r from-cyan-500 to-orange-500 hover:opacity-90 text-white font-bold py-6">
                     Continue <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </CardContent>
@@ -532,9 +921,9 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
+              <Card className="bg-gray-900/50 border-orange-500/30">
                 <CardContent className="p-6 space-y-4">
-                  <Label className="text-lg text-cyan-400">Enter Your Free Fire UID</Label>
+                  <Label className="text-lg text-cyan-400">Enter Your Game UID</Label>
                   <Input
                     value={currentMember.uid}
                     onChange={(e) => setCurrentMember({ ...currentMember, uid: e.target.value })}
@@ -548,7 +937,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                     <Button onClick={() => setStep(1)} variant="outline" className="flex-1 border-gray-700">
                       <ArrowLeft className="mr-2 w-4 h-4" /> Back
                     </Button>
-                    <Button onClick={nextStep} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold">
+                    <Button onClick={nextStep} className="flex-1 bg-gradient-to-r from-cyan-500 to-orange-500 hover:opacity-90 text-white font-bold">
                       Continue <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
                   </div>
@@ -566,7 +955,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
+              <Card className="bg-gray-900/50 border-orange-500/30">
                 <CardContent className="p-6 space-y-4">
                   <Label className="text-lg text-cyan-400">Enter Your Mobile Number</Label>
                   <Input
@@ -592,7 +981,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                         setError("");
                         setStep(4);
                       }} 
-                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold"
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-orange-500 hover:opacity-90 text-white font-bold"
                     >
                       Continue <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
@@ -617,7 +1006,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
+              <Card className="bg-gray-900/50 border-orange-500/30">
                 <CardContent className="p-6 space-y-4">
                   <Label className="text-lg text-cyan-400">Select Payment Method</Label>
                   <p className="text-sm text-gray-400">Entry Fee: {requiredCoins}</p>
@@ -680,7 +1069,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                         setStep(6);
                       }}
                       disabled={!paymentMethod}
-                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold"
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-orange-500 hover:opacity-90 text-white font-bold"
                     >
                       Continue <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
@@ -724,25 +1113,13 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      checked={confirmed}
-                      onChange={(e) => setConfirmed(e.target.checked)}
-                      className="mt-1"
-                    />
-                    <Label className="text-gray-300 text-sm cursor-pointer">
-                      I confirm that the UID and In-Game Name belong to me
-                    </Label>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button onClick={() => setStep(5)} variant="outline" className="flex-1 border-gray-700">
+                  <div className="flex gap-3 pt-2">
+                    <Button onClick={() => setStep(1)} variant="outline" className="flex-1 border-gray-700">
                       <ArrowLeft className="mr-2 w-4 h-4" /> Back
                     </Button>
                     <Button 
                       onClick={handleFinalSubmit} 
-                      disabled={!confirmed || submitting}
+                      disabled={submitting}
                       className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90 text-white font-bold"
                     >
                       {submitting ? "Registering..." : "Confirm & Register"}
@@ -753,104 +1130,230 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
             </motion.div>
           )}
 
-          {/* DUO/SQUAD - Step 1: Team Name */}
-          {!isSolo && step === 1 && (
+          {/* DUO/SQUAD - Step 1: Official Squad Holographic Entry Pass */}
+          {!isSolo && step === 1 && (savedSquads.length > 0 || hasSquadFromUser || squadLoading) && (
             <motion.div
-              key="team-step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              key="team-step1-readonly"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.08 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
-                <CardContent className="p-6 space-y-4">
-                  <Label className="text-lg text-cyan-400">Enter Team Name</Label>
-                  <Input
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Your team name"
-                    className="bg-gray-800 border-gray-700 text-white text-lg"
-                    autoFocus
-                  />
-                  <p className="text-xs text-gray-500">Must be unique in this tournament</p>
-                  <Label className="text-sm text-cyan-300 mt-2">
-                    Team Logo <span className="text-red-400">*</span> <span className="text-gray-500 text-xs">(required)</span>
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <label className="flex-1 cursor-pointer">
-                      <div className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed transition-all ${
-                        teamLogoUrl ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-gray-600 bg-gray-800/60 hover:border-cyan-500/50'
-                      }`}>
-                        {logoUploading ? (
-                          <><div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" /><span className="text-cyan-400 text-sm">Uploading...</span></>
-                        ) : teamLogoUrl ? (
-                          <><span className="text-green-400 text-sm">✅ Logo uploaded — click to change</span></>
-                        ) : (
-                          <><span className="text-gray-400 text-sm">📁 Click to upload team logo</span></>
-                        )}
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files[0];
-                          if (!file) return;
-                          setLogoUploading(true);
-                          try {
-                            const { file_url } = await UploadFile({ file });
-                            setTeamLogoUrl(file_url);
-                          } catch (err) {
-                            setError("Logo upload failed. Please try again.");
-                          } finally {
-                            setLogoUploading(false);
-                          }
-                        }}
-                      />
-                    </label>
-                    {teamLogoUrl && (
-                      <img src={teamLogoUrl} alt="Team Logo" className="w-16 h-16 object-cover rounded-lg border-2 border-cyan-500/50 flex-shrink-0" onError={(e) => e.target.style.display='none'} />
-                    )}
-                  </div>
+              {/* Holographic Entry Pass Card */}
+              <div className="relative rounded-2xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-amber-500/40 p-4 shadow-2xl overflow-hidden">
+                {/* Background Accent Glow */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                  {savedSquads.length > 0 && (
-                    <div>
-                      <button
-                        onClick={() => setShowSavedSquads(!showSavedSquads)}
-                        className="text-cyan-400 text-sm underline"
-                      >
-                        👥 {showSavedSquads ? "Hide" : "Use Saved Squad"}
-                      </button>
-                      {showSavedSquads && (
-                        <div className="mt-2 space-y-2">
-                          {savedSquads.map((squad, i) => (
-                            <div key={i} className="p-3 bg-gray-800/70 rounded-lg border border-cyan-500/30 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                {squad.logo_url ? (
-                                  <img src={squad.logo_url} alt="" className="w-9 h-9 rounded-lg object-cover border border-gray-600 flex-shrink-0" onError={e => e.target.style.display='none'} />
-                                ) : null}
-                                <div className="min-w-0">
-                                  <p className="text-white font-bold text-sm truncate">{squad.squad_name}</p>
-                                  <p className="text-xs text-gray-400 truncate">{squad.members.map(m => m.ign).join(", ")}</p>
-                                </div>
-                              </div>
-                              <Button size="sm" onClick={() => loadSavedSquad(squad)} className="bg-cyan-600 text-xs flex-shrink-0">
-                                Use
-                              </Button>
+                {squadLoading && teamMembers.length === 0 ? (
+                  /* Sleek Pulsing Skeleton Loader for Team Data */
+                  <div className="space-y-4 animate-pulse">
+                    {/* Team Info Banner Skeleton */}
+                    <div className="flex items-center gap-3.5 bg-slate-950/90 p-3.5 rounded-xl border border-slate-800">
+                      <div className="w-14 h-14 rounded-xl bg-slate-800/80 border border-slate-700/60 shrink-0" />
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="h-5 w-40 bg-slate-800 rounded-md" />
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-20 bg-slate-800/60 rounded-md" />
+                          <div className="h-4 w-24 bg-slate-800/60 rounded-md" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Squad Roster Grid Skeleton */}
+                    <div className="space-y-2 pt-1">
+                      <div className="h-3 w-32 bg-slate-800/60 rounded" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="h-10 bg-slate-950/80 border border-slate-800/80 rounded-xl flex items-center justify-between p-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-lg bg-slate-800/80" />
+                              <div className="h-3.5 w-24 bg-slate-800/80 rounded" />
                             </div>
-                          ))}
+                            <div className="h-3 w-16 bg-slate-800/60 rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Primary Button Skeleton */}
+                    <div className="h-12 w-full bg-amber-500/20 border border-amber-500/40 rounded-xl" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Team Info Banner */}
+                    <div className="flex items-center gap-3.5 bg-slate-950/90 p-3.5 rounded-xl border border-slate-800 shadow-inner">
+                      {teamLogoUrl ? (
+                        <img src={teamLogoUrl} alt="Team Logo" className="w-14 h-14 rounded-xl object-cover border-2 border-amber-500/50 flex-shrink-0 shadow-md" onError={(e) => e.target.style.display='none'} />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 border-2 border-amber-400 flex items-center justify-center font-black text-slate-950 text-xl flex-shrink-0 shadow-md">
+                          {(teamName || user?.squad_name || user?.team_name || "T").charAt(0).toUpperCase()}
                         </div>
                       )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-black text-base truncate tracking-wide">{teamName || user?.squad_name || user?.team_name || "Official Squad"}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
+                            {tournament.mode || "Squad"} Mode
+                          </span>
+                          <span className="text-[10px] font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
+                            {teamMembers.length} Members
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  )}
 
-                  <Button onClick={nextStep} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold py-6">
-                    Continue <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
+                    {/* Squad Roster Grid */}
+                    <div className="mt-3.5 space-y-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">ACTIVE TEAM MEMBERS</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {teamMembers.map((m, idx) => {
+                          const avatarSrc = m.avatar_url || m.avatar || m.dp || m.photoURL || m.photo || m.image || m.logo_url || 
+                            ((m.isLeader || idx === 0 || m.uid === (user?.game_uid || user?.game_id || user?.uid) || m.ign === user?.ign) ? (user?.avatar_url || user?.avatar || user?.dp || user?.photoURL) : null);
+
+                          return (
+                            <div key={idx} className="flex items-center justify-between p-2 bg-slate-950/70 border border-slate-800/80 rounded-xl text-xs">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {avatarSrc ? (
+                                  <img 
+                                    src={avatarSrc} 
+                                    alt={m.ign} 
+                                    className="w-6 h-6 rounded-lg object-cover border border-amber-500/40 shrink-0 shadow-sm" 
+                                    onError={(e) => { e.target.style.display = 'none'; }} 
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-amber-400 shrink-0">
+                                    {m.ign?.charAt(0).toUpperCase() || (idx + 1)}
+                                  </div>
+                                )}
+                                <span className="font-bold text-slate-200 truncate">{m.ign}</span>
+                                {(m.isLeader || idx === 0) && (
+                                  <span className="text-[9px] font-extrabold text-amber-400 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.2 rounded-md shrink-0 flex items-center gap-0.5">
+                                    👑 IGL
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-slate-400 font-mono text-[10px] shrink-0 ml-1">UID: {m.uid}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+
+                    {/* Incomplete Roster Warning Banner */}
+                    {!isSolo && teamMembers.length < maxMembers && (
+                      <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between text-xs text-amber-400">
+                        <span className="font-bold flex items-center gap-1.5">
+                          ⚠️ Team Incomplete ({teamMembers.length}/{maxMembers} Players)
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-medium bg-slate-900 px-2 py-0.5 rounded border border-slate-700">
+                          Need {maxMembers - teamMembers.length} More
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Primary Action Button */}
+                    <div className="mt-4">
+                      <Button 
+                        onClick={() => {
+                          if (!isSolo && teamMembers.length < maxMembers) {
+                            onClose();
+                            window.dispatchEvent(new CustomEvent('openSquadsDrawer'));
+                            return;
+                          }
+                          setError("");
+                          setPaymentMethod(requiredCoins === 0 ? "Free" : "BH Coin");
+                          setStep(7);
+                        }} 
+                        className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:opacity-95 text-slate-950 font-black py-5 text-sm rounded-xl shadow-xl shadow-orange-500/20 tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                      >
+                        {!isSolo && teamMembers.length < maxMembers 
+                          ? `Add ${maxMembers - teamMembers.length} More Player(s) in My Teams ➔` 
+                          : "Proceed to Registration ➔"
+                        }
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+              </div>
+            </motion.div>
+          )}
+
+          {/* DUO/SQUAD - Step 1: Redirect to Profile if NO Saved Squad Exists */}
+          {!isSolo && step === 1 && !squadLoading && savedSquads.length === 0 && !hasSquadFromUser && (
+            <motion.div
+              key="team-step1-nosquad"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              className="space-y-4"
+            >
+              <Card className="bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950 border-2 border-amber-500/40 rounded-2xl overflow-hidden shadow-2xl shadow-amber-950/20 relative">
+                {/* Background Ambient Glows */}
+                <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                {/* Header Banner */}
+                <div className="bg-slate-950/80 px-4 py-3 border-b border-amber-500/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <span className="text-amber-400 font-black text-xs uppercase tracking-widest">SQUAD REQUIRED</span>
+                  </div>
+                  <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                    Action Needed
+                  </Badge>
+                </div>
+
+                <CardContent className="p-6 space-y-5 text-center relative z-10">
+                  {/* Esports Squad Badge */}
+                  <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-2xl rotate-6 animate-pulse" />
+                    <div className="relative w-full h-full rounded-2xl bg-slate-900 border-2 border-amber-500/50 flex items-center justify-center text-amber-400 shadow-xl">
+                      <Users className="w-10 h-10 text-amber-400 drop-shadow-md" />
+                    </div>
+                  </div>
+
+                  {/* Professional English Content */}
+                  <div className="space-y-2">
+                    <h3 className="text-white font-black text-lg tracking-tight">Create Your Official Squad</h3>
+                    <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto font-medium">
+                      To participate in squad tournaments, you must first set up an official team roster. Head over to <strong className="text-amber-400">Hub ➔ Your Team</strong> to register your team, then return here for instant 1-click entry.
+                    </p>
+
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-2 space-y-2.5">
+                    <Button
+                      onClick={() => {
+                        onClose();
+                        window.dispatchEvent(new CustomEvent('openSquadsDrawer'));
+                      }}
+                      className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:brightness-110 text-slate-950 font-black py-5 text-sm rounded-xl shadow-lg shadow-orange-500/25 tracking-wide uppercase transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      Create Official Squad <ArrowRight className="w-4 h-4" />
+                    </Button>
+
+
+                    <Button
+                      onClick={onClose}
+                      variant="outline"
+                      className="w-full border-slate-800 bg-slate-950/60 hover:bg-slate-900 text-slate-400 hover:text-slate-200 text-xs h-10 rounded-xl"
+                    >
+                      Cancel & Return
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
           )}
+
 
           {/* DUO/SQUAD - Step 2: Add Members - registering user is auto team head (member 1) */}
           {!isSolo && step === 2 && (
@@ -861,7 +1364,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
+              <Card className="bg-gray-900/50 border-orange-500/30">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-lg text-cyan-400">Add Team Members</Label>
@@ -888,7 +1391,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                   {/* Add new member */}
                   {teamMembers.length < maxMembers && (
                     <>
-                      <div className="space-y-3 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                      <div className="space-y-3 p-4 bg-blue-900/20 border border-orange-500/30 rounded-lg">
                         <Label className="text-white">Member {teamMembers.length + 1}</Label>
                         <Input
                           value={currentMember.ign}
@@ -899,11 +1402,11 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                         <Input
                           value={currentMember.uid}
                           onChange={(e) => setCurrentMember({ ...currentMember, uid: e.target.value })}
-                          placeholder="Free Fire UID (numeric)"
+                          placeholder="Game UID (numeric)"
                           type="number"
                           className="bg-gray-800 border-gray-700 text-white"
                         />
-                        <Button onClick={addTeamMember} className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Button onClick={addTeamMember} className="w-full bg-orange-600 hover:bg-blue-700">
                           <Plus className="w-4 h-4 mr-2" />
                           Add Member
                         </Button>
@@ -916,7 +1419,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                       <ArrowLeft className="mr-2 w-4 h-4" /> Back
                     </Button>
                     {teamMembers.length >= maxMembers && (
-                      <Button onClick={() => setStep(3)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90">
+                      <Button onClick={() => setStep(3)} className="flex-1 bg-gradient-to-r from-cyan-500 to-orange-500 hover:opacity-90">
                         Continue <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                     )}
@@ -935,7 +1438,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
+              <Card className="bg-gray-900/50 border-orange-500/30">
                 <CardContent className="p-6 space-y-4">
                   <Label className="text-lg text-cyan-400">Enter Team Leader's Mobile Number</Label>
                   <Input
@@ -961,7 +1464,7 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
                         setError("");
                         setStep(4);
                       }}
-                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold"
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-orange-500 hover:opacity-90 text-white font-bold"
                     >
                       Continue <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
@@ -996,172 +1499,291 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
             </motion.div>
           )}
 
-          {/* DUO/SQUAD - Step 6: Payment Method (auto-skip if free) */}
-          {!isSolo && step === 6 && requiredCoins === 0 && (() => { setTimeout(() => { setPaymentMethod("Free"); setStep(7); }, 50); return null; })()}
-          {!isSolo && step === 6 && requiredCoins > 0 && (
+          {/* Step 6: Payment Method (BH Coin Only) */}
+          {step === 6 && requiredCoins > 0 && (
             <motion.div
-              key="team-step6-payment"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              key="step6-payment"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
               className="space-y-4"
             >
-              <Card className="bg-gray-900/50 border-blue-500/30">
-                <CardContent className="p-6 space-y-4">
-                  <Label className="text-lg text-cyan-400">Select Payment Method</Label>
-                  <p className="text-sm text-gray-400">Entry Fee: {requiredCoins}</p>
+              <Card className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-4 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h4 className="text-white font-bold text-base">Select Payment Method</h4>
+                    <p className="text-xs text-slate-400">Entry Fee: <span className="text-amber-400 font-bold">{requiredCoins} BH Coins</span></p>
+                  </div>
+                  <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold px-2.5 py-1">
+                    {requiredCoins} BH Coins
+                  </Badge>
+                </div>
+
+                {/* BH Coin Payment Card */}
+                <div
+                  onClick={() => coinBalance >= requiredCoins && setPaymentMethod("BH Coin")}
+                  className={`p-3.5 rounded-xl cursor-pointer transition-all border-2 flex items-center justify-between ${
+                    paymentMethod === "BH Coin"
+                      ? 'bg-amber-500/10 border-amber-500/80 shadow-md shadow-amber-500/5'
+                      : coinBalance >= requiredCoins
+                        ? 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        : 'bg-slate-950/40 border-slate-900 opacity-50 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                      <Coins className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-white font-bold text-sm flex items-center gap-2">
+                        BH Coin Wallet
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded font-semibold">Active</span>
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">Available Balance: <strong className="text-amber-400">{coinBalance} BH Coins</strong></p>
+                    </div>
+                  </div>
                   
-                  <div className="space-y-3">
-                    <div
-                      onClick={() => coinBalance >= requiredCoins && setPaymentMethod("BH Coin")}
-                      className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
-                        paymentMethod === "BH Coin"
-                          ? 'bg-yellow-900/50 border-yellow-500'
-                          : coinBalance >= requiredCoins
-                            ? 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
-                            : 'bg-gray-800/30 border-gray-800 opacity-50 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-white font-semibold">BH Coin</p>
-                          <p className="text-sm text-gray-400">Balance: {coinBalance}</p>
-                        </div>
-                        {coinBalance < requiredCoins && (
-                          <Badge className="bg-red-500/20 text-red-400">Insufficient</Badge>
-                        )}
-                      </div>
+                  {coinBalance < requiredCoins ? (
+                    <Badge className="bg-red-500/20 text-red-400 border border-red-500/30 text-[10px]">
+                      Insufficient
+                    </Badge>
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-amber-500 border border-amber-400 flex items-center justify-center text-slate-950 font-black text-xs shrink-0">
+                      ✓
                     </div>
+                  )}
+                </div>
 
-                    <div
-                      onClick={() => diamondBalance >= requiredCoins && setPaymentMethod("Diamond")}
-                      className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
-                        paymentMethod === "Diamond"
-                          ? 'bg-cyan-900/50 border-cyan-500'
-                          : diamondBalance >= requiredCoins
-                            ? 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
-                            : 'bg-gray-800/30 border-gray-800 opacity-50 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-white font-semibold">Diamond 💎</p>
-                          <p className="text-sm text-gray-400">Balance: {diamondBalance}</p>
-                        </div>
-                        {diamondBalance < requiredCoins && (
-                          <Badge className="bg-red-500/20 text-red-400">Insufficient</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button onClick={() => setStep(5)} variant="outline" className="flex-1 border-gray-700">
-                      <ArrowLeft className="mr-2 w-4 h-4" /> Back
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        if (!paymentMethod) {
-                          setError("Select payment method");
-                          return;
-                        }
-                        setError("");
-                        setStep(7);
-                      }}
-                      disabled={!paymentMethod}
-                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 text-white font-bold"
-                    >
-                      Continue <ArrowRight className="ml-2 w-5 h-5" />
-                    </Button>
-                  </div>
-                </CardContent>
+                {/* Action Buttons */}
+                <div className="flex gap-2.5 pt-1">
+                  <Button onClick={() => setStep(1)} variant="outline" className="flex-1 border-slate-700 text-slate-300 text-xs h-10">
+                    <ArrowLeft className="mr-1.5 w-3.5 h-3.5" /> Back
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      if (coinBalance < requiredCoins) {
+                        setError("Insufficient BH Coin balance");
+                        return;
+                      }
+                      setPaymentMethod("BH Coin");
+                      setError("");
+                      setStep(7);
+                    }}
+                    disabled={coinBalance < requiredCoins}
+                    className="flex-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:opacity-90 text-slate-950 font-black text-xs h-10 uppercase tracking-wider shadow-lg shadow-orange-500/20"
+                  >
+                    Continue ➔
+                  </Button>
+                </div>
               </Card>
             </motion.div>
           )}
 
           {/* DUO/SQUAD - Step 7: Final Review */}
+          {/* DUO/SQUAD - Step 7: Final Review & Coin Payment */}
           {!isSolo && step === 7 && (
             <motion.div
               key="team-step7"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.08 }}
+              className="space-y-3"
             >
-              <Card className="bg-gray-900/50 border-green-500/30">
-                <CardContent className="p-6 space-y-4">
-                  <h3 className="text-lg font-bold text-green-400 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" />
-                    Confirm Team Registration
+              <Card className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <CardContent className="p-4 space-y-3.5">
+                  <h3 className="text-base font-bold text-emerald-400 flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      {requiredCoins > 0 ? "Payment & Registration Summary" : "Confirm Team Registration"}
+                    </span>
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-bold">
+                      Step 2 of 2
+                    </Badge>
                   </h3>
                   
-                  <div className="space-y-3 bg-gray-800/50 p-4 rounded-lg">
+                  {/* Team & Roster Summary */}
+                  <div className="space-y-2.5 bg-slate-950/80 p-3 rounded-xl border border-slate-800/90 text-xs">
                     <div className="flex items-center gap-3">
-                      {teamLogoUrl && (
-                        <img src={teamLogoUrl} alt="Logo" className="w-14 h-14 rounded-xl object-cover border-2 border-cyan-500/50 flex-shrink-0" onError={e => e.target.style.display='none'} />
+                      {teamLogoUrl ? (
+                        <img src={teamLogoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-amber-500/40 flex-shrink-0" onError={e => e.target.style.display='none'} />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400 text-sm flex-shrink-0">
+                          {teamName.charAt(0).toUpperCase()}
+                        </div>
                       )}
-                      <div>
-                        <p className="text-xs text-gray-500">Team Name</p>
-                        <p className="text-white font-semibold text-lg">{teamName}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-slate-400 font-medium">Squad Name</p>
+                        <p className="text-white font-bold text-sm truncate">{teamName}</p>
                       </div>
                     </div>
-                    <div className="border-t border-gray-700 pt-3">
-                      <p className="text-xs text-gray-500 mb-2">Team Members</p>
-                      {teamMembers.map((m, i) => (
-                        <div key={i} className="flex items-center justify-between mb-2">
-                          <div>
-                            <p className="text-white font-semibold">{m.ign}</p>
-                            <p className="text-xs text-cyan-400">UID: {m.uid}</p>
+
+                    <div className="border-t border-slate-800/80 pt-2 space-y-1">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Verified Squad Roster</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {teamMembers.map((m, i) => (
+                          <div key={i} className="flex items-center justify-between py-1 px-2 bg-slate-900/60 rounded-md border border-slate-800/60 text-[11px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-semibold text-white truncate">{m.ign}</span>
+                              {i === teamHeadIndex && (
+                                <span className="text-[9px] text-amber-400 font-bold bg-amber-500/20 px-1 py-0.2 rounded shrink-0">
+                                  👑 IGL
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0">UID: {m.uid}</span>
                           </div>
-                          {i === teamHeadIndex && (
-                            <Badge className="bg-yellow-500/20 text-yellow-400">
-                              <Crown className="w-3 h-3 mr-1" />
-                              Team Head
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="border-t border-gray-700 pt-3">
-                      <p className="text-xs text-gray-500">Team Leader Phone</p>
-                      <p className="text-white font-mono">{phoneNumber}</p>
-                    </div>
-                    <div className="border-t border-gray-700 pt-3">
-                      <p className="text-xs text-gray-500">Entry Fee</p>
-                      <p className="text-yellow-400 font-bold text-2xl">{requiredCoins} {paymentMethod === "Diamond" ? "💎" : "BH🪙"}</p>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2">
+                  {/* Agreement Confirmation Checkbox */}
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/90 border border-slate-800/90 cursor-pointer" onClick={() => setConfirmed(!confirmed)}>
                     <input
                       type="checkbox"
+                      id="agree-rules-check"
                       checked={confirmed}
                       onChange={(e) => setConfirmed(e.target.checked)}
-                      className="mt-1"
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-0 cursor-pointer shrink-0 accent-amber-500"
+                      onClick={(e) => e.stopPropagation()}
                     />
-                    <Label className="text-gray-300 text-sm cursor-pointer">
-                      I confirm that all details are correct and belong to our team
-                    </Label>
+                    <label htmlFor="agree-rules-check" className="text-slate-300 text-[11px] leading-snug cursor-pointer select-none">
+                      I agree to the{' '}
+                      <span className="text-amber-400 font-semibold underline underline-offset-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPolicyDrawer('rules'); }}>Tournament Rules</span>
+                      {' '}&{' '}
+                      <span className="text-amber-400 font-semibold underline underline-offset-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPolicyDrawer('refund'); }}>Refund Policy</span>
+                    </label>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={saveSquad}
-                    className="w-full py-2.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 text-sm font-semibold hover:bg-cyan-500/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    💾 Save this Squad (for future use)
-                  </button>
+                  {/* Full-Screen Policy Drawer */}
+                  <AnimatePresence>
+                    {policyDrawer && (
+                      <motion.div
+                        key="policy-drawer"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.1 }}
+                        className="fixed inset-0 bg-slate-950 z-[300] flex flex-col h-full w-full overflow-hidden"
+                      >
+                        {/* Full-Screen Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-900/90 shrink-0">
+                          <h4 className="text-white font-extrabold text-base flex items-center gap-2">
+                            <ShieldCheck className="w-5 h-5 text-amber-400" />
+                            {policyDrawer === 'rules' ? 'Official Tournament Rules & Guidelines' : 'Official Refund Policy'}
+                          </h4>
+                          <button 
+                            onClick={() => setPolicyDrawer(null)} 
+                            className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
 
-                  <div className="flex gap-3">
-                    <Button onClick={() => setStep(6)} variant="outline" className="flex-1 border-gray-700">
-                      <ArrowLeft className="mr-2 w-4 h-4" /> Back
+                        {/* Full-Screen Content */}
+                        <div className="flex-1 overflow-y-auto px-5 py-6 text-sm text-slate-300 space-y-5 leading-relaxed max-w-2xl mx-auto w-full">
+                          {policyDrawer === 'rules' ? (
+                            <>
+                              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5 shadow-lg">
+                                <p className="text-xs text-amber-400 uppercase font-extrabold tracking-wider flex items-center gap-1.5">
+                                  📌 1. General Rules & Requirements
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2 text-slate-300 text-xs">
+                                  <li>In-Game Name (IGN) & UID must <strong className="text-white font-bold">strictly match</strong> your registered Free Fire profile.</li>
+                                  <li>All team members must be ready and join the match room on time. Late entries will not be accommodated.</li>
+                                  <li>Match Room ID & Password will be published <strong className="text-white font-bold">15 minutes</strong> prior to scheduled match time.</li>
+                                </ul>
+                              </div>
+
+                              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5 shadow-lg">
+                                <p className="text-xs text-red-400 uppercase font-extrabold tracking-wider flex items-center gap-1.5">
+                                  🚫 2. Fair Play & Anti-Cheat Policy
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2 text-slate-300 text-xs">
+                                  <li>Use of any hacks, emulators (unless explicitly permitted), scripts, or third-party tools will result in <strong className="text-red-400 font-bold">immediate disqualification & permanent account ban</strong>.</li>
+                                  <li>Teaming up with opposing players or match-fixing is strictly prohibited.</li>
+                                  <li>Abusive language or misconduct towards admins or competitors will lead to an instant match forfeiture.</li>
+                                </ul>
+                              </div>
+
+                              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5 shadow-lg">
+                                <p className="text-xs text-emerald-400 uppercase font-extrabold tracking-wider flex items-center gap-1.5">
+                                  🏆 3. Match Results & Prize Distribution
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2 text-slate-300 text-xs">
+                                  <li>Tournament Admin decisions regarding match scores, disputes, and penalties are <strong className="text-white font-bold">final and binding</strong>.</li>
+                                  <li>Prize money / coins will be credited directly to winning players' wallets within 24-48 hours post match verification.</li>
+                                </ul>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5 shadow-lg">
+                                <p className="text-xs text-amber-400 uppercase font-extrabold tracking-wider flex items-center gap-1.5">
+                                  💳 1. Entry Fee Non-Refundability
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2 text-slate-300 text-xs">
+                                  <li>Entry coins deducted upon successful tournament registration are <strong className="text-red-400 font-bold">strictly non-refundable</strong>.</li>
+                                  <li>Player absence, late entry, or team withdrawal after registration confirmation will <strong className="text-white font-bold">not</strong> be eligible for a refund.</li>
+                                </ul>
+                              </div>
+
+                              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5 shadow-lg">
+                                <p className="text-xs text-emerald-400 uppercase font-extrabold tracking-wider flex items-center gap-1.5">
+                                  ✅ 2. System Refunds & Exceptions
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2 text-slate-300 text-xs">
+                                  <li>If a tournament is <strong className="text-emerald-400 font-bold">cancelled by BattleHub Management</strong>, 100% of your entry fee will be instantly refunded back to your wallet.</li>
+                                  <li>If a match is cancelled due to technical server crashes, admins will reschedule or initiate an automated refund.</li>
+                                </ul>
+                              </div>
+
+                              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5 shadow-lg">
+                                <p className="text-xs text-blue-400 uppercase font-extrabold tracking-wider flex items-center gap-1.5">
+                                  📞 3. Support & Dispute Queries
+                                </p>
+                                <ul className="list-disc pl-5 space-y-2 text-slate-300 text-xs">
+                                  <li>For any transaction issues or tournament support, reach out via the Help & Support section within <strong className="text-white font-bold">24 hours</strong>.</li>
+                                </ul>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Full-Screen Footer */}
+                        <div className="p-4 border-t border-slate-800 bg-slate-900/90 shrink-0 max-w-2xl mx-auto w-full">
+                          <Button 
+                            onClick={() => setPolicyDrawer(null)} 
+                            className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 font-black text-xs h-11 rounded-xl uppercase tracking-wider shadow-lg shadow-orange-500/20"
+                          >
+                            Close & Return to Registration
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-2 mt-1">
+                    <Button 
+                      onClick={() => setStep(1)} 
+                      variant="outline" 
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 border-slate-700 text-white font-bold text-xs h-11 rounded-xl transition-all shadow-md"
+                    >
+                      <ArrowLeft className="mr-1.5 w-4 h-4 text-slate-300" /> Back
                     </Button>
                     <Button 
                       onClick={handleFinalSubmit} 
-                      disabled={!confirmed || submitting}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90 text-white font-bold"
+                      disabled={!confirmed || submitting || (requiredCoins > 0 && coinBalance < requiredCoins)}
+                      className={`flex-1 font-black text-xs h-11 rounded-xl uppercase tracking-wider transition-all shadow-lg ${
+                        confirmed && (!requiredCoins || coinBalance >= requiredCoins)
+                          ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:opacity-95 text-slate-950 shadow-orange-500/25'
+                          : 'bg-amber-500/30 text-amber-200/60 border border-amber-500/30 cursor-not-allowed'
+                      }`}
                     >
-                      {submitting ? "Registering..." : "Confirm & Register"}
+                      {submitting ? "Processing..." : requiredCoins > 0 ? `Pay ${requiredCoins} BH🪙 & Confirm` : "Confirm & Register"}
                     </Button>
                   </div>
                 </CardContent>
@@ -1171,9 +1793,9 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
         </AnimatePresence>
 
         {coinBalance < requiredCoins && diamondBalance < requiredCoins && (
-          <Alert className="bg-orange-500/10 border-orange-500/20">
-            <AlertTriangle className="w-4 h-4 text-orange-400" />
-            <AlertDescription className="text-orange-400">
+          <Alert className="bg-orange-600/10 border-orange-600/20">
+            <AlertTriangle className="w-4 h-4 text-orange-500" />
+            <AlertDescription className="text-orange-500">
               Insufficient balance! Need {requiredCoins} BH Coins or Diamonds
               <Link to={createPageUrl("Wallet")} className="underline ml-1">Add coins</Link>
             </AlertDescription>
@@ -1183,95 +1805,147 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
     </Dialog>
 
     {showSuccessModal && successData && (
-      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[200] p-4 overflow-y-auto">
-        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border-2 border-green-500/60 rounded-2xl max-w-sm w-full text-center shadow-2xl overflow-hidden my-4">
-          {/* Green header */}
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-6">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 border-4 border-white/30">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-black text-white">Registration Confirmed!</h2>
-            <p className="text-green-100 text-sm mt-1">{tournament.title}</p>
-          </div>
-
-          <div className="p-5 space-y-4">
-            {/* Invoice details */}
-            <div className="bg-gray-800/80 rounded-xl p-4 text-left space-y-2.5 border border-gray-700">
-              <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-                <span className="text-gray-400 text-xs">Invoice ID</span>
-                <span className="text-cyan-400 font-mono text-xs font-bold">#{successData.invoiceId}</span>
+      <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[200] p-4 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          {animatingSuccess ? (
+            /* Phase 1: Original Paytm / PhonePe Style Animated Green Tick */
+            <motion.div
+              key="paytm-animation"
+              initial={{ scale: 0.75, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 350, damping: 22 }}
+              className="flex flex-col items-center justify-center text-center p-8 space-y-4"
+            >
+              {/* Outer Glowing Green Circle with Ripple */}
+              <div className="relative flex items-center justify-center">
+                <div className="absolute w-32 h-32 bg-emerald-500/25 rounded-full animate-ping" />
+                <motion.div 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.05 }}
+                  className="w-24 h-24 bg-gradient-to-tr from-emerald-600 to-green-500 rounded-full flex items-center justify-center shadow-2xl shadow-emerald-500/50 z-10 border-4 border-emerald-300/40"
+                >
+                  <svg className="w-14 h-14 text-white stroke-current" fill="none" viewBox="0 0 24 24">
+                    <motion.path 
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.45, ease: "easeOut", delay: 0.15 }}
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={3.5} 
+                      d="M5 13l4 4L19 7" 
+                    />
+                  </svg>
+                </motion.div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-xs">Player / Team</span>
-                <div className="flex items-center gap-2">
-                  {successData.logoUrl && (
-                    <img src={successData.logoUrl} alt="logo" className="w-7 h-7 rounded object-cover border border-gray-600" onError={e => e.target.style.display='none'} />
-                  )}
-                  <span className="text-white text-xs font-bold">{successData.teamName}</span>
+              
+              <div className="space-y-1 pt-2">
+                <h2 className="text-2xl font-black text-white tracking-wide">Payment Successful!</h2>
+                <p className="text-emerald-400 font-semibold text-sm">Registration Confirmed 🎉</p>
+              </div>
+            </motion.div>
+          ) : (
+            /* Phase 2: Final Clean Receipt Card */
+            <motion.div 
+              key="receipt-card"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-slate-950 border border-slate-800 rounded-2xl max-w-sm w-full text-center shadow-2xl overflow-hidden my-4"
+            >
+              {/* Compact Green Header */}
+              <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-600 px-5 py-4 text-center">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-1 border-2 border-white/40">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-lg font-black text-white tracking-wide">Registration Confirmed!</h2>
+                <p className="text-emerald-100 text-xs font-medium truncate">{tournament.title}</p>
+              </div>
+
+              <div className="p-4 space-y-3">
+                {/* Clean Receipt details with Squad Name & Registered Players */}
+                <div className="bg-slate-900/90 rounded-xl p-3 text-left space-y-2.5 border border-slate-800 text-xs">
+                  {/* Squad Name */}
+                  <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                    <span className="text-slate-400 font-medium">Squad / Team</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {successData.logoUrl && (
+                        <img src={successData.logoUrl} alt="logo" className="w-5 h-5 rounded object-cover border border-slate-700 shrink-0" onError={e => e.target.style.display='none'} />
+                      )}
+                      <span className="text-amber-400 font-extrabold text-xs truncate max-w-[160px]">{successData.teamName}</span>
+                    </div>
+                  </div>
+
+                  {/* Registered Players List */}
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Registered Players</p>
+                    <div className="space-y-1 bg-slate-950/70 p-2 rounded-lg border border-slate-800/60">
+                      {(successData.finalMembers || teamMembers).map((m, i) => (
+                        <div key={i} className="flex items-center justify-between text-[11px] text-slate-200">
+                          <span className="font-semibold text-white truncate max-w-[130px]">
+                            {i + 1}. {m.ign} {m.isLeader ? "👑" : ""}
+                          </span>
+                          <span className="text-slate-400 font-mono text-[10px]">UID: {m.uid}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Entry Fee Paid */}
+                  <div className="flex justify-between items-center pt-1 border-t border-slate-800/80">
+                    <span className="text-slate-400 font-medium">Entry Fee Paid</span>
+                    <span className="text-amber-400 font-bold flex items-center gap-1">
+                      <Coins className="w-3.5 h-3.5" />
+                      {requiredCoins === 0 ? "FREE" : `${requiredCoins} BH Coins`}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex justify-between items-center border-t border-slate-800/80 pt-2">
+                    <span className="text-slate-400 font-medium">Status</span>
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                      PAID & CONFIRMED ✅
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Real-time Match Start Countdown Timer */}
+                <MatchLiveCountdown matchTimeStr={tournament?.date_time || tournament?.match_time} />
+
+                {/* Action Buttons */}
+                <div className="space-y-2">
+                  <RegistrationInvoiceDownload 
+                    registration={{
+                      id: successData.invoiceId.replace("#BHFF-", ""),
+                      team_name: successData.teamName,
+                      team_logo: successData.logoUrl,
+                      team_members: successData.finalMembers || teamMembers,
+                      team_leader_id: user?.id,
+                      status: "PAID & CONFIRMED ✅",
+                      created_date: new Date().toISOString()
+                    }} 
+                    tournament={{
+                      ...tournament,
+                      entry_fee: requiredCoins === 0 ? "Free" : `${requiredCoins} BH Coins`
+                    }}
+                    className="w-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-amber-500/50 text-slate-200 hover:text-amber-400 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm"
+                    variant="outline"
+                    size="md"
+                  />
+
+                  <button
+                    onClick={() => { setShowSuccessModal(false); if (onSuccess) onSuccess(createdRegistration); }}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:opacity-95 text-slate-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20"
+                  >
+                    Done — Let's Go!
+                  </button>
+
                 </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400 text-xs">Tournament</span>
-                <span className="text-white text-xs">{tournament.title}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400 text-xs">Mode</span>
-                <span className="text-white text-xs">{tournament.mode}</span>
-              </div>
-              <div className="border-t border-gray-700 pt-2">
-                <p className="text-gray-400 text-xs mb-1">Team Members</p>
-                {(successData.finalMembers || teamMembers).map((m, i) => (
-                  <p key={i} className="text-white text-xs">{i+1}. {m.ign} | UID: {m.uid}{m.isLeader ? " 👑" : ""}</p>
-                ))}
-              </div>
-              <div className="flex justify-between items-center border-t border-gray-700 pt-2">
-                <span className="text-gray-400 text-xs">Entry Fee Paid</span>
-                <span className="text-yellow-400 font-black">{requiredCoins === 0 ? "FREE" : `${requiredCoins} ${(successData?.payMethod || paymentMethod) === "Diamond" ? "💎" : "🪙"}`}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400 text-xs">Status</span>
-                <span className="text-green-400 text-xs font-bold">PAID & CONFIRMED ✅</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400 text-xs">Phone</span>
-                <span className="text-white text-xs">{phoneNumber}</span>
-              </div>
-            </div>
-
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
-              <p className="text-xs text-yellow-300">📢 Room ID & Password will be shared 10 minutes before match starts!</p>
-            </div>
-
-            {/* Download Invoice Button */}
-            <RegistrationInvoiceDownload 
-              registration={{
-                id: successData.invoiceId.replace("#BHFF-", ""),
-                team_name: successData.teamName,
-                team_logo: successData.logoUrl,
-                team_members: successData.finalMembers || teamMembers,
-                team_leader_id: user?.id,
-                status: "PAID & CONFIRMED ✅",
-                created_date: new Date().toISOString()
-              }} 
-              tournament={{
-                ...tournament,
-                entry_fee: requiredCoins === 0 ? "Free" : `${requiredCoins} ${(successData?.payMethod || paymentMethod) === "Diamond" ? "💎" : "🪙"}`
-              }}
-              className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
-              variant="outline"
-              size="lg"
-            />
-
-            <button
-              onClick={() => { setShowSuccessModal(false); onSuccess(); }}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-xl text-base"
-            >
-              🎮 Done — Let's Go!
-            </button>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     )}
     </>

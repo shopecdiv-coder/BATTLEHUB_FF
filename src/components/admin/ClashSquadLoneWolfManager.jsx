@@ -243,7 +243,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-t-orange-500 border-orange-500/20 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-t-orange-600 border-orange-600/20 rounded-full animate-spin" />
       </div>
     );
   }
@@ -254,7 +254,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Swords className="w-5 h-5 text-orange-400" />
+            <Swords className="w-5 h-5 text-orange-500" />
             Clash Squad & Lone Wolf Manager
           </h2>
           <p className="text-gray-400 text-sm mt-0.5">Dedicated management for special game modes</p>
@@ -275,13 +275,13 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
               onClick={() => { setActiveGameType(gt); setExpandedId(null); }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
                 activeGameType === gt
-                  ? "bg-gradient-to-r from-orange-500/20 to-red-500/10 border-orange-500/40 text-orange-300"
+                  ? "bg-gradient-to-r from-orange-600/20 to-red-500/10 border-orange-600/40 text-orange-300"
                   : "border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
               }`}
             >
               <span className="text-base">{info.icon}</span>
               <span className="hidden sm:block">{gt}</span>
-              <span className={`ml-0.5 text-xs rounded-full px-1.5 py-0.5 ${activeGameType === gt ? 'bg-orange-500/30 text-orange-300' : 'bg-gray-700 text-gray-400'}`}>{count}</span>
+              <span className={`ml-0.5 text-xs rounded-full px-1.5 py-0.5 ${activeGameType === gt ? 'bg-orange-600/30 text-orange-300' : 'bg-gray-700 text-gray-400'}`}>{count}</span>
             </button>
           );
         })}
@@ -303,7 +303,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
           </div>
           <button
             onClick={() => setShowInfo(showInfo === activeGameType ? null : activeGameType)}
-            className="text-gray-500 hover:text-orange-400 p-1.5 rounded-lg hover:bg-gray-800"
+            className="text-gray-500 hover:text-orange-500 p-1.5 rounded-lg hover:bg-gray-800"
           >
             <Info className="w-4 h-4" />
           </button>
@@ -312,16 +312,16 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
         {showInfo === activeGameType && (
           <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-3">
             <div>
-              <p className="text-orange-400 text-xs font-bold uppercase tracking-wide mb-2">Rules & Format</p>
+              <p className="text-orange-500 text-xs font-bold uppercase tracking-wide mb-2">Rules & Format</p>
               <ul className="space-y-1">
                 {gameInfo.rules.map((rule, i) => (
                   <li key={i} className="text-gray-300 text-sm flex items-start gap-2">
-                    <span className="text-orange-400 mt-0.5">•</span> {rule}
+                    <span className="text-orange-500 mt-0.5">•</span> {rule}
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
+            <div className="bg-orange-600/10 border border-orange-600/20 rounded-xl p-3">
               <p className="text-orange-300 text-xs font-semibold">⚡ Scoring: {gameInfo.scoringNote}</p>
             </div>
           </div>
@@ -337,7 +337,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
               statusFilter === s
-                ? "bg-orange-500/20 border-orange-500/40 text-orange-300"
+                ? "bg-orange-600/20 border-orange-600/40 text-orange-300"
                 : "border-gray-700 text-gray-500 hover:bg-gray-800"
             }`}
           >
@@ -354,7 +354,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
           <p className="text-gray-400 mt-3 font-medium">No {activeGameType} tournaments found</p>
           <p className="text-gray-600 text-sm mt-1">Create one from the Create Tournament page</p>
           <Link to={createPageUrl("CreateTournament")}>
-            <Button className="mt-4 bg-orange-500 hover:bg-orange-600" size="sm">
+            <Button className="mt-4 bg-orange-600 hover:bg-orange-700" size="sm">
               + Create {activeGameType} Tournament
             </Button>
           </Link>
@@ -381,7 +381,10 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
                         <span className="text-gray-600 text-xs">•</span>
                         <span className="text-gray-400 text-xs">{tournament.map}</span>
                         <span className="text-gray-600 text-xs">•</span>
-                        <span className="text-gray-400 text-xs">{format(new Date(tournament.date_time), "dd MMM, hh:mm a")}</span>
+                        {(() => {
+                          const isValid = tournament.date_time && !isNaN(new Date(tournament.date_time).getTime());
+                          return <span className="text-gray-400 text-xs">{isValid ? format(new Date(tournament.date_time), "dd MMM, hh:mm a") : "No Date"}</span>;
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -405,7 +408,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
                     {/* Stats */}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="bg-gray-800/60 rounded-xl p-3 text-center">
-                        <p className="text-orange-400 font-bold text-lg">{tournament.current_teams || 0}</p>
+                        <p className="text-orange-500 font-bold text-lg">{tournament.current_teams || 0}</p>
                         <p className="text-gray-500 text-xs">Registered</p>
                       </div>
                       <div className="bg-gray-800/60 rounded-xl p-3 text-center">
@@ -513,7 +516,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
 
             <div className="p-5 space-y-5">
               {/* Scoring info */}
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
                 <p className="text-blue-300 text-xs font-semibold">⚡ {GAME_TYPE_INFO[leaderboardModal.game_type]?.scoringNote}</p>
               </div>
 
@@ -556,7 +559,7 @@ export default function ClashSquadLoneWolfManager({ onUpdate }) {
                 <table className="w-full">
                   <thead className="bg-gray-800/60">
                     <tr>
-                      <th className="text-left py-2.5 px-3 text-gray-400 text-xs font-semibold">#</th>
+                      <th className="text-left py-2.5 px-3 text-gray-400 text-xs font-semibold">S.NO.</th>
                       <th className="text-left py-2.5 px-3 text-gray-400 text-xs font-semibold">Player</th>
                       <th className="text-center py-2.5 px-3 text-gray-400 text-xs font-semibold">Kills/Rounds</th>
                       <th className="text-center py-2.5 px-3 text-gray-400 text-xs font-semibold">Place</th>

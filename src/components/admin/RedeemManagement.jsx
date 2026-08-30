@@ -137,22 +137,31 @@ export default function RedeemManagement({ requests, onUpdate }) {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-900/50 rounded">
                   <p className="text-xs text-gray-400">Amount</p>
-                  <p className="text-2xl font-bold text-orange-400">{req.diamond_amount} 🪙 = ₹{req.inr_amount}</p>
+                  <p className="text-2xl font-bold text-orange-500">{req.diamond_amount || req.coins_spent || 0} 🪙 = ₹{req.inr_amount || req.coins_spent || 0}</p>
                 </div>
                 <div className="p-3 bg-gray-900/50 rounded space-y-1">
                   <p className="text-xs text-gray-400 mb-2 font-semibold">💳 Payment Info</p>
-                  {req.bank_details.account_holder && <p className="text-sm text-white font-semibold">👤 {req.bank_details.account_holder}</p>}
-                  {req.bank_details.account_number && (
+                  {req.bank_details?.account_holder && <p className="text-sm text-white font-semibold">👤 {req.bank_details.account_holder}</p>}
+                  {req.bank_details?.account_number && (
                     <p className="text-sm text-cyan-400 font-mono">🏦 Acc: <span className="font-bold">{req.bank_details.account_number}</span></p>
                   )}
-                  {req.bank_details.bank_name && (
+                  {req.bank_details?.bank_name && (
                     <p className="text-sm text-white">🏛️ Bank: {req.bank_details.bank_name}</p>
                   )}
-                  {req.bank_details.ifsc_code && (
+                  {req.bank_details?.ifsc_code && (
                     <p className="text-sm text-yellow-400 font-mono">IFSC: <span className="font-bold">{req.bank_details.ifsc_code}</span></p>
                   )}
-                  {req.bank_details.upi_id && <p className="text-sm text-green-400">📲 UPI: {req.bank_details.upi_id}</p>}
-                  {req.bank_details.phone_number && <p className="text-sm text-white">📱 Phone: {req.bank_details.phone_number}</p>}
+                  {req.bank_details?.upi_id && <p className="text-sm text-green-400 font-mono">📲 UPI: {req.bank_details.upi_id}</p>}
+                  {req.bank_details?.phone_number && <p className="text-sm text-white">📱 Phone: {req.bank_details.phone_number}</p>}
+                  {req.target_account && !req.bank_details?.upi_id && !req.bank_details?.account_number && (
+                    <p className="text-sm text-cyan-400 font-mono">🎯 Target: {req.target_account}</p>
+                  )}
+                  {req.payout_details && !req.bank_details?.upi_id && !req.bank_details?.account_number && (
+                    <p className="text-sm text-green-400 font-mono">📲 Payout: {req.payout_details}</p>
+                  )}
+                  {req.reward_title && (
+                    <p className="text-xs text-amber-400">🎁 {req.reward_title}</p>
+                  )}
                 </div>
               </div>
               <div>

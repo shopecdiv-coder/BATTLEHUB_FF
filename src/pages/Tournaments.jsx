@@ -23,14 +23,14 @@ const TournamentCard = ({ tournament, registration }) => {
   return (
     <div className="h-full">
       <Link to={createPageUrl(`TournamentDetail?id=${tournament.id}`)}>
-        <div className="h-full bg-gray-950 border border-gray-800 hover:border-orange-500/50 rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98] group flex flex-col">
+        <div className="h-full bg-gray-950 border border-gray-800 hover:border-orange-600/50 rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98] group flex flex-col">
           {/* Banner */}
           <div className="h-28 relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex-shrink-0">
             {tournament.banner_url ? (
               <img src={tournament.banner_url} alt={tournament.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
-                <Trophy className="w-8 h-8 text-orange-500/20" />
+                <Trophy className="w-8 h-8 text-orange-600/20" />
               </div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent" />
@@ -68,10 +68,10 @@ const TournamentCard = ({ tournament, registration }) => {
 
           {/* Info */}
           <div className="p-3 pb-3 flex flex-col flex-grow">
-            <h3 className="text-white font-bold text-sm line-clamp-1 mb-2 group-hover:text-orange-400 transition-colors">{tournament.title}</h3>
+            <h3 className="text-white font-bold text-sm line-clamp-1 mb-2 group-hover:text-orange-500 transition-colors">{tournament.title}</h3>
             <div className="flex items-center gap-1 flex-wrap mb-2">
               <Badge className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] px-1.5 py-0">{tournament.mode}</Badge>
-              {tournament.map && <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] px-1.5 py-0">{tournament.map}</Badge>}
+              {tournament.map && <Badge className="bg-orange-600/10 text-orange-500 border border-orange-600/20 text-[9px] px-1.5 py-0">{tournament.map}</Badge>}
             </div>
             
             <div className="flex flex-col gap-1.5 mt-auto">
@@ -79,7 +79,15 @@ const TournamentCard = ({ tournament, registration }) => {
                 <div className="flex items-center gap-1 min-w-0">
                   <Calendar className="w-3 h-3 flex-shrink-0" />
                   <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                    {format(new Date(tournament.date_time), "MMM d, h:mm a")}
+                    {(() => {
+                      try {
+                        const d = new Date(tournament.date_time);
+                        if (isNaN(d.getTime())) return "TBD";
+                        return format(d, "MMM d, h:mm a");
+                      } catch(e) {
+                        return "TBD";
+                      }
+                    })()}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-yellow-400 font-bold flex-shrink-0">
@@ -94,10 +102,10 @@ const TournamentCard = ({ tournament, registration }) => {
                   <span>{tournament.current_teams || 0}/{tournament.max_teams}</span>
                 </div>
                 {tournament.status === "Registration Open" && !isSFGF && (
-                  <span className="text-orange-400 font-bold text-[10px] px-2 py-0.5 bg-orange-500/10 rounded-sm">JOIN</span>
+                  <span className="text-orange-500 font-bold text-[10px] px-2 py-0.5 bg-orange-600/10 rounded-sm">JOIN</span>
                 )}
                 {registration && (
-                  <span className="text-orange-400 font-bold text-[10px] flex items-center gap-1">Details <ArrowRight className="w-2.5 h-2.5"/></span>
+                  <span className="text-orange-500 font-bold text-[10px] flex items-center gap-1">Details <ArrowRight className="w-2.5 h-2.5"/></span>
                 )}
               </div>
             </div>
@@ -246,7 +254,7 @@ export default function Tournaments() {
             <TabsTrigger value="my" className="relative">
               My Matches
               {myRegistrations.length > 0 && (
-                <span className="ml-1.5 bg-orange-500 text-white text-[9px] rounded-full px-1 font-bold">{myRegistrations.length}</span>
+                <span className="ml-1.5 bg-orange-600 text-white text-[9px] rounded-full px-1 font-bold">{myRegistrations.length}</span>
               )}
             </TabsTrigger>
           </TabsList>
@@ -324,7 +332,7 @@ export default function Tournaments() {
               <div className="space-y-6">
                 <div className="bg-gray-900/40 border border-gray-800/80 rounded-2xl p-5">
                   <h2 className="text-[15px] font-black text-gray-200 tracking-wide uppercase mb-5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                     Qualifiers
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
@@ -346,7 +354,7 @@ export default function Tournaments() {
                 </div>
                 <div className="bg-gray-900/40 border border-gray-800/80 rounded-2xl p-5">
                   <h2 className="text-[15px] font-black text-gray-200 tracking-wide uppercase mb-5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                    <span className="w-2 h-2 rounded-full bg-orange-600"></span>
                     Grand Finals
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
@@ -389,7 +397,7 @@ export default function Tournaments() {
               <div className="space-y-10">
                 {myRegistrations.filter(r => myTournamentsMap[r.tournament_id]?.status !== "Completed").length > 0 && (
                   <div>
-                    <h2 className="text-xl font-bold text-orange-400 mb-4 border-b border-gray-800 pb-2 uppercase tracking-wider">Upcoming My Matches</h2>
+                    <h2 className="text-xl font-bold text-orange-500 mb-4 border-b border-gray-800 pb-2 uppercase tracking-wider">Upcoming My Matches</h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                       {myRegistrations.filter(r => myTournamentsMap[r.tournament_id]?.status !== "Completed").map((registration) => {
                         const tournament = myTournamentsMap[registration.tournament_id];

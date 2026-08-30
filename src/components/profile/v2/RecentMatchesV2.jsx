@@ -12,14 +12,14 @@ export default function RecentMatchesV2() {
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-bold text-white">Recent Matches</h3>
-        <button className="text-[#ff5500] text-xs font-bold hover:underline">View All</button>
+        <button className="text-[#0ea5e9] text-xs font-bold hover:underline">View All</button>
       </div>
       
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
         {matches.map((m) => (
           <div 
             key={m.id} 
-            className="snap-start shrink-0 w-64 h-36 rounded-2xl relative overflow-hidden group cursor-pointer border border-gray-800 hover:border-[#ff5500]/50 transition-colors"
+            className="snap-start shrink-0 w-64 h-36 rounded-2xl relative overflow-hidden group cursor-pointer border border-gray-800 hover:border-[#0ea5e9]/50 transition-colors"
           >
             <div 
               className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"

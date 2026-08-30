@@ -134,7 +134,7 @@ export default function BuyCoinsStepper({ open, onClose, user }) {
         <div className="space-y-4">
           {/* Header */}
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">
               Buy BH Coins
             </h2>
             <Badge className="bg-yellow-500/20 text-yellow-400 mt-2">Step {step} of 2</Badge>
@@ -177,7 +177,7 @@ export default function BuyCoinsStepper({ open, onClose, user }) {
                 )}
               </div>
 
-              <Button onClick={() => setStep(2)} disabled={amount < 1} className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold py-6">
+              <Button onClick={() => setStep(2)} disabled={amount < 1} className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-bold py-6">
                 Next — Pay & Enter UTR →
               </Button>
             </div>
@@ -296,7 +296,7 @@ export default function BuyCoinsStepper({ open, onClose, user }) {
                 <p className="font-bold text-green-400 mb-1">📱 Google Pay</p>
                 <p>Payment History → Transaction → UPI Transaction ID</p>
               </div>
-              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+              <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
                 <p className="font-bold text-blue-400 mb-1">📱 Paytm</p>
                 <p>Passbook → Transaction Details → UTR Number</p>
               </div>

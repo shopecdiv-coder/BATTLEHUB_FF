@@ -70,12 +70,12 @@ export default function PolicyAcceptanceModal() {
     <>
       <Dialog open={show} onOpenChange={() => {}}>
         <DialogContent 
-          className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-orange-500/30 text-gray-100 max-w-3xl max-h-[95vh] overflow-y-auto" 
+          className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-orange-600/30 text-gray-100 max-w-3xl max-h-[95vh] overflow-y-auto" 
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader className="border-b border-gray-700 pb-4">
-            <DialogTitle className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+            <DialogTitle className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-400 flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-600 to-red-500 rounded-xl flex items-center justify-center">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               Welcome to BattleHub FF
@@ -85,7 +85,7 @@ export default function PolicyAcceptanceModal() {
 
           <div className="space-y-5 py-6">
             {/* Single Policy Agreement */}
-            <div className="p-5 bg-gray-800/60 rounded-xl border-2 border-gray-700 hover:border-orange-500/50 transition-all">
+            <div className="p-5 bg-gray-800/60 rounded-xl border-2 border-gray-700 hover:border-orange-600/50 transition-all">
               <div className="flex items-start gap-4">
                 <Checkbox
                   checked={allPoliciesAccepted}
@@ -110,7 +110,7 @@ export default function PolicyAcceptanceModal() {
             </div>
 
             {/* Age Confirmation - Separate Box */}
-            <div className="p-5 bg-orange-900/20 border-2 border-orange-500/50 rounded-xl shadow-lg">
+            <div className="p-5 bg-orange-900/20 border-2 border-orange-600/50 rounded-xl shadow-lg">
               <div className="flex items-start gap-4">
                 <Checkbox
                   checked={ageConfirmed}
@@ -131,7 +131,7 @@ export default function PolicyAcceptanceModal() {
             <Button
               onClick={handleAccept}
               disabled={submitting || !allPoliciesAccepted || !ageConfirmed}
-              className="w-full bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 hover:from-orange-600 hover:via-red-600 hover:to-orange-600 text-white font-black py-7 text-xl shadow-2xl shadow-orange-500/30 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-orange-600 via-red-500 to-orange-600 hover:from-orange-700 hover:via-red-600 hover:to-orange-700 text-white font-black py-7 text-xl shadow-2xl shadow-orange-600/30 disabled:opacity-50"
             >
               {submitting ? "Processing..." : "Accept & Continue"}
             </Button>
@@ -159,15 +159,15 @@ export default function PolicyAcceptanceModal() {
 
 function PolicyCheckbox({ checked, onChange, label, icon: Icon, onView }) {
   return (
-    <div className="flex items-center justify-between p-5 bg-gray-800/60 rounded-xl border-2 border-gray-700 hover:border-orange-500/50 hover:bg-gray-800 transition-all shadow-lg">
+    <div className="flex items-center justify-between p-5 bg-gray-800/60 rounded-xl border-2 border-gray-700 hover:border-orange-600/50 hover:bg-gray-800 transition-all shadow-lg">
       <div className="flex items-center gap-4">
         <Checkbox
           checked={checked}
           onCheckedChange={onChange}
           className="w-5 h-5"
         />
-        <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center">
-          <Icon className="w-5 h-5 text-orange-400" />
+        <div className="w-10 h-10 bg-gradient-to-br from-orange-600/20 to-red-500/20 rounded-lg flex items-center justify-center">
+          <Icon className="w-5 h-5 text-orange-500" />
         </div>
         <label className="text-gray-100 font-bold cursor-pointer text-lg">
           {label}

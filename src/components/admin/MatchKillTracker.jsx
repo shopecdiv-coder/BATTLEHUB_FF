@@ -19,7 +19,12 @@ export default function MatchKillTracker({ onUpdate }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [currentMatch, setCurrentMatch] = useState("M1");
 
-  const MATCHES = ["M1", "M2", "M3", "M4", "M5"];
+  const selectedTourn = tournaments.find(t => t.id === selectedTournamentId);
+  const maxStageMatches = Array.isArray(selectedTourn?.stages) 
+    ? Math.max(1, ...selectedTourn.stages.map(s => typeof s === 'object' && s.matches_count ? parseInt(s.matches_count, 10) : 1))
+    : 1;
+  const matchLimit = selectedTourn?.matches_per_stage || maxStageMatches || 5;
+  const MATCHES = Array.from({ length: Math.max(1, matchLimit) }, (_, i) => `M${i + 1}`);
 
   useEffect(() => {
     loadTournaments();
@@ -209,7 +214,7 @@ export default function MatchKillTracker({ onUpdate }) {
               <button
                 key={m}
                 onClick={() => setCurrentMatch(m)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${currentMatch === m ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${currentMatch === m ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}
               >
                 {m}
               </button>
@@ -235,13 +240,13 @@ export default function MatchKillTracker({ onUpdate }) {
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-gray-400 flex flex-wrap gap-4">
           <span>🎯 Kill Points: <b className="text-white">{tournament.point_system?.kill_points || 1}pt</b></span>
           <span>📋 Teams Registered: <b className="text-white">{registrations.length}</b></span>
-          <span>📌 Match: <b className="text-orange-400">{currentMatch}</b></span>
+          <span>📌 Match: <b className="text-orange-500">{currentMatch}</b></span>
         </div>
       )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
       ) : filtered.length === 0 && selectedTournamentId ? (
         <div className="text-center py-12 text-gray-500">No teams found for this tournament</div>
@@ -305,7 +310,7 @@ export default function MatchKillTracker({ onUpdate }) {
 
                   <div className="text-right ml-2 hidden sm:block">
                     <p className="text-[10px] text-gray-600">Total</p>
-                    <p className="text-sm font-bold text-orange-400">{totalPoints}pts</p>
+                    <p className="text-sm font-bold text-orange-500">{totalPoints}pts</p>
                     <p className="text-[10px] text-gray-500">{totalKills}K</p>
                   </div>
 
@@ -325,7 +330,7 @@ export default function MatchKillTracker({ onUpdate }) {
                       {MATCHES.map(m => {
                         const md = teamData[m] || {};
                         return (
-                          <div key={m} className={`rounded-lg p-2 text-center border ${currentMatch === m ? 'border-orange-500/40 bg-orange-500/5' : 'border-gray-800 bg-gray-800/50'}`}>
+                          <div key={m} className={`rounded-lg p-2 text-center border ${currentMatch === m ? 'border-orange-600/40 bg-orange-600/5' : 'border-gray-800 bg-gray-800/50'}`}>
                             <p className="text-[10px] font-bold text-gray-500">{m}</p>
                             <p className="text-sm font-bold text-white">#{md.placement || 0}</p>
                             <p className="text-[10px] text-red-400">{md.kills || 0}K</p>

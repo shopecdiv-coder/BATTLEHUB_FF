@@ -4,6 +4,7 @@ import { Diamond } from "@/entities/Diamond";
 import { Notification } from "@/entities/Notification";
 import { Registration } from "@/entities/Registration";
 import { MessageTemplate } from "@/entities/MessageTemplate";
+import { UserAddress, UserOrder, UserWishlist, SellRequest } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Users, Search, Send, Coins, Bell, Eye, X, 
-  Copy, Check, Trophy, Calendar, Download, Gamepad2, Ban, Shield, MessageCircle, Gem
+  Copy, Check, Trophy, Calendar, Download, Gamepad2, Ban, Shield, MessageCircle, Gem,
+  MapPin, ShoppingCart, Heart, Package
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
@@ -48,6 +50,12 @@ export default function UserManagement() {
   
   const [copied, setCopied] = useState(false);
 
+  // Store Report State
+  const [userAddresses, setUserAddresses] = useState([]);
+  const [userOrders, setUserOrders] = useState([]);
+  const [userWishlists, setUserWishlists] = useState([]);
+  const [userSellRequests, setUserSellRequests] = useState([]);
+
   useEffect(() => {
     loadUsers();
     loadTemplates();
@@ -80,8 +88,8 @@ export default function UserManagement() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Load all users in a single fetch (up to 5000)
-      const allUsers = await User.list("-created_date", 5000).catch(() => []);
+      // Load recent users (100) to conserve Firestore daily quota
+      const allUsers = await User.list("-created_date", 100).catch(() => []);
       
       setUsers(allUsers || []);
       setFilteredUsers(allUsers || []);
@@ -125,14 +133,22 @@ export default function UserManagement() {
   const selectUser = async (user) => {
     setSelectedUser(user);
     
-    // Load user's registrations and diamond account
-    const [regs, diamonds] = await Promise.all([
+    // Load user's registrations and diamond account + Store Data
+    const [regs, diamonds, addresses, orders, wishlists, sellReqs] = await Promise.all([
       Registration.filter({ team_leader_id: user.id }, "-created_date", 20).catch(() => []),
-      Diamond.filter({ user_id: user.id }).catch(() => [])
+      Diamond.filter({ user_id: user.id }).catch(() => []),
+      UserAddress.filter({ user_id: user.id }).catch(() => []),
+      UserOrder.filter({ user_id: user.id }).catch(() => []),
+      UserWishlist.filter({ user_id: user.id }).catch(() => []),
+      SellRequest.filter({ user_id: user.id }).catch(() => [])
     ]);
     
     setUserRegistrations(regs || []);
     setUserDiamond(diamonds.length > 0 ? diamonds[0] : null);
+    setUserAddresses(addresses || []);
+    setUserOrders(orders || []);
+    setUserWishlists(wishlists || []);
+    setUserSellRequests(sellReqs || []);
   };
 
   const sendNotification = async () => {

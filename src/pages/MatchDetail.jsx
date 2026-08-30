@@ -120,7 +120,7 @@ export default function MatchDetail() {
                         className={`p-4 rounded-lg flex items-center justify-between ${
                           index === 0 ? 'bg-gradient-to-r from-yellow-900/30 to-yellow-800/10 border border-yellow-500/20' :
                           index === 1 ? 'bg-gradient-to-r from-gray-700/30 to-gray-600/10 border border-gray-500/20' :
-                          index === 2 ? 'bg-gradient-to-r from-orange-900/30 to-orange-800/10 border border-orange-500/20' :
+                          index === 2 ? 'bg-gradient-to-r from-orange-900/30 to-orange-800/10 border border-orange-600/20' :
                           'bg-gray-800/30'
                         }`}
                       >

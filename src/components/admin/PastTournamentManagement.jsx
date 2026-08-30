@@ -117,6 +117,32 @@ export default function PastTournamentManagement({ tournaments = [], onUpdate })
         await PastTournament.update(editingId, formData);
       } else {
         await PastTournament.create(formData);
+        
+        // Trigger push notifications for winners
+        try {
+          const { User } = await import('@/api/entities');
+          const allUsers = await User.list();
+          for (const winner of formData.winners) {
+             const winningUser = allUsers.find(u => 
+                u.id === winner.uid || 
+                (u.ign && u.ign.toLowerCase() === winner.uid.toLowerCase()) ||
+                (u.game_uid && u.game_uid === winner.uid) ||
+                (u.ign && u.ign.toLowerCase() === winner.player_name.toLowerCase())
+             );
+             
+             if (winningUser && winningUser.fcm_token) {
+               fetch('/api/sendPush', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                   token: winningUser.fcm_token,
+                   title: 'Congratulations! 🏆',
+                   body: `You won ${winner.reward || 'rewards'} in ${formData.title || 'a tournament'}! Check the results.`
+                 })
+               }).catch(e => console.error(e));
+             }
+          }
+        } catch(e) { console.error("Winner Push Error", e); }
       }
       setShowForm(false);
       setEditingId(null);

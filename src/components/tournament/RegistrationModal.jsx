@@ -176,34 +176,20 @@ export default function RegistrationModal({ tournament, user, onClose, onSuccess
           status: "Registered",
           team_logo_url: ""
         });
+        
+        try {
+          await User.addXP(user.id, 50);
+        } catch(e) {}
       }
 
       await Tournament.update(tournament.id, { current_teams: (tournament.current_teams || 0) + 1 });
       await User.updateMyUserData({ total_matches: (user.total_matches || 0) + 1 });
 
-      // Handle referral reward for the referrer (not re-deducting from current user)
+      // Handle referral reward for the referrer
       const pendingReferrals2 = await Referral.filter({ referred_user_id: user.id, status: "Pending" });
       if (pendingReferrals2.length > 0) {
         const referral = pendingReferrals2[0];
-        const rewardAmount = referral.reward_amount || 5;
-        await Referral.update(referral.id, { status: "Completed", tournament_played: tournament.id, reward_credited: true });
-        const referrerAccounts = await Diamond.filter({ user_id: referral.referrer_id });
-        const now2 = new Date().toISOString();
-        if (referrerAccounts.length > 0) {
-          await Diamond.update(referrerAccounts[0].id, {
-            bh_coin_balance: (referrerAccounts[0].bh_coin_balance || 0) + rewardAmount,
-            transactions: [...(referrerAccounts[0].transactions || []), {
-              type: "Win", coin_type: "BH Coin", amount: rewardAmount,
-              description: `🎁 Referral - ${user.ign || user.full_name} joined`, timestamp: now2
-            }]
-          });
-        } else {
-          await Diamond.create({
-            user_id: referral.referrer_id, user_ign: referral.referrer_ign,
-            diamond_balance: 0, bh_coin_balance: rewardAmount,
-            transactions: [{ type: "Win", coin_type: "BH Coin", amount: rewardAmount, description: `🎁 Referral - ${user.ign || user.full_name} joined`, timestamp: now2 }]
-          });
-        }
+        await Referral.update(referral.id, { status: "Completed", tournament_played: tournament.id });
       }
 
       if (user.email && user.email.trim()) {
@@ -214,7 +200,7 @@ export default function RegistrationModal({ tournament, user, onClose, onSuccess
             tournament_name: tournament.title || 'Tournament',
             game_mode: tournament.mode || 'N/A',
             match_date: tournament.date_time ? new Date(tournament.date_time).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA',
-            match_time: tournament.date_time ? new Date(tournament.date_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'TBA'
+            match_time: tournament.date_time ? new Date(tournament.date_time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }) : 'TBA'
           }, 'l1xNKW7ZEzj2RARE_');
         } catch (emailError) {
           console.error('Email failed:', emailError);
@@ -373,7 +359,7 @@ export default function RegistrationModal({ tournament, user, onClose, onSuccess
                   <Input
                     value={m.uid}
                     onChange={e => { const arr = [...extraMembers]; arr[idx] = { ...arr[idx], uid: e.target.value.replace(/\D/g,'') }; setExtraMembers(arr); }}
-                    placeholder="Free Fire UID (numeric)"
+                    placeholder="Game UID (numeric)"
                     inputMode="numeric"
                     className="bg-gray-800 border-gray-600 text-white"
                   />

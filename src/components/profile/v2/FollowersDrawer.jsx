@@ -13,6 +13,8 @@ import { Follower, User } from '@/api/entities';
 import { Users, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import PlayerProfile from "@/pages/PlayerProfile";
+import { db } from '@/api/firebaseClient';
+import { collection, query, where, documentId, getDocs } from 'firebase/firestore';
 
 export default function FollowersDrawer({ children, user, type = 'followers', isMe }) {
   const [open, setOpen] = useState(false);
@@ -35,21 +37,49 @@ export default function FollowersDrawer({ children, user, type = 'followers', is
         ? await Follower.filter({ following_id: user.id })
         : await Follower.filter({ follower_id: user.id });
       
-      const fetchPromises = data.map(async (rel) => {
+      const validRels = [];
+      for (const rel of data) {
         const targetId = type === 'followers' ? rel.follower_id : rel.following_id;
-        
         if (seen.has(targetId)) {
+          Follower.delete(rel.id).catch(() => {});
+          continue;
+        }
+        seen.add(targetId);
+        validRels.push({ ...rel, targetId });
+      }
+
+      const uniqueIds = validRels.map(r => r.targetId).filter(Boolean);
+      const usersMap = {};
+      
+      const chunks = [];
+      for (let i = 0; i < uniqueIds.length; i += 10) {
+        chunks.push(uniqueIds.slice(i, i + 10));
+      }
+
+      const chunkPromises = chunks.map(async (chunk) => {
+        if (chunk.length === 0) return;
+        try {
+          const q = query(collection(db, 'users'), where(documentId(), 'in', chunk));
+          const snap = await getDocs(q);
+          snap.docs.forEach(d => {
+            usersMap[d.id] = { id: d.id, ...d.data() };
+          });
+        } catch (err) {
+          console.error("Error fetching chunk of users:", err);
+        }
+      });
+      
+      await Promise.all(chunkPromises);
+
+      const populated = validRels.map(rel => {
+        const targetUser = usersMap[rel.targetId];
+        if (!targetUser) {
+          // User doesn't exist anymore — delete the orphaned follower record
           Follower.delete(rel.id).catch(() => {});
           return null;
         }
-        seen.add(targetId);
-        
-        const targetUser = await User.get(targetId).catch(() => null);
-        return targetUser ? { ...rel, otherUser: targetUser } : null;
-      });
-      
-      const results = await Promise.all(fetchPromises);
-      const populated = results.filter(Boolean);
+        return { ...rel, otherUser: targetUser };
+      }).filter(Boolean);
       
       setUserList(populated);
     } catch (e) {
@@ -76,11 +106,12 @@ export default function FollowersDrawer({ children, user, type = 'followers', is
       
       <SheetContent 
         side="right" 
-        className="w-full sm:w-[450px] sm:max-w-md h-full bg-[#0a0a0c] border-l border-[#1f2029] p-0 flex flex-col overflow-hidden [&>button]:hidden pt-16"
+        className="w-full sm:w-[450px] sm:max-w-md h-full bg-slate-950 border-l border-slate-800 p-0 flex flex-col overflow-hidden [&>button]:hidden pt-16"
+        onInteractOutside={(e) => e.preventDefault()}
       >
-        <SheetHeader className="p-4 sm:p-6 border-b border-[#1f2029] bg-[#0c0d12] flex flex-row items-center gap-4 space-y-0">
+        <SheetHeader className="p-4 sm:p-6 border-b border-slate-800 bg-[#0c0d12] flex flex-row items-center gap-4 space-y-0">
           <SheetClose asChild>
-            <button className="p-2 bg-[#111115] hover:bg-[#ff5500] text-gray-400 hover:text-white border border-[#2a2a35] hover:border-[#ff5500] rounded-lg transition-colors">
+            <button className="p-2 bg-slate-900 hover:bg-[#0ea5e9] text-gray-400 hover:text-white border border-slate-700 hover:border-[#0ea5e9] rounded-lg transition-colors">
               <ChevronLeft className="w-5 h-5" />
             </button>
           </SheetClose>
@@ -92,7 +123,17 @@ export default function FollowersDrawer({ children, user, type = 'followers', is
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide space-y-2">
           {loading ? (
-            <div className="flex justify-center py-10"><div className="animate-spin w-8 h-8 border-2 border-[#ff5500] border-t-transparent rounded-full" /></div>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center gap-4 animate-pulse">
+                  <div className="w-12 h-12 rounded-full bg-slate-800" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-800 rounded w-1/3" />
+                    <div className="h-3 bg-slate-800 rounded w-1/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : userList.length === 0 ? (
             <div className="text-center py-10 text-gray-500">
               {type === 'followers' ? 'No followers yet' : 'Not following anyone'}
@@ -101,7 +142,7 @@ export default function FollowersDrawer({ children, user, type = 'followers', is
             userList.map(f => (
               <div 
                 key={f.id} 
-                className={`bg-[#111115] border border-[#1f2029] rounded-xl p-3 flex items-center justify-between gap-4 transition-all ${isMe ? 'cursor-pointer hover:border-[#ff5500]/50 hover:bg-[#1a1a20]' : ''}`}
+                className={`bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-4 transition-all ${isMe ? 'cursor-pointer hover:border-[#0ea5e9]/50 hover:bg-slate-800' : ''}`}
                 onClick={() => isMe && handleProfileClick(f.otherUser)}
               >
                 <div className="flex items-center gap-3 flex-1">
@@ -110,8 +151,8 @@ export default function FollowersDrawer({ children, user, type = 'followers', is
                     <AvatarFallback className="bg-gray-800 text-white font-bold">{f.otherUser.ign?.[0]}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-bold text-white text-sm">{f.otherUser.ign}</p>
-                    <p className="text-[10px] text-gray-400">UID: {f.otherUser.unique_id}</p>
+                    <p className="font-bold text-white text-sm">{f.otherUser.ign || f.otherUser.name || 'Unknown User'}</p>
+                    <p className="text-[10px] text-gray-400">UID: {f.otherUser.unique_id || f.otherUser.id?.substring(0,8)}</p>
                   </div>
                 </div>
               </div>
@@ -121,7 +162,10 @@ export default function FollowersDrawer({ children, user, type = 'followers', is
 
         {/* Full Profile Slider */}
         <Sheet open={!!selectedProfile} onOpenChange={(val) => !val && setSelectedProfile(null)}>
-          <SheetContent className="bg-[#050505] border-[#1f2029] p-0 flex flex-col w-full sm:max-w-none sm:w-[500px] md:w-[600px] overflow-y-auto pt-16">
+          <SheetContent 
+            className="bg-slate-950 border-slate-800 p-0 flex flex-col w-full max-w-full sm:max-w-full md:max-w-full overflow-hidden pt-16"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             {selectedProfile && (
               <PlayerProfile 
                 inlineUid={selectedProfile.id} 

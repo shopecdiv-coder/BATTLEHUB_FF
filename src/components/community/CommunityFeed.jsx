@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CommunityPost } from '@/entities/CommunityPost';
 import { User } from '@/entities/User';
-import { Loader2, ThumbsUp, ThumbsDown, MessageSquare, MoreVertical, Plus, Image as ImageIcon, CheckCircle, XCircle, X, Flag, Trash2, Send, Heart, Eye, BadgeCheck, Pin } from 'lucide-react';
+import { Loader2, ThumbsUp, ThumbsDown, MessageSquare, MoreVertical, Plus, Image as ImageIcon, CheckCircle, XCircle, X, Flag, Trash2, Send, Heart, Eye, BadgeCheck, Pin, Check, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
 import CreatePostModal from './CreatePostModal';
 import { createPageUrl } from '@/utils';
-import { Report, Follower } from '@/api/entities';
-import UserProfileModal from '@/components/chat/UserProfileModal';
+import { Report, Follower, Channel } from '@/api/entities';
+import PlayerProfile from '@/pages/PlayerProfile';
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { containsProfanity } from '@/utils/profanityFilter';
@@ -28,7 +29,9 @@ export default function CommunityFeed() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [channelsMap, setChannelsMap] = useState({});
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
   // New UI states
@@ -41,7 +44,16 @@ export default function CommunityFeed() {
   const [sendingComment, setSendingComment] = useState(false);
   const [viewProfileId, setViewProfileId] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [expandedReplies, setExpandedReplies] = useState({});
+  const [expandedTexts, setExpandedTexts] = useState({});
   const isAdmin = user?.role === 'admin' || user?.email === 'shopecdiv@gmail.com';
+
+  const toggleReplies = (commentId) => {
+    setExpandedReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+  };
 
   useEffect(() => {
     User.me().then(u => {
@@ -62,6 +74,20 @@ export default function CommunityFeed() {
     } catch(e) {}
   };
 
+  const fetchChannelsForPosts = async (postsList) => {
+    try {
+      const authorIds = [...new Set(postsList.map(p => p.author_id))];
+      if (authorIds.length > 0) {
+        const channels = await Promise.all(authorIds.map(id => Channel.filter({ user_id: id })));
+        const cMap = {};
+        channels.forEach((cArr, i) => {
+          if (cArr && cArr.length > 0) cMap[authorIds[i]] = cArr[0];
+        });
+        setChannelsMap(prev => ({ ...prev, ...cMap }));
+      }
+    } catch(e) {}
+  };
+
   const loadPosts = async () => {
     setLoading(true);
     try {
@@ -72,11 +98,30 @@ export default function CommunityFeed() {
         if (!a.is_pinned && b.is_pinned) return 1;
         return 0;
       });
-      setPosts(fetchedPosts.slice(0, 50));
+      const topPosts = fetchedPosts.slice(0, 50);
+      setPosts(topPosts);
+      fetchChannelsForPosts(topPosts);
     } catch (e) {
       console.error("Error loading community posts", e);
     }
     setLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const fetchedPosts = await CommunityPost.filter({});
+      fetchedPosts.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      fetchedPosts.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return 0;
+      });
+      const topPosts = fetchedPosts.slice(0, 50);
+      setPosts(topPosts);
+      fetchChannelsForPosts(topPosts);
+    } catch (e) {}
+    setRefreshing(false);
   };
 
 
@@ -92,6 +137,12 @@ export default function CommunityFeed() {
           return next;
         });
       } else {
+        // Prevent duplicate: check if already following
+        const existing = await Follower.filter({ follower_id: user.id, following_id: authorId });
+        if (existing && existing.length > 0) {
+          setFollows(prev => ({ ...prev, [authorId]: existing[0].id }));
+          return;
+        }
         const newFollow = await Follower.create({
           follower_id: user.id,
           following_id: authorId
@@ -313,6 +364,7 @@ export default function CommunityFeed() {
   };
 
   const navigateToProfile = (userId) => {
+    if (user && userId === user.id) return; // Prevent clicking on own profile
     setViewProfileId(userId);
   };
 
@@ -345,7 +397,7 @@ export default function CommunityFeed() {
               }
             } else if (hasVoted && userVote === idx) {
               bgColor = "bg-orange-900/30";
-              barColor = "bg-orange-600/50";
+              barColor = "bg-orange-700/50";
             }
 
             return (
@@ -385,24 +437,39 @@ export default function CommunityFeed() {
               return (
                 <div 
                   key={idx}
-                  className={`relative aspect-[4/3] rounded-md overflow-hidden border-2 ${isPicked ? 'border-orange-500' : 'border-transparent'} cursor-pointer hover:opacity-90`}
+                  className={`relative aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all duration-300 ${isPicked ? 'border-orange-600 shadow-[0_0_15px_rgba(14,165,233,0.3)]' : 'border-gray-800/50 hover:border-gray-600'} cursor-pointer`}
                   onClick={() => handleVote(post, idx)}
                 >
                   <img 
                     src={opt.image_url} 
                     alt={opt.text} 
-                    className="w-full h-full object-cover" 
+                    className={`w-full h-full object-cover transition-transform duration-500 hover:scale-110 ${hasVoted && !isPicked ? 'grayscale-[30%]' : ''}`} 
                   />
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                    <p className="text-white text-[12px] font-medium truncate">{opt.text}</p>
-                  </div>
                   
-                  {hasVoted && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-white text-lg font-bold drop-shadow-md">{percentage}%</span>
-                      {isPicked && <CheckCircle className="w-5 h-5 text-orange-400 mt-0.5 drop-shadow-md" />}
+                  {hasVoted && !isPicked && (
+                    <div className="absolute inset-0 bg-black/50 z-0 pointer-events-none transition-all duration-300" />
+                  )}
+
+                  {hasVoted && isPicked && (
+                    <div className="absolute top-2 left-2 z-10 bg-orange-600 rounded-full p-1 shadow-lg shadow-orange-600/50 animate-in zoom-in">
+                      <Check className="w-3 h-3 text-white" />
                     </div>
                   )}
+
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-8 z-10 flex flex-col pointer-events-none">
+                    <div className="flex justify-between items-end gap-2">
+                      <p className="text-white text-[13px] font-semibold truncate drop-shadow-md">{opt.text}</p>
+                      {hasVoted && <span className="text-white text-[13px] font-bold drop-shadow-md">{percentage}%</span>}
+                    </div>
+                    {hasVoted && (
+                      <div className="w-full h-1 bg-white/20 rounded-full mt-1.5 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-1000 ${isPicked ? 'bg-orange-500 shadow-[0_0_8px_rgba(56,189,248,0.8)]' : 'bg-gray-400'}`} 
+                          style={{ width: `${percentage}%` }} 
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   <div 
                     className="absolute top-1.5 right-1.5 p-1 bg-black/60 rounded-full text-white hover:bg-black"
@@ -448,37 +515,66 @@ export default function CommunityFeed() {
   });
 
   return (
-    <div className="flex-1 bg-gray-950 pb-24 overflow-y-auto min-h-screen relative" onClick={() => setActiveMenuPostId(null)}>
+    <div className="flex-1 bg-[#0a0a0f] pb-24 relative" onClick={() => setActiveMenuPostId(null)}>
       
       <button 
         onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-24 right-4 z-40 flex items-center justify-center w-12 h-12 bg-orange-600 hover:bg-orange-500 text-white rounded-full shadow-2xl shadow-orange-900/50 transition-all"
+        className="fixed bottom-24 right-4 z-40 group flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-orange-600 to-orange-600 text-white rounded-full shadow-lg shadow-orange-600/30 hover:shadow-orange-600/60 hover:scale-110 active:scale-95 transition-all duration-300 before:absolute before:inset-0 before:rounded-full before:bg-white/20 before:opacity-0 hover:before:opacity-100 before:transition-opacity overflow-hidden"
       >
-        <Plus className="w-6 h-6" />
+        <Plus className="w-7 h-7 relative z-10 group-hover:rotate-90 transition-transform duration-500" />
       </button>
 
       {/* Segmented Tabs */}
-      <div className="max-w-xl mx-auto px-2 pt-2 pb-1 sticky top-0 z-30 bg-gray-950/80 backdrop-blur-md">
-        <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
+      <div className="max-w-xl mx-auto sticky top-16 z-30 bg-[#0a0a0f]/90 backdrop-blur-xl border-b border-white/5">
+        <div className="flex">
           <button 
-            className={`flex-1 text-sm font-semibold py-2 rounded-md transition-all ${activeTab === 'all' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+            className={`flex-1 text-[13px] font-bold py-3 transition-all duration-300 relative ${activeTab === 'all' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
             onClick={() => setActiveTab('all')}
           >
             All Posts
+            {activeTab === 'all' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 shadow-[0_0_10px_rgba(56,189,248,0.8)] rounded-t-full"></div>
+            )}
           </button>
           <button 
-            className={`flex-1 text-sm font-semibold py-2 rounded-md transition-all ${activeTab === 'my_posts' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+            className={`flex-1 text-[13px] font-bold py-3 transition-all duration-300 relative ${activeTab === 'my_posts' ? 'text-orange-500' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
             onClick={() => setActiveTab('my_posts')}
           >
             My Posts
+            {activeTab === 'my_posts' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 shadow-[0_0_10px_rgba(56,189,248,0.8)] rounded-t-full"></div>
+            )}
           </button>
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto pt-2 px-2 space-y-3">
+      <div className="max-w-xl mx-auto pt-4 px-3 sm:px-4 space-y-4">
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-gradient-to-b from-[#16161e] to-[#0f0f15] border border-white/5 rounded-2xl p-4 shadow-lg animate-pulse">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-white/5 flex-shrink-0" />
+                  <div className="flex flex-col gap-2 flex-1">
+                    <div className="w-32 h-3.5 bg-white/10 rounded-md" />
+                    <div className="w-20 h-2.5 bg-white/5 rounded-md" />
+                  </div>
+                </div>
+                <div className="space-y-2.5 mb-5">
+                  <div className="w-full h-3.5 bg-white/5 rounded-md" />
+                  <div className="w-5/6 h-3.5 bg-white/5 rounded-md" />
+                  <div className="w-4/6 h-3.5 bg-white/5 rounded-md" />
+                </div>
+                <div className="w-full h-40 bg-white/5 rounded-xl mb-4" />
+                <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                  <div className="flex gap-4">
+                    <div className="w-12 h-6 bg-white/5 rounded-md" />
+                    <div className="w-12 h-6 bg-white/5 rounded-md" />
+                  </div>
+                  <div className="w-16 h-6 bg-white/5 rounded-md" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredPosts.length === 0 ? (
           <div className="text-center text-gray-500 py-20 font-medium">
@@ -486,48 +582,55 @@ export default function CommunityFeed() {
           </div>
         ) : (
           filteredPosts.map(post => (
-            <div key={post.id} className={`bg-gray-900/60 border rounded-lg overflow-hidden mb-4 shadow-sm ${post.is_pinned ? 'border-blue-400 bg-gradient-to-br from-blue-950/80 to-gray-900 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'border-gray-800'}`}>
+            <div 
+              key={post.id} 
+              className={`bg-gradient-to-b from-[#16161e] to-[#0f0f15] border rounded-2xl overflow-hidden mb-5 shadow-lg transition-all duration-300 hover:border-orange-600/30 hover:shadow-[0_8px_30px_rgba(14,165,233,0.1)] hover:-translate-y-0.5 ${
+                post.is_pinned 
+                  ? 'border-orange-500/50 bg-gradient-to-br from-blue-900/30 to-[#0f0f15] shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+                  : 'border-white/5'
+              }`}
+            >
               
-              <div className="px-3 py-2.5 flex items-start justify-between relative">
+              <div className="px-4 py-3.5 flex items-start justify-between relative">
                 <div 
-                  className="flex items-center gap-2.5 cursor-pointer hover:opacity-80"
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => navigateToProfile(post.author_id)}
                 >
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-800 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 flex-shrink-0 border border-white/10 shadow-sm">
                     <img 
-                      src={post.author_avatar || `https://api.dicebear.com/6.x/bottts/svg?seed=${post.author_id}`} 
-                      alt={post.author_name}
+                      src={channelsMap[post.author_id]?.logo_url || post.author_avatar || `https://api.dicebear.com/6.x/bottts/svg?seed=${post.author_id}`} 
+                      alt={channelsMap[post.author_id]?.name || post.author_name}
                       className="w-full h-full object-cover" 
                       onError={(e) => { e.target.src = `https://api.dicebear.com/6.x/bottts/svg?seed=${post.author_id}`; }}
                     />
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col justify-center">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-gray-100 text-sm leading-tight">{post.author_name}</span>
-                      {(post.author_role === 'admin' || post.author_name?.toUpperCase().includes("ADMIN") || post.author_name?.includes("BATTLEHUB") || post.author_id === 'shopecdiv@gmail.com') && (
-                        <BadgeCheck className="w-4 h-4 text-blue-500 fill-white flex-shrink-0" />
+                      <span className="font-bold text-gray-50 text-[15px] leading-tight tracking-wide">{channelsMap[post.author_id]?.name || post.author_name}</span>
+                      {(post.author_role === 'admin' || post.author_name?.toUpperCase().includes("ADMIN") || post.author_name?.includes("BATTLEHUB") || post.author_id === 'shopecdiv@gmail.com' || channelsMap[post.author_id]?.name?.toUpperCase().includes("ADMIN")) && (
+                        <BadgeCheck className="w-4 h-4 text-orange-500 fill-white flex-shrink-0 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)]" />
                       )}
                       
                       {user && post.author_id !== user.id && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleFollowToggle(post.author_id); }}
-                          className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                          className={`ml-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full border transition-all duration-300 ${
                             follows[post.author_id] 
-                              ? 'bg-[#1a1a20] border-gray-600 text-gray-300 hover:bg-[#2a2a35]' 
-                              : 'border-[#ff5500] text-[#ff5500] hover:bg-[#ff5500] hover:text-white'
+                              ? 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10' 
+                              : 'bg-orange-600/10 border-orange-600/50 text-orange-500 hover:bg-orange-600 hover:text-white hover:shadow-[0_0_10px_rgba(14,165,233,0.3)]'
                           }`}
                         >
                           {follows[post.author_id] ? 'Following' : 'Follow'}
                         </button>
                       )}
-                      {post.is_pinned && <span className="text-[9px] bg-blue-500 text-white px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.6)]">Pinned</span>}
+                      {post.is_pinned && <span className="text-[9px] bg-orange-500 text-white px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.6)] font-bold tracking-wider">PINNED</span>}
                       {(post.type === 'quiz' || post.type?.includes('poll')) && (
-                        <span className="text-[9px] uppercase font-bold px-1 py-0.5 rounded bg-gray-800 text-gray-400">
+                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-gray-300 border border-white/5">
                           {post.type.replace('_', ' ')}
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-gray-500">{post.created_date ? new Date(post.created_date).toLocaleDateString() : 'Just now'}</span>
+                    <span className="text-[11px] text-gray-400 font-medium tracking-wide mt-0.5">{post.created_date ? new Date(post.created_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Just now'}</span>
                   </div>
                 </div>
                 
@@ -543,7 +646,7 @@ export default function CommunityFeed() {
                       {isAdmin && (
                         <button 
                           onClick={() => handlePin(post)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-400 hover:bg-blue-500/10 hover:text-blue-500 border-b border-gray-700"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-400 hover:bg-orange-500/10 hover:text-orange-500 border-b border-gray-700"
                         >
                           <Pin className="w-4 h-4" /> {post.is_pinned ? 'Unpin' : 'Pin'}
                         </button>
@@ -567,13 +670,31 @@ export default function CommunityFeed() {
                 </div>
               </div>
 
-              {post.text && (
-                <div className="px-3 pb-2">
-                  <p className="text-gray-200 whitespace-pre-wrap text-sm leading-snug">
-                    {post.text}
-                  </p>
-                </div>
-              )}
+              {post.text && (() => {
+                const isLong = post.text.length > 250 || post.text.split('\n').length > 6;
+                const isExpanded = expandedTexts[post.id];
+                return (
+                  <div className="px-4 pb-3">
+                    <p 
+                      className="text-gray-200 whitespace-pre-wrap text-[15px] leading-relaxed tracking-wide font-medium opacity-90 transition-all duration-300"
+                      style={!isExpanded && isLong ? { display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : {}}
+                    >
+                      {post.text}
+                    </p>
+                    {isLong && (
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setExpandedTexts(prev => ({...prev, [post.id]: !prev[post.id]})); 
+                        }}
+                        className="text-orange-500 text-[13px] font-bold mt-1.5 hover:text-sky-300 transition-colors"
+                      >
+                        {isExpanded ? 'Show less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {post.type === 'image' && post.image_url && (
                 <div className="relative aspect-video rounded-lg overflow-hidden border border-gray-800">
@@ -588,35 +709,36 @@ export default function CommunityFeed() {
 
               {(post.type?.includes('poll') || post.type === 'quiz') && renderPollOptions(post)}
 
-              <div className="px-3 py-2.5 flex items-center justify-between border-t border-gray-800/50">
-                <div className="flex items-center gap-5">
+              <div className="px-4 py-3 flex items-center justify-between border-t border-white/5 bg-white/[0.02]">
+                <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleLike(post)}
-                    className={`flex items-center gap-1.5 transition-colors ${post.likes?.includes(user?.id) ? 'text-gray-200' : 'text-gray-500 hover:text-gray-300'}`}
+                    className={`flex items-center justify-center w-9 h-9 rounded-full transition-all duration-300 ${post.likes?.includes(user?.id) ? 'bg-orange-600/10 text-orange-500' : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
                   >
-                    <ThumbsUp className={`w-4 h-4 ${post.likes?.includes(user?.id) ? 'fill-gray-200' : ''}`} />
-                    <span className="text-[13px] font-medium">{post.likes?.length > 0 ? post.likes.length : ''}</span>
+                    <ThumbsUp className={`w-[18px] h-[18px] ${post.likes?.includes(user?.id) ? 'fill-orange-500 drop-shadow-[0_0_5px_rgba(14,165,233,0.5)]' : ''}`} />
                   </button>
+                  <span className="text-[13px] font-bold w-4 text-gray-300">{post.likes?.length > 0 ? post.likes.length : ''}</span>
+
                   <button 
                     onClick={() => handleDislike(post)}
-                    className={`flex items-center gap-1.5 transition-colors ${post.dislikes?.includes(user?.id) ? 'text-gray-200' : 'text-gray-500 hover:text-gray-300'}`}
+                    className={`flex items-center justify-center w-9 h-9 rounded-full transition-all duration-300 ml-1 ${post.dislikes?.includes(user?.id) ? 'bg-red-500/10 text-red-400' : 'text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
                   >
-                    <ThumbsDown className={`w-4 h-4 ${post.dislikes?.includes(user?.id) ? 'fill-gray-200' : ''}`} />
-                    <span className="text-[13px] font-medium">{post.dislikes?.length > 0 ? post.dislikes.length : ''}</span>
+                    <ThumbsDown className={`w-[18px] h-[18px] ${post.dislikes?.includes(user?.id) ? 'fill-red-400' : ''}`} />
                   </button>
+                  <span className="text-[13px] font-bold w-4 text-gray-300">{post.dislikes?.length > 0 ? post.dislikes.length : ''}</span>
                 </div>
                 
-                <div className="flex items-center gap-5">
-                  <div className="flex items-center gap-1.5 text-gray-500">
-                    <Eye className="w-4 h-4" />
-                    <span className="text-[13px] font-medium">{post.viewers?.length || 0}</span>
+                <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-center gap-1.5 px-3 h-9 text-gray-400 rounded-full transition-colors">
+                    <Eye className="w-[18px] h-[18px]" />
+                    <span className="text-[13px] font-bold">{post.viewers?.length || 0}</span>
                   </div>
                   <button 
                     onClick={() => { handleViewPost(post); setActiveCommentPost(post); }}
-                    className="flex items-center gap-1.5 text-gray-500 hover:text-gray-300 transition-colors"
+                    className="flex items-center justify-center gap-1.5 px-3 h-9 rounded-full text-gray-400 hover:bg-white/10 hover:text-gray-200 transition-all duration-300"
                   >
-                    <MessageSquare className="w-4 h-4" />
-                    <span className="text-[13px] font-medium">{post.comments?.length > 0 ? post.comments.length : ''}</span>
+                    <MessageSquare className="w-[18px] h-[18px]" />
+                    <span className="text-[13px] font-bold">{post.comments?.length > 0 ? post.comments.length : ''}</span>
                   </button>
                 </div>
               </div>
@@ -633,52 +755,71 @@ export default function CommunityFeed() {
       />
 
       {/* Fullscreen Image Modal */}
-      {fullscreenImage && fullscreenImage.urls && (
-        <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-2">
-          <button 
-            className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white hover:bg-black z-50"
-            onClick={() => setFullscreenImage(null)}
+      {fullscreenImage && fullscreenImage.urls && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] bg-[#050508]/95 backdrop-blur-2xl flex items-center justify-center p-0 sm:p-8 animate-in fade-in duration-300"
+          onClick={() => setFullscreenImage(null)}
+        >
+          {/* Top Bar with Close Button */}
+          <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex justify-end items-center z-[10000] bg-gradient-to-b from-black/60 to-transparent">
+            <button 
+              className="group flex items-center justify-center w-12 h-12 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 border border-white/20 rounded-full text-white transition-all duration-300 shadow-2xl backdrop-blur-md"
+              onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+              title="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div 
+            className="relative w-full h-full max-w-5xl max-h-[90vh] flex flex-col justify-center items-center rounded-2xl sm:overflow-hidden sm:border sm:border-white/10 sm:shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
           >
-            <XCircle className="w-8 h-8" />
-          </button>
-          
-          {fullscreenImage.urls.length > 1 && (
-            <>
-              <button 
-                className="absolute left-4 p-3 bg-black/50 rounded-full text-white hover:bg-black z-50"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenImage(prev => ({ ...prev, index: (prev.index - 1 + prev.urls.length) % prev.urls.length }));
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button 
-                className="absolute right-4 p-3 bg-black/50 rounded-full text-white hover:bg-black z-50"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullscreenImage(prev => ({ ...prev, index: (prev.index + 1) % prev.urls.length }));
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </>
-          )}
+            {fullscreenImage.urls.length > 1 && (
+              <>
+                <button 
+                  className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-black/40 hover:bg-black/70 border border-white/10 rounded-full text-white z-50 transition-all duration-300 hover:scale-110 backdrop-blur-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenImage(prev => ({ ...prev, index: (prev.index - 1 + prev.urls.length) % prev.urls.length }));
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button 
+                  className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-black/40 hover:bg-black/70 border border-white/10 rounded-full text-white z-50 transition-all duration-300 hover:scale-110 backdrop-blur-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenImage(prev => ({ ...prev, index: (prev.index + 1) % prev.urls.length }));
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
 
-          <img src={fullscreenImage.urls[fullscreenImage.index]} alt="Fullscreen" className="w-full h-full object-contain" />
-          
-          {fullscreenImage.urls.length > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-50">
-              {fullscreenImage.urls.map((_, i) => (
-                <div key={i} className={`h-2 w-2 rounded-full ${i === fullscreenImage.index ? 'bg-white' : 'bg-white/30'}`} />
-              ))}
-            </div>
-          )}
-        </div>
+            <img 
+              src={fullscreenImage.urls[fullscreenImage.index]} 
+              alt="Fullscreen" 
+              className="max-w-full max-h-[90vh] object-contain drop-shadow-2xl" 
+            />
+            
+            {fullscreenImage.urls.length > 1 && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2.5 z-50 bg-black/30 px-4 py-2 rounded-full backdrop-blur-md">
+                {fullscreenImage.urls.map((_, i) => (
+                  <div key={i} className={`transition-all duration-300 rounded-full ${i === fullscreenImage.index ? 'bg-white w-6 h-2 shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/40 w-2 h-2 hover:bg-white/60'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Bottom Sheet Comments Modal (Ported from MediaFeed) */}
@@ -695,7 +836,7 @@ export default function CommunityFeed() {
               <div className="w-12 h-1.5 bg-gray-700 rounded-full mb-4" />
               <div className="w-full px-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-orange-500" />
+                  <MessageSquare className="w-5 h-5 text-orange-600" />
                   <h3 className="text-lg font-bold text-white">Comments <span className="text-gray-500 text-sm font-normal">({activeCommentPost.comments?.length || 0})</span></h3>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => { setActiveCommentPost(null); setReplyingTo(null); }} className="rounded-full text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700">
@@ -735,8 +876,11 @@ export default function CommunityFeed() {
                         }}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-sm text-gray-200">
-                            {comment.username}
+                          <span className="font-bold text-sm text-gray-200 flex items-center gap-1">
+                            <span>{comment.username}</span>
+                            {(comment.username?.includes("BATTLEHUB") || comment.userId === "shopecdiv@gmail.com") && (
+                              <Check className="w-3.5 h-3.5 text-[#00FFFF] bg-[#00FFFF]/20 rounded-full p-0.5 flex-shrink-0" />
+                            )}
                           </span>
                           <span className="text-[11px] text-gray-500">{safeFormatDistance(comment.created_date)}</span>
                         </div>
@@ -762,13 +906,23 @@ export default function CommunityFeed() {
 
                       {/* Replies List */}
                       {comment.replies && comment.replies.length > 0 && (
-                        <div className="mt-3 space-y-3 pl-4 border-l-2 border-gray-800/60">
-                          {comment.replies.map(reply => (
-                            <div key={reply.id} className="flex gap-2">
-                              <div 
-                                className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-800 cursor-pointer"
-                                onClick={() => navigateToProfile(reply.userId)}
-                              >
+                        <div className="mt-3 pl-4 border-l-2 border-gray-800/60">
+                          <button
+                            onClick={() => toggleReplies(comment.id)}
+                            className="flex items-center gap-2 text-[13px] font-bold text-orange-600 hover:text-orange-500 mb-2 transition-colors focus:outline-none"
+                          >
+                            {expandedReplies[comment.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            {comment.replies.length} repl{comment.replies.length === 1 ? 'y' : 'ies'}
+                          </button>
+                          
+                          {expandedReplies[comment.id] && (
+                            <div className="space-y-3 mt-3">
+                              {comment.replies.map(reply => (
+                                <div key={reply.id} className="flex gap-2">
+                                  <div 
+                                    className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-800 cursor-pointer"
+                                    onClick={() => navigateToProfile(reply.userId)}
+                                  >
                                 <img src={reply.avatar || `https://api.dicebear.com/6.x/bottts/svg?seed=${reply.userId}`} alt="Avatar" className="w-full h-full object-cover" />
                               </div>
                               <div className="flex-1">
@@ -783,8 +937,11 @@ export default function CommunityFeed() {
                                   }}
                                 >
                                   <div className="flex items-center justify-between mb-0.5">
-                                    <span className="font-bold text-xs text-gray-200">
-                                      {reply.username}
+                                    <span className="font-bold text-xs text-gray-200 flex items-center gap-1">
+                                      <span>{reply.username}</span>
+                                      {(reply.username?.includes("BATTLEHUB") || reply.userId === "shopecdiv@gmail.com") && (
+                                        <Check className="w-3.5 h-3.5 text-[#00FFFF] bg-[#00FFFF]/20 rounded-full p-0.5 flex-shrink-0" />
+                                      )}
                                     </span>
                                     <span className="text-[10px] text-gray-500">{safeFormatDistance(reply.created_date)}</span>
                                   </div>
@@ -813,6 +970,8 @@ export default function CommunityFeed() {
                           ))}
                         </div>
                       )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
@@ -823,7 +982,7 @@ export default function CommunityFeed() {
             <div className="border-t border-gray-800 bg-gray-950 p-4 pb-6 sm:pb-4 shadow-[0_-10px_20px_rgba(0,0,0,0.3)] relative z-10">
               {replyingTo && (
                 <div className="flex items-center justify-between mb-2 px-2">
-                  <span className="text-xs text-orange-400 font-medium">Replying to {replyingTo.username}</span>
+                  <span className="text-xs text-orange-500 font-medium">Replying to {replyingTo.username}</span>
                   <button onClick={() => { setReplyingTo(null); setNewComment(""); }} className="text-gray-500 hover:text-gray-300"><X className="w-4 h-4"/></button>
                 </div>
               )}
@@ -841,14 +1000,14 @@ export default function CommunityFeed() {
                     onChange={e => setNewComment(e.target.value)}
                     placeholder={user ? (replyingTo ? "Write a reply..." : "Add a comment...") : "Login to comment..."}
                     disabled={!user || sendingComment}
-                    className="bg-gray-900 border-gray-800 focus-visible:ring-1 focus-visible:ring-orange-500/50 rounded-full h-12 text-sm px-5 pr-12 text-white placeholder:text-gray-500 shadow-inner"
+                    className="bg-gray-900 border-gray-800 focus-visible:ring-1 focus-visible:ring-orange-600/50 rounded-full h-12 text-sm px-5 pr-12 text-white placeholder:text-gray-500 shadow-inner"
                   />
                   <Button 
                     type="submit" 
                     size="icon" 
                     variant="ghost"
                     disabled={!user || !newComment.trim() || sendingComment}
-                    className="absolute right-1 top-1 w-10 h-10 rounded-full text-orange-500 hover:text-white hover:bg-orange-500 transition-colors"
+                    className="absolute right-1 top-1 w-10 h-10 rounded-full text-orange-600 hover:text-white hover:bg-orange-600 transition-colors"
                   >
                     {sendingComment ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
                   </Button>
@@ -862,9 +1021,21 @@ export default function CommunityFeed() {
       )}
 
       {/* Profile Modal */}
-      {viewProfileId && (
-        <UserProfileModal userId={viewProfileId} onClose={() => setViewProfileId(null)} />
-      )}
+      <Sheet open={!!viewProfileId} onOpenChange={(val) => !val && setViewProfileId(null)}>
+        <SheetContent 
+          side="right"
+          className="bg-slate-950 border-slate-800 p-0 flex flex-col w-full sm:max-w-md overflow-hidden z-[550]"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          {viewProfileId && (
+            <PlayerProfile 
+              inlineUid={viewProfileId} 
+              isDrawer={true} 
+              onClose={() => setViewProfileId(null)} 
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
     </div>
   );

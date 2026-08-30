@@ -1,0 +1,84 @@
+Created At: 2026-08-23T06:09:58+05:30
+Completed At: 2026-08-23T06:09:58+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2627
+Total Bytes: 138358
+Showing lines 2100 to 2175
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2100:                 placeholder="Search..."
+2101:                 value={searchQuery}
+2102:                 onChange={e => setSearchQuery(e.target.value)}
+2103:                 className="w-full bg-slate-900 border-slate-800 text-white text-[11px] h-7 px-2"
+2104:               />
+2105:             </div>
+2106:           </div>
+2107:         </div>
+2108: 
+2109:         {/* Admin Announcement Banner */}
+2110:         {adminMsg && (
+2111:           <div className="bg-cyan-500/10 border-b border-cyan-500/20 px-3.5 py-2 flex items-center gap-2 text-xs text-cyan-300">
+2112:             <span>📢</span>
+2113:             <p className="font-semibold truncate">{adminMsg}</p>
+2114:           </div>
+2115:         )}
+2116: 
+2117:         {/* Main Table (Standalone Internal Scroll Container with Sticky Header) */}
+2118:         <div className="w-full max-h-[560px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+2119:           <table className="w-full text-xs table-fixed">
+2120:             <thead className="sticky top-0 bg-slate-950 z-10 shadow-sm">
+2121:               <tr className="border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+2122:                 <th className="py-2.5 px-1.5 text-left w-12">S.NO.</th>
+2123:                 <th className="py-2.5 px-2 text-left">Team Name</th>
+2124:                 <th className="py-2.5 px-1 text-center w-10">Kills</th>
+2125:                 <th className="py-2.5 px-1 text-center w-12">POS</th>
+2126:                 <th className="py-2.5 px-1 text-center w-14">Pts</th>
+2127:                 <th className="w-6 py-2.5 text-center"></th>
+2128:               </tr>
+2129:             </thead>
+2130:             <tbody className="divide-y divide-slate-800/60">
+2131:               {sortedFilteredRows.map((entry, index) => {
+2132:                 const reg = getRegForEntry(entry) || {};
+2133:                 const logo = entry.team_logo_url || reg.team_logo_url;
+2134:                 
+2135:                 const rawMembers = Array.isArray(entry.team_members) ? entry.team_members : (Array.isArray(reg.team_members) ? reg.team_members : []);
+2136:                 const members = rawMembers.map((m, idx) => {
+2137:                   if (typeof m === 'string') {
+2138:                     const isCurrentUser = user && (user.ign === m || user.full_name === m);
+2139:                     return {
+2140:                       ign: m,
+2141:                       uid: '-',
+2142:                       isLeader: idx === 0,
+2143:                       kills: 0,
+2144:                       avatar_url: isCurrentUser ? (user.avatar_url || user.avatar || user.dp || user.photoURL || '') : ''
+2145:                     };
+2146:                   }
+2147:                   if (!m) return { ign: `Player ${idx + 1}`, uid: '-', isLeader: idx === 0, kills: 0, avatar_url: '' };
+2148: 
+2149:                   const mUid = m.uid || m.game_id || m.in_game_id || '';
+2150:                   const mIgn = m.ign || m.name || m.player_ign || `Player ${idx + 1}`;
+2151:                   let mAvatar = m.avatar_url || m.avatar || m.dp || m.photoURL || m.logo || m.logo_url || '';
+2152: 
+2153:                   if (!mAvatar && user) {
+2154:                     if ((mUid && (mUid === user.game_uid || mUid === user.game_id || mUid === user.uid)) ||
+2155:                         (mIgn && (mIgn.toLowerCase() === (user.ign || '').toLowerCase() || mIgn.toLowerCase() === (user.full_name || '').toLowerCase())) ||
+2156:                         (idx === 0 && (entry.user_id === user.id || reg.team_leader_id === user.id))) {
+2157:                       mAvatar = user.avatar_url || user.avatar || user.dp || user.photoURL || '';
+2158:                     }
+2159:                   }
+2160: 
+2161:                   return {
+2162:                     ign: mIgn,
+2163:                     uid: mUid || '-',
+2164:                     isLeader: Boolean(m.isLeader || idx === 0),
+2165:                     kills: m.kills || 0,
+2166:                     avatar_url: mAvatar
+2167:                   };
+2168:                 });
+2169:                 
+2170:                 const rowId = entry._rowUid || `row-${index}`;
+2171:                 const isExpanded = expandedId === rowId;
+2172:                 const rankNum = index + 1;
+2173:                 const displayName = entry.team_name || entry.player_ign || "Unknown Team";
+2174:                 const isQualified = entry.is_qualified || reg.is_qualified || reg.status === "Qualified";
+2175:                 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

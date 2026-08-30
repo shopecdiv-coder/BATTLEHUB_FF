@@ -1,0 +1,139 @@
+Created At: 2026-08-13T15:31:04+05:30
+Completed At: 2026-08-13T15:31:04+05:30
+File Path: `file:///e:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2613
+Total Bytes: 136202
+Showing lines 2260 to 2390
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2260:                                           )}
+2261:                                         </div>
+2262:                                       );
+2263:                                     })}
+2264:                                   </div>
+2265:                                 </div>
+2266:                               );
+2267:                             })()}
+2268: 
+2269:                           </div>
+2270:                         </td>
+2271:                       </tr>
+2272:                     )}
+2273:                   </React.Fragment>
+2274:                 );
+2275:               })}
+2276:             </tbody>
+2277:           </table>
+2278:         </div>
+2279:       </Card>
+2280: 
+2281:       {/* Match Credentials Modal */}
+2282:       {typeof document !== "undefined" && createPortal(
+2283:         <AnimatePresence>
+2284:           {showCredentialsModal && (
+2285:             <motion.div
+2286:               initial={{ opacity: 0 }}
+2287:               animate={{ opacity: 1 }}
+2288:               exit={{ opacity: 0 }}
+2289:               className="fixed inset-0 z-[99999999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+2290:               onClick={() => setShowCredentialsModal(false)}
+2291:             >
+2292:               <motion.div
+2293:                 initial={{ scale: 0.9, y: 20 }}
+2294:                 animate={{ scale: 1, y: 0 }}
+2295:                 exit={{ scale: 0.9, y: 20 }}
+2296:                 onClick={(e) => e.stopPropagation()}
+2297:                 className="w-full max-w-sm bg-[#0a0a0f] border border-cyan-500/50 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(6,182,212,0.25)]"
+2298:               >
+2299:                 <div className="bg-cyan-950/60 border-b border-cyan-900/50 p-4 flex items-center justify-between">
+2300:                   <h3 className="font-black text-cyan-400 text-sm tracking-wider uppercase flex items-center gap-2">
+2301:                     <Key className="w-4 h-4 text-cyan-400 animate-pulse" /> MATCH CREDENTIALS
+2302:                   </h3>
+2303:                   <button onClick={() => setShowCredentialsModal(false)} className="text-slate-400 hover:text-white transition-colors cursor-pointer p-1">
+2304:                     <X className="w-5 h-5" />
+2305:                   </button>
+2306:                 </div>
+2307:                 
+2308:                 <div className="p-5 space-y-4">
+2309:                   {matchCredentials ? (
+2310:                     <>
+2311:                       {matchCredentials.room_code && (
+2312:                         <div>
+2313:                           <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-1.5 ml-1">MATCH ID / ROOM CODE</p>
+2314:                           <div className="bg-[#050508] border border-cyan-800/80 rounded-xl px-4 py-3 flex items-center justify-between group shadow-inner">
+2315:                             <span className="font-mono text-xl font-black text-white tracking-widest select-all">{matchCredentials.room_code}</span>
+2316:                             <button 
+2317:                               onClick={() => {
+2318:                                 navigator.clipboard.writeText(matchCredentials.room_code);
+2319:                                 toast.success("Room ID Copied!");
+2320:                               }}
+2321:                               className="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/30 px-3 py-1.5 rounded-lg transition-all text-xs font-black cursor-pointer active:scale-95"
+2322:                             >
+2323:                               COPY
+2324:                             </button>
+2325:                           </div>
+2326:                         </div>
+2327:                       )}
+2328: 
+2329:                       {matchCredentials.room_password && (
+2330:                         <div>
+2331:                           <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-1.5 ml-1">PASSWORD</p>
+2332:                           <div className="bg-[#050508] border border-red-900/60 rounded-xl px-4 py-3 flex items-center justify-between group shadow-inner">
+2333:                             <span className="font-mono text-xl font-black text-red-100 tracking-widest select-all">{matchCredentials.room_password}</span>
+2334:                             <button 
+2335:                               onClick={() => {
+2336:                                 navigator.clipboard.writeText(matchCredentials.room_password);
+2337:                                 toast.success("Password Copied!");
+2338:                               }}
+2339:                               className="bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg transition-all text-xs font-black cursor-pointer active:scale-95"
+2340:                             >
+2341:                               COPY
+2342:                             </button>
+2343:                           </div>
+2344:                         </div>
+2345:                       )}
+2346: 
+2347:                       {matchCredentials.message && (
+2348:                         <div className="mt-4 p-3.5 bg-slate-900/90 border border-slate-800 rounded-xl">
+2349:                           <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">NOTIFICATION / MESSAGE:</p>
+2350:                           <p className="text-xs text-slate-200 font-semibold leading-relaxed whitespace-pre-wrap">
+2351:                             {matchCredentials.message.replace(/^🏆.*\n*/, '')}
+2352:                           </p>
+2353:                         </div>
+2354:                       )}
+2355:                     </>
+2356:                   ) : (
+2357:                     <div className="text-center py-6 space-y-3">
+2358:                       <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-orange-400">
+2359:                         <Clock className="w-6 h-6 animate-pulse" />
+2360:                       </div>
+2361:                       <div className="space-y-1">
+2362:                         <h4 className="font-black text-white text-sm uppercase">NOT RELEASED YET</h4>
+2363:                         <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+2364:                           Room ID & Password will be updated here <strong className="text-amber-400">10-15 minutes</strong> before your group match starts.
+2365:                         </p>
+2366:                       </div>
+2367:                     </div>
+2368:                   )}
+2369:                   
+2370:                   <div className="pt-2">
+2371:                     <Button onClick={() => setShowCredentialsModal(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-white uppercase text-xs font-bold tracking-wider rounded-xl h-11 cursor-pointer">
+2372:                       CLOSE
+2373:                     </Button>
+2374:                   </div>
+2375:                 </div>
+2376:               </motion.div>
+2377:             </motion.div>
+2378:           )}
+2379:         </AnimatePresence>,
+2380:         document.body
+2381:       )}
+2382:     </div>
+2383:   );
+2384: }
+2385: 
+2386: function InfoCard({ icon: Icon, label, value, color }) {
+2387:   return (
+2388:     <div className={`p-4 rounded-lg bg-gradient-to-br ${
+2389:       color === 'purple' ? 'from-purple-900/30 to-purple-800/10 border border-purple-500/20' : 'from-cyan-900/30 to-cyan-800/10 border border-cyan-500/20'
+2390:     }`}>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

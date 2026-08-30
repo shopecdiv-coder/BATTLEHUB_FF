@@ -15,8 +15,8 @@ import { Trophy, Users, Target, Shield, Star, Edit, Save, X, Circle, Wifi, WifiO
 
 const DEFAULT_CONTENT = {
   title: "Battle Hub Tournament",
-  tagline: "India's Premier Free Fire Tournament Platform",
-  description: "Welcome to Battle Hub - your ultimate destination for competitive Free Fire gaming. We organize daily tournaments with real cash prizes, bringing together the best players from across India.",
+  tagline: "India's Premier Esports Tournament Platform",
+  description: "Welcome to Battle Hub - your ultimate destination for competitive gaming. We organize daily tournaments with real cash prizes, bringing together the best players from across India.",
   features: [
     { icon: "Trophy", title: "Daily Tournaments", desc: "Multiple tournaments every day with exciting prizes" },
     { icon: "Users", title: "Growing Community", desc: "Join thousands of active players" },
@@ -35,7 +35,7 @@ const STATUS_OPTIONS = [
   { value: "online", label: "🟢 Online", color: "bg-green-500" },
   { value: "offline", label: "🔴 Offline", color: "bg-red-500" },
   { value: "maintenance", label: "🟡 Maintenance", color: "bg-yellow-500" },
-  { value: "busy", label: "🟠 Busy", color: "bg-orange-500" }
+  { value: "busy", label: "🟠 Busy", color: "bg-orange-600" }
 ];
 
 export default function AboutUs() {
@@ -165,7 +165,7 @@ export default function AboutUs() {
             appStatus === 'online' ? 'bg-green-900/20 border-green-500/50' :
             appStatus === 'offline' ? 'bg-red-900/20 border-red-500/50' :
             appStatus === 'maintenance' ? 'bg-yellow-900/20 border-yellow-500/50' :
-            'bg-orange-900/20 border-orange-500/50'
+            'bg-orange-900/20 border-orange-600/50'
           }`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -281,7 +281,7 @@ export default function AboutUs() {
             <CardContent className="p-6 lg:p-8">
               {isAdmin && !isEditing && (
                 <div className="flex justify-end mb-4">
-                  <Button onClick={() => setIsEditing(true)} variant="outline" className="border-orange-500 text-orange-400">
+                  <Button onClick={() => setIsEditing(true)} variant="outline" className="border-orange-600 text-orange-500">
                     <Edit className="w-4 h-4 mr-2" /> Edit Page
                   </Button>
                 </div>
@@ -315,7 +315,7 @@ export default function AboutUs() {
         )}
 
         <div className="text-center">
-          <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 text-lg">
+          <Badge className="bg-gradient-to-r from-orange-600 to-red-500 text-white px-6 py-2 text-lg">
             Made with ❤️ in India
           </Badge>
         </div>

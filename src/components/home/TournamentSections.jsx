@@ -12,14 +12,14 @@ function TournamentCard({ tournament }) {
 
   return (
     <Link to={createPageUrl(`TournamentDetail?id=${tournament.id}`)}>
-      <div className="w-[160px] sm:w-[200px] flex-shrink-0 bg-gray-950 border border-gray-800 hover:border-orange-500/50 rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98] group">
+      <div className="w-[160px] sm:w-[200px] flex-shrink-0 bg-gray-950 border border-gray-800 hover:border-orange-600/50 rounded-xl overflow-hidden transition-all duration-200 active:scale-[0.98] group">
         {/* Banner */}
         <div className="h-24 relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900">
           {tournament.banner_url ? (
             <img src={tournament.banner_url} alt={tournament.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Flame className="w-8 h-8 text-orange-500/20" />
+              <Flame className="w-8 h-8 text-orange-600/20" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent" />
@@ -49,12 +49,22 @@ function TournamentCard({ tournament }) {
           <p className="text-white font-bold text-xs line-clamp-1 mb-1.5">{tournament.title}</p>
           <div className="flex items-center gap-1 flex-wrap mb-1.5">
             <Badge className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] px-1.5 py-0">{tournament.mode}</Badge>
-            {tournament.map && <Badge className="bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] px-1.5 py-0">{tournament.map}</Badge>}
+            {tournament.map && <Badge className="bg-orange-600/10 text-orange-500 border border-orange-600/20 text-[9px] px-1.5 py-0">{tournament.map}</Badge>}
           </div>
           <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
             <div className="flex items-center gap-0.5 min-w-0">
               <Calendar className="w-3 h-3 flex-shrink-0" />
-              <span className="whitespace-nowrap overflow-hidden text-ellipsis">{format(new Date(tournament.date_time), "MMM d, h:mm a")}</span>
+              <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                {(() => {
+                  try {
+                    const d = new Date(tournament.date_time);
+                    if (isNaN(d.getTime())) return "TBD";
+                    return format(d, "MMM d, h:mm a");
+                  } catch (e) {
+                    return "TBD";
+                  }
+                })()}
+              </span>
             </div>
             <div className="flex items-center gap-0.5 text-yellow-400 font-bold">
               <Trophy className="w-3 h-3" />
@@ -67,7 +77,7 @@ function TournamentCard({ tournament }) {
               <span>{tournament.current_teams || 0}/{tournament.max_teams}</span>
             </div>
             {tournament.status === "Registration Open" && !isSFGF && (
-              <span className="text-orange-400 font-bold text-[10px] px-2 py-0.5 bg-orange-500/10 rounded-sm">JOIN</span>
+              <span className="text-orange-500 font-bold text-[10px] px-2 py-0.5 bg-orange-600/10 rounded-sm">JOIN</span>
             )}
           </div>
         </div>
@@ -81,7 +91,7 @@ function SectionContainer({ title, children, link }) {
     <div className="mb-6 mx-4 bg-gray-900/40 border border-gray-800/80 rounded-2xl p-3 pb-4">
       <div className="flex items-center justify-between mb-3 px-1">
         <h3 className="text-[13px] font-black text-gray-200 tracking-wide uppercase flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+          <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
           {title}
         </h3>
         {link && (
@@ -160,7 +170,7 @@ function LiveMatchSection({ liveTournaments }) {
                     }
                   }}
                   size="sm"
-                  className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg shadow-lg shadow-orange-500/20 font-bold px-3 h-7 text-[10px]"
+                  className="bg-orange-600 hover:bg-orange-700 text-white rounded-lg shadow-lg shadow-orange-600/20 font-bold px-3 h-7 text-[10px]"
                 >
                   WATCH LIVE
                 </Button>

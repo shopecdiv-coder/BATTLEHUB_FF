@@ -1,0 +1,55 @@
+diff a/src/components/chat/SharedChatInterface.jsx b/src/components/chat/SharedChatInterface.jsx	(rejected hunks)
+@@ -604,13 +1161,13 @@ export default function SharedChatInterface({
+     <div
+       className="w-full h-full flex-1 min-h-0 flex flex-col relative"
+       style={{
+-        background: chatBgImage ? `url(${chatBgImage}) center/cover` : 'rgb(3,7,18)',
++        background: chatBgImage ? `url(${chatBgImage}) center/cover` : `#030712 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cg opacity='0.035' fill='%23ffffff'%3E%3Ctext x='125' y='125' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' font-weight='900' transform='rotate(-30 125 125)'%3EBATTLEHUB FF%3C/text%3E%3Ccircle cx='40' cy='40' r='2' /%3E%3Ccircle cx='210' cy='210' r='1.5' /%3E%3Cpath d='M 20 220 L 30 220 M 25 215 L 25 225' stroke='%23ffffff' stroke-width='1.5' fill='none' /%3E%3Cpath d='M 220 50 L 230 60 M 230 50 L 220 60' stroke='%23ffffff' stroke-width='1.5' fill='none' /%3E%3C/g%3E%3C/svg%3E") repeat`,
+       }}
+     >
+       {chatBgImage && <div className="absolute inset-0 bg-black/75 z-0 pointer-events-none" />}
+ 
+       {/* ΓöÇΓöÇ Header ΓöÇΓöÇ */}
+-      <div className="relative z-10 flex-shrink-0 bg-gray-950/90 backdrop-blur-xl border-b border-white/8 px-4 py-3 shadow-2xl">
++      <div className={`relative z-10 flex-shrink-0 bg-gray-950/90 backdrop-blur-xl border-b border-white/8 px-4 py-3 shadow-2xl${hideHeader && !isSearching ? ' hidden' : ''}`}>
+         <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+           {isSearching ? (
+             <div className="flex items-center gap-2 w-full animate-in fade-in duration-200">
+@@ -720,18 +1341,7 @@ export default function SharedChatInterface({
+         </div>
+       </div>
+ 
+-      {typingUsers.length > 0 && (
+-        <div className="absolute top-[70px] left-4 z-20 bg-gray-900/90 backdrop-blur-md rounded-full px-4 py-1.5 border border-white/10 shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+-          <div className="flex gap-1">
+-            <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+-            <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+-            <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+-          </div>
+-          <span className="text-xs text-cyan-400 font-medium truncate max-w-[200px]">
+-            {typingUsers.length === 1 ? `${typingUsers[0]} is typing...` : `${typingUsers.length} people are typing...`}
+-          </span>
+-        </div>
+-      )}
++
+ 
+       {/* ΓöÇΓöÇ Pinned Message ΓöÇΓöÇ */}
+       {pinnedMessage && !pinnedMessage.is_deleted && (
+@@ -913,7 +1551,7 @@ export default function SharedChatInterface({
+                           }}
+                         >
+                           {(msg.reply_to_type === 'image' || (msg.reply_to_text?.startsWith('http') && msg.reply_to_text?.includes('res.cloudinary'))) && (
+-                            <img src={msg.reply_to_text} alt="Reply" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
++                            <img src={msg.reply_to_text?.split('::')[0]} alt="Reply" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
+                           )}
+                           <div className="flex-1 min-w-0">
+                             <p className="text-[10px] text-cyan-400 font-semibold">Γå⌐ {msg.reply_to_user}</p>
+@@ -1110,7 +1984,7 @@ export default function SharedChatInterface({
+           <div className="max-w-3xl mx-auto flex items-center gap-3">
+             <div className="w-0.5 h-8 bg-cyan-500 rounded-full flex-shrink-0" />
+             {replyTo.message_type === 'image' && (
+-              <img src={replyTo.message} alt="Preview" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
++              <img src={replyTo.message?.split('::')[0]} alt="Preview" className="w-8 h-8 object-cover rounded shadow-sm flex-shrink-0" />
+             )}
+             <div className="flex-1 min-w-0">
+               <p className="text-xs text-cyan-400 font-semibold">Γå⌐ {replyTo.username || replyTo.user_ign}</p>

@@ -37,7 +37,9 @@ import {
   Star,
   BookOpen,
   MessageCircle,
-  Gift
+  Gift,
+  Coins,
+  Gem
 } from "lucide-react";
 import { PlayerMessage } from "@/entities/PlayerMessage";
 import { AppSettings } from "@/entities/AppSettings";
@@ -46,10 +48,13 @@ import { ActiveUser } from "@/entities/ActiveUser";
 import GlobalRegistrationMessage from "./components/GlobalRegistrationMessage";
 import GlobalMatchCredentials from "./components/GlobalMatchCredentials";
 import GlobalInviteManager from "./components/GlobalInviteManager";
+import PartyInviteDrawer from "./components/profile/v2/PartyInviteDrawer";
+import GlobalPartyInviteManager from "./components/GlobalPartyInviteManager";
 import NotificationBell from "./components/NotificationBell";
 import BottomNavigation from "./components/BottomNavigation";
 import WelcomeBonusHandler from "./components/WelcomeBonusHandler";
 import ChatUnreadTracker from "./components/ChatUnreadTracker";
+import ProfileUnreadTracker from "./components/ProfileUnreadTracker";
 import LoadingBar from "./components/LoadingBar";
 import PhoneNumberModal from "./components/PhoneNumberModal";
 import { useAuth } from "@/lib/AuthContext";
@@ -86,8 +91,8 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
       <div className="p-6 border-b border-gray-800 flex items-center gap-3">
-        <Trophy className="w-8 h-8 text-orange-400" />
-        <span className="font-bold text-xl text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
+        <Trophy className="w-8 h-8 text-orange-500" />
+        <span className="font-bold text-xl text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-400">
           BATTLE HUB
         </span>
       </div>
@@ -99,7 +104,7 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
             onClick={() => setOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
               location.pathname === item.href
-                ? "bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-300"
+                ? "bg-gradient-to-r from-orange-600/20 to-red-500/20 text-orange-300"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
             }`}
           >
@@ -116,7 +121,7 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
             onClick={() => setOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
               location.pathname === createPageUrl("AdminDashboard")
-                ? "bg-gradient-to-r from-red-500/20 to-orange-500/20 text-red-300"
+                ? "bg-gradient-to-r from-red-500/20 to-orange-600/20 text-red-300"
                 : "text-gray-300 hover:bg-gray-800 hover:text-white"
             }`}
           >
@@ -138,6 +143,7 @@ function SidebarContent({ navItems, user, unreadMessages, unreadSupport, onLogou
 function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setIsMenuOpen }) {
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
   const [balances, setBalances] = useState({ diamonds: 0, coins: 0 });
 
   // Reset glass-mode just in case it was applied
@@ -169,9 +175,15 @@ function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setI
   }, [user]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[100] pointer-events-auto bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors">
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <header 
+      className="fixed top-0 left-0 right-0 z-[100] pointer-events-auto bg-gray-950/80 backdrop-blur-lg border-b border-gray-800 transition-colors"
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        height: "calc(4rem + env(safe-area-inset-top, 0px))"
+      }}
+    >
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+        <div className="flex items-center justify-between h-full">
           <div className="flex items-center gap-4">
             {user ? (
               <button 
@@ -207,17 +219,8 @@ function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setI
                   className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => navigate(createPageUrl("Wallet"))}
                 >
-                  <span className="text-[17px] drop-shadow-md">🪙</span>
+                  <Coins className="w-[18px] h-[18px] text-amber-400 shrink-0" />
                   <span className="text-sm font-bold text-white tracking-wide drop-shadow-sm">{balances.coins.toLocaleString()}</span>
-                </div>
-                
-                {/* Diamonds */}
-                <div 
-                  className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => navigate(createPageUrl("Wallet"))}
-                >
-                  <span className="text-[17px] drop-shadow-md">💎</span>
-                  <span className="text-sm font-bold text-white tracking-wide drop-shadow-sm">{balances.diamonds.toLocaleString()}</span>
                 </div>
 
                 {/* Plus Button */}
@@ -230,8 +233,8 @@ function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setI
               </div>
             )}
             {user && <NotificationBell />}
-            {!user && (
-              <Button onClick={() => navigate(createPageUrl("Login"))} size="sm" className="bg-gradient-to-r from-orange-500 to-red-500">
+            {!user && location.pathname !== createPageUrl("Login") && location.pathname !== "/login" && location.pathname !== "/auth/login" && (
+              <Button onClick={() => navigate(createPageUrl("Login"))} size="sm" className="bg-gradient-to-r from-orange-600 to-red-500">
                 Login
               </Button>
             )}
@@ -252,6 +255,7 @@ function LayoutContent({ children, currentPageName }) {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const { open, setOpen } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const unreadSupport = useSupportUnreadCount(user?.id);
 
@@ -290,23 +294,29 @@ function LayoutContent({ children, currentPageName }) {
     if (authUser) {
       const syncUser = async () => {
         if (authUser.is_banned) {
-          const banUntil = authUser.ban_until ? new Date(authUser.ban_until) : null;
-          if (!banUntil || banUntil > new Date()) {
-            await authLogout();
-            alert(`🚫 Banned: ${authUser.ban_reason || 'Violation'}`);
-            window.location.reload();
-            return;
+          // Auto-unban users accidentally banned by the old Media Post logic
+          if (authUser.ban_reason && authUser.ban_reason.includes('Media Post Violation')) {
+            try {
+              const { User } = await import('@/api/entities');
+              await User.update(authUser.id, { is_banned: false, ban_reason: null, ban_until: null });
+              authUser.is_banned = false;
+            } catch (e) {
+              console.error("Failed to auto-unban", e);
+            }
+          }
+
+          if (authUser.is_banned) {
+            const banUntil = authUser.ban_until ? new Date(authUser.ban_until) : null;
+            if (!banUntil || banUntil > new Date()) {
+              await authLogout();
+              alert(`🚫 Banned: ${authUser.ban_reason || 'Violation'}`);
+              window.location.reload();
+              return;
+            }
           }
         }
         
         let currentUser = { ...authUser };
-        
-        if (!currentUser.unique_id) {
-          const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
-          const uniqueId = `BH${randomDigits}`;
-          await User.updateMyUserData({ unique_id: uniqueId }).catch(() => {});
-          currentUser.unique_id = uniqueId;
-        }
         
         setUser(currentUser);
         
@@ -337,7 +347,7 @@ function LayoutContent({ children, currentPageName }) {
   }, [user]);
 
   const handleLogout = async () => {
-    await User.logout();
+    await authLogout();
     navigate(createPageUrl("Home"));
     setUser(null);
   };
@@ -345,34 +355,46 @@ function LayoutContent({ children, currentPageName }) {
 
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20 lg:pb-0" style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}>
+    <div 
+      className={`min-h-screen bg-black text-white ${user && currentPageName !== "MediaFeed" ? "pb-16" : ""}`}
+      style={{ 
+        WebkitTouchCallout: 'none', 
+        WebkitUserSelect: 'none', 
+        userSelect: 'none'
+      }}
+    >
       
       {/* Top Loading Bar */}
       <LoadingBar />
 
       <div className="absolute inset-0 bg-black z-0"></div>
 
-      <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+      {currentPageName !== "MediaFeed" && (
+        <Header user={user} onLogout={handleLogout} unreadMessages={unreadMessages} onLoginClick={() => navigate('/auth/login')} isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+      )}
       {/* The actual Menu Component */}
       <MenuPage isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
       <div className="relative z-10 min-h-screen flex flex-col">
 
-        <main className="pt-16">
+        <main className={currentPageName !== "MediaFeed" ? "pt-16" : ""}>
           <div className="max-w-screen-2xl mx-auto px-0 py-2 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>
       </div>
       
-      {/* Bottom Navigation - shows on all screen sizes */}
-      {user && <BottomNavigation />}
+      {/* Bottom Navigation - hide on MediaFeed */}
+      {user && currentPageName !== "MediaFeed" && <BottomNavigation />}
       
       {/* Global Modals */}
       <GlobalMatchCredentials />
       <GlobalInviteManager />
+      <GlobalPartyInviteManager />
+      <PartyInviteDrawer user={user} />
       <WelcomeBonusHandler />
       <ChatUnreadTracker />
+      <ProfileUnreadTracker />
       
     </div>
   );

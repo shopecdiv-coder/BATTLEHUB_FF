@@ -1,0 +1,49 @@
+Created At: 2026-08-21T19:16:47+05:30
+Completed At: 2026-08-21T19:16:47+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2660
+Total Bytes: 139597
+Showing lines 1980 to 2020
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1980:   };
+1981:   
+1982:   const getLastMatchPlacement = (row) => {
+1983:     if (!row?.match_results || !Array.isArray(row.match_results)) return 999;
+1984:     const validMatches = row.match_results.filter(m => m);
+1985:     if (validMatches.length === 0) return 999;
+1986:     const sortedMatches = [...validMatches].sort((a,b) => String(b?.match_number||"").localeCompare(String(a?.match_number||"")));
+1987:     return sortedMatches[0]?.placement || 999;
+1988:   };
+1989: 
+1990:   const sortedFilteredRows = [...filteredRows].sort((a, b) => {
+1991:     const ptsA = a.points || 0;
+1992:     const ptsB = b.points || 0;
+1993:     if (ptsB !== ptsA) return ptsB - ptsA;
+1994: 
+1995:     const booA = getBooyahCount(a);
+1996:     const booB = getBooyahCount(b);
+1997:     if (booB !== booA) return booB - booA;
+1998: 
+1999:     const killA = a.kills || 0;
+2000:     const killB = b.kills || 0;
+2001:     if (killB !== killA) return killB - killA;
+2002: 
+2003:     const lastA = getLastMatchPlacement(a);
+2004:     const lastB = getLastMatchPlacement(b);
+2005:     return lastA - lastB;
+2006:   });
+2007: 
+2008:   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+2009: 
+2010:   const downloadOfficialStandings = async () => {
+2011:     if (isDownloadingPdf) return;
+2012:     setIsDownloadingPdf(true);
+2013:     const toastId = toast.loading("⚡ Initializing Esports Booklet Generator...");
+2014:     try {
+2015:       await generateTournamentPDF({
+2016:         tournament,
+2017:         leaderboardRows: sortedFilteredRows,
+2018:         registrations,
+2019:         matches,
+2020:         selectedStage,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

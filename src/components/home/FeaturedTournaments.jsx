@@ -97,7 +97,17 @@ export default function FeaturedTournaments({ tournaments, loading }) {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2 text-[#A0A0A0]">
                     <Calendar className="w-4 h-4" />
-                    <span>{format(new Date(tournament.date_time), "MMM d, h:mm a")}</span>
+                    <span>
+                      {(() => {
+                        try {
+                          const d = new Date(tournament.date_time);
+                          if (isNaN(d.getTime())) return "TBD";
+                          return format(d, "MMM d, h:mm a");
+                        } catch(e) {
+                          return "TBD";
+                        }
+                      })()}
+                    </span>
                   </div>
                 </div>
 

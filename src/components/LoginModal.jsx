@@ -69,14 +69,14 @@ export default function LoginModal({ isOpen, onClose }) {
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { clearForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-[450px] bg-slate-950 border border-slate-800 text-white rounded-2xl p-6 shadow-2xl shadow-purple-500/10">
         <DialogHeader className="flex flex-col items-center justify-center space-y-2 pb-2">
-          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+          <div className="w-12 h-12 bg-gradient-to-br from-orange-600 to-red-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-600/20">
             <Trophy className="w-6 h-6 text-white" />
           </div>
-          <DialogTitle className="text-2xl font-black tracking-tight text-center bg-gradient-to-r from-orange-400 via-red-500 to-purple-500 bg-clip-text text-transparent">
+          <DialogTitle className="text-2xl font-black tracking-tight text-center bg-gradient-to-r from-orange-500 via-red-500 to-purple-500 bg-clip-text text-transparent">
             BATTLEHUB FF
           </DialogTitle>
           <DialogDescription className="text-slate-400 text-sm text-center">
-            India's #1 Free Fire Tournament Platform
+            India's #1 Esports Tournament Platform
           </DialogDescription>
         </DialogHeader>
 
@@ -89,10 +89,10 @@ export default function LoginModal({ isOpen, onClose }) {
 
         <Tabs value={activeTab} onValueChange={(tab) => { setError(null); setActiveTab(tab); }} className="w-full">
           <TabsList className="grid grid-cols-2 bg-slate-900 border border-slate-800 rounded-xl p-1 mb-4">
-            <TabsTrigger value="login" className="rounded-lg font-bold text-xs py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">
+            <TabsTrigger value="login" className="rounded-lg font-bold text-xs py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-red-500 data-[state=active]:text-white">
               Log In
             </TabsTrigger>
-            <TabsTrigger value="register" className="rounded-lg font-bold text-xs py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">
+            <TabsTrigger value="register" className="rounded-lg font-bold text-xs py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-red-500 data-[state=active]:text-white">
               Sign Up
             </TabsTrigger>
           </TabsList>
@@ -109,7 +109,7 @@ export default function LoginModal({ isOpen, onClose }) {
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-slate-900/50 border-slate-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white pl-10 rounded-xl"
+                    className="bg-slate-900/50 border-slate-800 focus:border-orange-600 focus:ring-1 focus:ring-orange-600 text-white pl-10 rounded-xl"
                     disabled={loading}
                     required
                   />
@@ -126,7 +126,7 @@ export default function LoginModal({ isOpen, onClose }) {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-900/50 border-slate-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white pl-10 rounded-xl"
+                    className="bg-slate-900/50 border-slate-800 focus:border-orange-600 focus:ring-1 focus:ring-orange-600 text-white pl-10 rounded-xl"
                     disabled={loading}
                     required
                   />
@@ -136,7 +136,7 @@ export default function LoginModal({ isOpen, onClose }) {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 font-bold text-sm py-5 rounded-xl shadow-lg shadow-orange-500/20 active:scale-98 transition-all"
+                className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-700 hover:to-red-600 font-bold text-sm py-5 rounded-xl shadow-lg shadow-orange-600/20 active:scale-98 transition-all"
               >
                 {loading ? (
                   <>
@@ -162,7 +162,7 @@ export default function LoginModal({ isOpen, onClose }) {
                     placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="bg-slate-900/50 border-slate-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white pl-10 rounded-xl"
+                    className="bg-slate-900/50 border-slate-800 focus:border-orange-600 focus:ring-1 focus:ring-orange-600 text-white pl-10 rounded-xl"
                     disabled={loading}
                     required
                   />
@@ -179,7 +179,7 @@ export default function LoginModal({ isOpen, onClose }) {
                     placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-slate-900/50 border-slate-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white pl-10 rounded-xl"
+                    className="bg-slate-900/50 border-slate-800 focus:border-orange-600 focus:ring-1 focus:ring-orange-600 text-white pl-10 rounded-xl"
                     disabled={loading}
                     required
                   />
@@ -196,7 +196,7 @@ export default function LoginModal({ isOpen, onClose }) {
                     placeholder="•••••••• (min 6 chars)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-900/50 border-slate-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white pl-10 rounded-xl"
+                    className="bg-slate-900/50 border-slate-800 focus:border-orange-600 focus:ring-1 focus:ring-orange-600 text-white pl-10 rounded-xl"
                     disabled={loading}
                     required
                   />
@@ -206,7 +206,7 @@ export default function LoginModal({ isOpen, onClose }) {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 font-bold text-sm py-5 rounded-xl shadow-lg shadow-orange-500/20 active:scale-98 transition-all"
+                className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-700 hover:to-red-600 font-bold text-sm py-5 rounded-xl shadow-lg shadow-orange-600/20 active:scale-98 transition-all"
               >
                 {loading ? (
                   <>

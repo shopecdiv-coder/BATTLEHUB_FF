@@ -1,10 +1,19 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import SharedChatInterface from "@/components/chat/SharedChatInterface";
 
 export default function TournamentChatFullscreen({ tournament, user, isRegistered, onClose }) {
+  if (!tournament) return null;
+
   return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-gray-950 flex flex-col animate-in slide-in-from-bottom-full duration-300">
+    <motion.div 
+      initial={{ x: "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "100%" }}
+      transition={{ ease: "easeInOut", duration: 0.28 }}
+      className="fixed inset-0 z-[999999] bg-gray-950 flex flex-col overflow-hidden"
+    >
       <SharedChatInterface
         roomType="tournament"
         roomId={tournament.id}
@@ -14,7 +23,7 @@ export default function TournamentChatFullscreen({ tournament, user, isRegistere
         onShrink={onClose}
         user={user}
       />
-    </div>,
+    </motion.div>,
     document.body
   );
 }

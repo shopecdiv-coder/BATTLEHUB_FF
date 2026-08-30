@@ -1,0 +1,808 @@
+Created At: 2026-08-20T21:28:54+05:30
+Completed At: 2026-08-20T21:28:54+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2636
+Total Bytes: 137594
+Showing lines 1799 to 2598
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1799:           <p className="text-slate-400 font-bold text-sm">No standings data available yet</p>
+1800:           <p className="text-slate-500 text-xs mt-1">Teams will appear here once registered or matches begin.</p>
+1801:         </CardContent>
+1802:       </Card>
+1803:     );
+1804:   }
+1805: 
+1806:   // Dynamic Stages List from tournament data
+1807:   const defaultStages = [
+1808:     { id: "all", name: "All Stages" },
+1809:     { id: "qualifiers", name: "Qualifier" },
+1810:     { id: "league", name: "League" },
+1811:     { id: "semifinals", name: "Semifinal" },
+1812:     { id: "grand_final", name: "Grand Final" }
+1813:   ];
+1814: 
+1815:   const stagesList = (tournament?.stages && Array.isArray(tournament.stages) && tournament.stages.length > 0)
+1816:     ? [{ id: "all", name: "All Stages" }, ...tournament.stages.map((st, i) => typeof st === 'string' ? { id: `stage_${i}`, name: st } : st)]
+1817:     : defaultStages;
+1818: 
+1819: 
+1820:   // Raw row generation - Merges leaderboardEntries with all registrations so ALL registered teams are visible!
+1821:   const rawRows = (() => {
+1822:     const lbMap = new Map();
+1823:     (leaderboardEntries || []).forEach(lb => {
+1824:       if (lb.user_id) lbMap.set(`user_${lb.user_id}`, lb);
+1825:       if (lb.id) lbMap.set(`id_${lb.id}`, lb);
+1826:       if (lb.team_name) lbMap.set(`name_${String(lb.team_name).trim().toLowerCase()}`, lb);
+1827:     });
+1828: 
+1829:     const rows = [];
+1830: 
+1831:     // If registered teams exist, use registrations as the master list so count matches SLOTS exactly
+1832:     if (registrations && registrations.length > 0) {
+1833:       registrations.forEach((reg, i) => {
+1834:         const lb = (reg.team_leader_id && lbMap.get(`user_${reg.team_leader_id}`)) ||
+1835:                    (reg.id && lbMap.get(`id_${reg.id}`)) ||
+1836:                    (reg.team_name && lbMap.get(`name_${String(reg.team_name).trim().toLowerCase()}`));
+1837: 
+1838:         if (lb) {
+1839:           rows.push({
+1840:             ...lb,
+1841:             _rowUid: `reg-${i}-${reg.id || reg.team_leader_id || i}`,
+1842:             id: lb.id || reg.id,
+1843:             team_name: reg.team_name || lb.team_name || reg.team_leader_ign || `Team ${i + 1}`,
+1844:             player_ign: reg.team_leader_ign || lb.player_ign || "Leader",
+1845:             player_uid: reg.team_members?.[0]?.uid || reg.team_leader_uid || lb.player_uid || '-',
+1846:             kills: lb.kills !== undefined ? lb.kills : (reg.total_kills || 0),
+1847:             points: lb.points !== undefined ? lb.points : (reg.total_points || 0),
+1848:             team_members: (reg.team_members && reg.team_members.length > 0) ? reg.team_members : (lb.team_members || []),
+1849:             user_id: reg.team_leader_id || lb.user_id,
+1850:             team_logo_url: reg.team_logo_url || lb.team_logo_url || "",
+1851:             is_qualified: Boolean(lb.is_qualified || reg.is_qualified || reg.status === "Qualified"),
+1852:             stage: reg.stage || lb.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+1853:             group_number: String(Math.floor(i / 12) + 1),
+1854:             match_results: lb.match_results || reg.match_results || []
+1855:           });
+1856:         } else {
+1857:           rows.push({
+1858:             _rowUid: `reg-${i}-${reg.id || reg.team_leader_id || i}`,
+1859:             id: reg.id,
+1860:             rank: 999 + i,
+1861:             team_name: reg.team_name || reg.team_leader_ign || `Team ${i + 1}`,
+1862:             player_ign: reg.team_leader_ign || "Leader",
+1863:             player_uid: reg.team_members?.[0]?.uid || reg.team_leader_uid || '-',
+1864:             kills: reg.total_kills || 0,
+1865:             points: reg.total_points || 0,
+1866:             placement: 0,
+1867:             wins: 0,
+1868:             team_members: reg.team_members || [],
+1869:             user_id: reg.team_leader_id,
+1870:             team_logo_url: reg.team_logo_url || "",
+1871:             is_qualified: Boolean(reg.is_qualified || reg.status === "Qualified"),
+1872:             stage: reg.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+1873:             group_number: String(Math.floor(i / 12) + 1),
+1874:             match_results: reg.match_results || []
+1875:           });
+1876:         }
+1877:       });
+1878:     } else {
+1879:       // Fallback if no registrations exist yet
+1880:       (leaderboardEntries || []).forEach((lb, idx) => {
+1881:         rows.push({
+1882:           ...lb,
+1883:           _rowUid: `lb-${idx}-${lb.id || lb.user_id || idx}`,
+1884:           id: lb.id,
+1885:           team_name: lb.team_name || lb.player_ign || "Unknown Team",
+1886:           player_ign: lb.player_ign || "Leader",
+1887:           player_uid: lb.player_uid || '-',
+1888:           kills: lb.kills || 0,
+1889:           points: lb.points || 0,
+1890:           team_members: lb.team_members || [],
+1891:           user_id: lb.user_id,
+1892:           team_logo_url: lb.team_logo_url || "",
+1893:           is_qualified: Boolean(lb.is_qualified),
+1894:           stage: lb.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+1895:           group_number: String(Math.floor(idx / 12) + 1),
+1896:           match_results: lb.match_results || []
+1897:         });
+1898:       });
+1899:     }
+1900: 
+1901:     return rows;
+1902:   })();
+1903: 
+1904:   const getRegForEntry = (entry) => registrations.find(r => r.team_leader_id === entry.user_id || r.id === entry.id);
+1905:   const adminMsg = leaderboardEntries && leaderboardEntries.length > 0 ? (leaderboardEntries[0]?.admin_message || "") : "";
+1906:   const isFinalized = leaderboardEntries && leaderboardEntries.length > 0 && leaderboardEntries[0]?.is_finalized;
+1907: 
+1908:   // Qualification counts
+1909:   const totalQualifiedCount = rawRows.filter(r => r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified").length;
+1910: 
+1911:   // Search, Group & Stage Filter
+1912:   const filteredRows = rawRows.filter((r, idx) => {
+1913:     const origIdx = registrations.findIndex(reg => reg.id === r.id || (reg.team_leader_id && reg.team_leader_id === r.user_id));
+1914:     const realIdx = origIdx >= 0 ? origIdx : idx;
+1915:     
+1916:     const grp = r.group_number !== undefined && r.group_number !== null && String(r.group_number).trim() !== ""
+1917:       ? String(r.group_number).replace(/[^0-9]/g, '') || String(r.group_number)
+1918:       : String(Math.floor(realIdx / 12) + 1);
+1919: 
+1920:     const matchesGrp = selectedGroup === "all" || selectedGroup === grp;
+1921: 
+1922:     const isQual = r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified";
+1923:     const regStage = String(r.stage || "").toLowerCase();
+1924: 
+1925:     let matchesStage = true;
+1926:     if (selectedStage === "all") {
+1927:       matchesStage = true;
+1928:     } else if (selectedStage === "qualified") {
+1929:       matchesStage = isQual;
+1930:     } else {
+1931:       const selLower = selectedStage.toLowerCase();
+1932:       const stObj = stagesList.find(s => String(s.id || s).toLowerCase() === selLower || String(s.name || s).toLowerCase() === selLower);
+1933:       const targetName = (stObj?.name || selectedStage).toLowerCase();
+1934:       const targetId = (stObj?.id || selectedStage).toLowerCase();
+1935: 
+1936:       if (targetName.includes("qualifier") || targetName.includes("round 1") || targetId.includes("qualifier")) {
+1937:         matchesStage = true;
+1938:       } else {
+1939:         matchesStage = regStage === targetId ||
+1940:                        regStage === targetName ||
+1941:                        (targetName && regStage.includes(targetName)) ||
+1942:                        (targetName.includes("semi") && (regStage.includes("semi") || isQual)) ||
+1943:                        (targetName.includes("final") && (regStage.includes("final") || regStage.includes("grand")));
+1944:       }
+1945:     }
+1946: 
+1947:     const q = (searchQuery || "").toLowerCase().trim();
+1948:     if (!q) return matchesGrp && matchesStage;
+1949: 
+1950:     const reg = getRegForEntry(r) || {};
+1951:     const rawMembers = Array.isArray(r.team_members) && r.team_members.length > 0
+1952:       ? r.team_members
+1953:       : (Array.isArray(reg.team_members) ? reg.team_members : []);
+1954: 
+1955:     const tName = String(r.team_name || reg.team_name || "").toLowerCase();
+1956:     const leaderIgn = String(r.player_ign || reg.team_leader_ign || "").toLowerCase();
+1957:     const uid = String(r.player_uid || reg.team_leader_uid || "").toLowerCase();
+1958: 
+1959:     const memberMatches = rawMembers.some(m => {
+1960:       if (!m) return false;
+1961:       const mIgn = typeof m === 'string' ? m : (m.ign || m.name || m.player_ign || '');
+1962:       const mUid = typeof m === 'object' ? (m.uid || m.game_id || '') : '';
+1963:       return String(mIgn).toLowerCase().includes(q) || String(mUid).toLowerCase().includes(q);
+1964:     });
+1965: 
+1966:     const rankStr = String(idx + 1);
+1967:     const matchesQ = tName.includes(q) || leaderIgn.includes(q) || uid.includes(q) || memberMatches || rankStr === q || `#${rankStr}` === q;
+1968: 
+1969:     return matchesGrp && matchesStage && matchesQ;
+1970:   });
+1971: 
+1972:   // Official eSports Tie-Breaker Rule Sorting:
+1973:   // Priority 1: Total Points (descending)
+1974:   const getBooyahCount = (row) => {
+1975:     if (!row?.match_results || !Array.isArray(row.match_results)) return 0;
+1976:     return row.match_results.filter(m => m && m.placement === 1).length;
+1977:   };
+1978:   
+1979:   const getLastMatchPlacement = (row) => {
+1980:     if (!row?.match_results || !Array.isArray(row.match_results)) return 999;
+1981:     const validMatches = row.match_results.filter(m => m);
+1982:     if (validMatches.length === 0) return 999;
+1983:     const sortedMatches = [...validMatches].sort((a,b) => String(b?.match_number||"").localeCompare(String(a?.match_number||"")));
+1984:     return sortedMatches[0]?.placement || 999;
+1985:   };
+1986: 
+1987:   const sortedFilteredRows = [...filteredRows].sort((a, b) => {
+1988:     const ptsA = a.points || 0;
+1989:     const ptsB = b.points || 0;
+1990:     if (ptsB !== ptsA) return ptsB - ptsA;
+1991: 
+1992:     const booA = getBooyahCount(a);
+1993:     const booB = getBooyahCount(b);
+1994:     if (booB !== booA) return booB - booA;
+1995: 
+1996:     const killA = a.kills || 0;
+1997:     const killB = b.kills || 0;
+1998:     if (killB !== killA) return killB - killA;
+1999: 
+2000:     const lastA = getLastMatchPlacement(a);
+2001:     const lastB = getLastMatchPlacement(b);
+2002:     return lastA - lastB;
+2003:   });
+2004: 
+2005:   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+2006: 
+2007:   const downloadOfficialStandings = async () => {
+2008:     if (isDownloadingPdf) return;
+2009:     setIsDownloadingPdf(true);
+2010:     const toastId = toast.loading("⚡ Initializing Esports Booklet Generator...");
+2011:     try {
+2012:       await generateTournamentPDF({
+2013:         tournament,
+2014:         leaderboardRows: sortedFilteredRows,
+2015:         registrations,
+2016:         matches,
+2017:         selectedStage,
+2018:         selectedGroup,
+2019:         onProgress: ({ page, totalPages, percentage, estimatedMb, remainingSec, title }) => {
+2020:           toast.loading(
+2021:             `📄 PDF Booklet Progress: ${percentage}%\n` +
+2022:             `Page ${page}/${totalPages}: ${title}\n` +
+2023:             `💾 Size: ~${estimatedMb} MB • ⏱️ ~${remainingSec}s left`,
+2024:             { id: toastId }
+2025:           );
+2026:         }
+2027:       });
+2028:       toast.success("Official Standings PDF Downloaded! 📄", { id: toastId });
+2029:     } catch (err) {
+2030:       console.error("PDF download failed:", err);
+2031:       toast.error(`Failed to generate PDF: ${err.message || err}`, { id: toastId, duration: 6000 });
+2032:     } finally {
+2033:       setIsDownloadingPdf(false);
+2034:     }
+2035:   };
+2036: 
+2037:   return (
+2038:     <div className="space-y-3">
+2039:       {/* ALWAYS VISIBLE CREDENTIALS BUTTON */}
+2040:       {isRegistered && (
+2041:         <Button 
+2042:           onClick={() => setShowCredentialsModal(true)}
+2043:           className={`w-full h-11 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all cursor-pointer ${matchCredentials ? "bg-cyan-600 hover:bg-cyan-500 text-white animate-[pulse_2s_ease-in-out_infinite] shadow-cyan-900/30 border border-cyan-400" : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"}`}
+2044:         >
+2045:           <Key className={`w-4 h-4 mr-2 ${matchCredentials ? 'text-cyan-100' : 'text-orange-400'}`} />
+2046:           {matchCredentials ? "VIEW MATCH CREDENTIALS!" : "VIEW MATCH CREDENTIALS"}
+2047:         </Button>
+2048:       )}
+2049: 
+2050:       {/* Main Standings Table Card */}
+2051:       <Card className="bg-slate-900/80 border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+2052:         {/* Header Bar */}
+2053:         <div className="bg-slate-950/90 border-b border-slate-800 p-2.5 space-y-2">
+2054:           {/* Top Row: Title + Badges on Left, Download Button on Right */}
+2055:           <div className="flex items-center justify-between gap-2">
+2056:             <div className="flex items-center gap-1.5 min-w-0">
+2057:               <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+2058:               <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider truncate">Official Standings</h3>
+2059:               <Badge className="bg-slate-800/80 text-slate-300 border border-slate-700/60 text-[10px] font-bold px-1.5 py-0">
+2060:                 {filteredRows.length}
+2061:               </Badge>
+2062:               {isFinalized && (
+2063:                 <Badge className="bg-slate-800/80 text-cyan-400 border border-cyan-500/30 text-[10px] font-bold px-1.5 py-0">
+2064:                   ✓ Finalized
+2065:                 </Badge>
+2066:               )}
+2067:             </div>
+2068: 
+2069:             <button
+2070:               onClick={downloadOfficialStandings}
+2071:               type="button"
+2072:               disabled={isDownloadingPdf}
+2073:               title="Download Official Standings PDF Report"
+2074:               className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 border border-slate-700/80 hover:border-slate-600 text-slate-200 hover:text-white text-[11px] font-bold h-7 px-2.5 rounded-md transition-all active:scale-95 shrink-0 cursor-pointer shadow-sm"
+2075:             >
+2076:               {isDownloadingPdf ? (
+2077:                 <>
+2078:                   <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+2079:                   <span>Generating...</span>
+2080:                 </>
+2081:               ) : (
+2082:                 <>
+2083:                   <Download className="w-3.5 h-3.5 text-orange-400" />
+2084:                   <span>Download</span>
+2085:                 </>
+2086:               )}
+2087:             </button>
+2088:           </div>
+2089: 
+2090:           {/* Filters Row: Stage, Group, Search (Fits 100% display width with ZERO horizontal scroll) */}
+2091:           <div className="grid grid-cols-12 gap-1.5 w-full">
+2092:             {/* Stage Select Dropdown */}
+2093:             <div className="col-span-4">
+2094:               <select
+2095:                 value={selectedStage}
+2096:                 onChange={(e) => setSelectedStage(e.target.value)}
+2097:                 className="w-full bg-slate-900 border border-slate-800 text-slate-200 text-[11px] h-7 rounded-md px-1.5 focus:outline-none truncate"
+2098:               >
+2099:                 {stagesList.map((st) => (
+2100:                   <option key={st.id || st.name} value={st.id || st.name}>
+2101:                     {st.name || st}
+2102:                   </option>
+2103:                 ))}
+2104:               </select>
+2105:             </div>
+2106: 
+2107:             {/* Group Select Dropdown */}
+2108:             <div className="col-span-4">
+2109:               <select
+2110:                 value={selectedGroup}
+2111:                 onChange={(e) => setSelectedGroup(e.target.value)}
+2112:                 className="w-full bg-slate-900 border border-slate-800 text-slate-200 text-[11px] h-7 rounded-md px-1.5 focus:outline-none truncate"
+2113:               >
+2114:                 <option value="all">All Groups</option>
+2115:                 {Array.from({ length: Math.ceil(Math.max(registrations.length, rawRows.length) / 12) || 1 }, (_, i) => (
+2116:                   <option key={i + 1} value={String(i + 1)}>
+2117:                     Group {i + 1}
+2118:                   </option>
+2119:                 ))}
+2120:               </select>
+2121:             </div>
+2122: 
+2123:             {/* Search Input */}
+2124:             <div className="col-span-4">
+2125:               <Input
+2126:                 placeholder="Search..."
+2127:                 value={searchQuery}
+2128:                 onChange={e => setSearchQuery(e.target.value)}
+2129:                 className="w-full bg-slate-900 border-slate-800 text-white text-[11px] h-7 px-2"
+2130:               />
+2131:             </div>
+2132:           </div>
+2133:         </div>
+2134: 
+2135:         {/* Admin Announcement Banner */}
+2136:         {adminMsg && (
+2137:           <div className="bg-cyan-500/10 border-b border-cyan-500/20 px-3.5 py-2 flex items-center gap-2 text-xs text-cyan-300">
+2138:             <span>📢</span>
+2139:             <p className="font-semibold truncate">{adminMsg}</p>
+2140:           </div>
+2141:         )}
+2142: 
+2143:         {/* Main Table (Standalone Internal Scroll Container with Sticky Header) */}
+2144:         <div className="w-full max-h-[560px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+2145:           <table className="w-full text-xs table-fixed">
+2146:             <thead className="sticky top-0 bg-slate-950 z-10 shadow-sm">
+2147:               <tr className="border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+2148:                 <th className="py-2.5 px-1.5 text-left w-12">S.NO.</th>
+2149:                 <th className="py-2.5 px-2 text-left">Team Name</th>
+2150:                 <th className="py-2.5 px-1 text-center w-10">Kills</th>
+2151:                 <th className="py-2.5 px-1 text-center w-12">POS</th>
+2152:                 <th className="py-2.5 px-1 text-center w-14">Pts</th>
+2153:                 <th className="w-6 py-2.5 text-center"></th>
+2154:               </tr>
+2155:             </thead>
+2156:             <tbody className="divide-y divide-slate-800/60">
+2157:               {sortedFilteredRows.map((entry, index) => {
+2158:                 const reg = getRegForEntry(entry) || {};
+2159:                 const logo = entry.team_logo_url || reg.team_logo_url;
+2160:                 
+2161:                 const rawMembers = Array.isArray(entry.team_members) ? entry.team_members : (Array.isArray(reg.team_members) ? reg.team_members : []);
+2162:                 const members = rawMembers.map((m, idx) => {
+2163:                   if (typeof m === 'string') {
+2164:                     const isCurrentUser = user && (user.ign === m || user.full_name === m);
+2165:                     return {
+2166:                       ign: m,
+2167:                       uid: '-',
+2168:                       isLeader: idx === 0,
+2169:                       kills: 0,
+2170:                       avatar_url: isCurrentUser ? (user.avatar_url || user.avatar || user.dp || user.photoURL || '') : ''
+2171:                     };
+2172:                   }
+2173:                   if (!m) return { ign: `Player ${idx + 1}`, uid: '-', isLeader: idx === 0, kills: 0, avatar_url: '' };
+2174: 
+2175:                   const mUid = m.uid || m.game_id || m.in_game_id || '';
+2176:                   const mIgn = m.ign || m.name || m.player_ign || `Player ${idx + 1}`;
+2177:                   let mAvatar = m.avatar_url || m.avatar || m.dp || m.photoURL || m.logo || m.logo_url || '';
+2178: 
+2179:                   if (!mAvatar && user) {
+2180:                     if ((mUid && (mUid === user.game_uid || mUid === user.game_id || mUid === user.uid)) ||
+2181:                         (mIgn && (mIgn.toLowerCase() === (user.ign || '').toLowerCase() || mIgn.toLowerCase() === (user.full_name || '').toLowerCase())) ||
+2182:                         (idx === 0 && (entry.user_id === user.id || reg.team_leader_id === user.id))) {
+2183:                       mAvatar = user.avatar_url || user.avatar || user.dp || user.photoURL || '';
+2184:                     }
+2185:                   }
+2186: 
+2187:                   return {
+2188:                     ign: mIgn,
+2189:                     uid: mUid || '-',
+2190:                     isLeader: Boolean(m.isLeader || idx === 0),
+2191:                     kills: m.kills || 0,
+2192:                     avatar_url: mAvatar
+2193:                   };
+2194:                 });
+2195:                 
+2196:                 const rowId = entry._rowUid || `row-${index}`;
+2197:                 const isExpanded = expandedId === rowId;
+2198:                 const rankNum = index + 1;
+2199:                 const displayName = entry.team_name || entry.player_ign || "Unknown Team";
+2200:                 const isQualified = entry.is_qualified || reg.is_qualified || reg.status === "Qualified";
+2201:                 
+2202:                 const matchResults = Array.isArray(entry.match_results) ? entry.match_results : [];
+2203:                 const booyahCount = matchResults.filter(mr => mr && mr.placement === 1).length;
+2204: 
+2205:                 return (
+2206:                   <React.Fragment key={rowId}>
+2207:                     <tr
+2208:                       onClick={() => setExpandedId(isExpanded ? null : rowId)}
+2209:                       className={`cursor-pointer transition-colors hover:bg-slate-800/40 ${
+2210:                         rankNum === 1 ? 'bg-amber-500/5' :
+2211:                         rankNum === 2 ? 'bg-slate-400/5' :
+2212:                         rankNum === 3 ? 'bg-amber-700/5' : ''
+2213:                       }`}
+2214:                     >
+2215:                       <td className="py-2.5 px-1.5 font-black text-left">
+2216:                         <span className={`text-[11px] ${
+2217:                           rankNum === 1 ? 'text-amber-400 font-black' :
+2218:                           rankNum === 2 ? 'text-slate-300 font-black' :
+2219:                           rankNum === 3 ? 'text-amber-600 font-black' : 'text-slate-500 font-bold'
+2220:                         }`}>
+2221:                           #{rankNum}
+2222:                         </span>
+2223:                       </td>
+2224: 
+2225:                       <td className="py-2.5 px-2">
+2226:                         <div className="flex items-center gap-1.5 min-w-0">
+2227:                           {logo ? (
+2228:                             <img src={logo} alt="" className="w-7 h-7 min-w-[28px] max-w-[28px] min-h-[28px] max-h-[28px] rounded-md object-cover border border-slate-700 shrink-0" onError={e=>e.target.style.display='none'} />
+2229:                           ) : (
+2230:                             <div className="w-7 h-7 min-w-[28px] max-w-[28px] min-h-[28px] max-h-[28px] rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-amber-400 text-xs shrink-0">
+2231:                               {displayName.charAt(0).toUpperCase()}
+2232:                             </div>
+2233:                           )}
+2234:                           <div className="min-w-0 flex-1">
+2235:                             <p className="font-bold text-white text-[11px] truncate leading-tight">{displayName}</p>
+2236:                           </div>
+2237:                         </div>
+2238:                       </td>
+2239: 
+2240:                       <td className="py-2.5 px-1 text-center">
+2241:                         <span className="font-bold text-red-400 text-[11px]">{entry.kills || 0}</span>
+2242:                       </td>
+2243: 
+2244:                       <td className="py-2.5 px-1 text-center">
+2245:                         <span className="font-bold text-slate-300 text-[11px]">
+2246:                           {entry.placement_points !== undefined ? entry.placement_points : Math.max(0, (entry.points || 0) - (entry.kills || 0))}
+2247:                         </span>
+2248:                       </td>
+2249: 
+2250:                       <td className="py-2.5 px-1 text-center">
+2251:                         <span className="font-black text-cyan-400 text-[11px]">
+2252:                           {entry.points || 0}
+2253:                         </span>
+2254:                       </td>
+2255: 
+2256:                       <td className="py-2.5 text-center text-slate-500 text-[9px]">
+2257:                         {isExpanded ? '▲' : '▼'}
+2258:                       </td>
+2259:                     </tr>
+2260: 
+2261:                     {/* Expanded Team Breakdown Drawer */}
+2262:                     {isExpanded && (
+2263:                       <tr className="border-b border-slate-800/80">
+2264:                         <td colSpan={6} className="px-3 py-2.5 bg-slate-950/95">
+2265:                           <div className="space-y-2">
+2266: 
+2267:                             {/* Squad Roster — Clean Compact 4-Col Grid */}
+2268:                             {members.length > 0 && (
+2269:                               <div className="bg-slate-900/60 border border-slate-800/70 rounded-lg p-2">
+2270:                                 <div className="flex items-center justify-between mb-1.5 px-0.5">
+2271:                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+2272:                                     <Users className="w-3.5 h-3.5 text-amber-400" /> Squad Roster
+2273:                                   </span>
+2274:                                   {user && isRegistered && entry.user_id !== user.id && (
+2275:                                     <button
+2276:                                       onClick={(e) => { e.stopPropagation(); setShowReportModal(entry); }}
+2277:                                       className="text-red-400 hover:text-red-300 flex items-center gap-1 text-[10px] font-semibold"
+2278:                                     >
+2279:                                       <AlertTriangle className="w-3 h-3" /> Report
+2280:                                     </button>
+2281:                                   )}
+2282:                                 </div>
+2283:                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+2284:                                   {members.map((m, idx) => {
+2285:                                     const avatarSrc = m.avatar_url || m.avatar || m.dp || m.photoURL;
+2286:                                     return (
+2287:                                       <div key={idx} className="flex items-center justify-between px-2 py-1.5 bg-slate-950/70 border border-slate-800/50 rounded-lg">
+2288:                                         <div className="flex items-center gap-1.5 min-w-0">
+2289:                                           {avatarSrc ? (
+2290:                                             <img
+2291:                                               src={avatarSrc}
+2292:                                               alt={m.ign}
+2293:                                               className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+2294:                                               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+2295:                                             />
+2296:                                           ) : null}
+2297:                                           <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${avatarSrc ? 'hidden' : 'flex'}`}>
+2298:                                             {m.ign?.charAt(0).toUpperCase() || (idx + 1)}
+2299:                                           </div>
+2300:                                           <div className="min-w-0">
+2301:                                             <div className="flex items-center gap-1">
+2302:                                               <span className="font-bold text-slate-200 text-[11px] truncate max-w-[65px]">{m.ign}</span>
+2303:                                               {m.isLeader && <span className="text-[7.5px] font-black text-amber-400 bg-amber-500/20 px-1 py-0.2 rounded shrink-0">IGL</span>}
+2304:                                             </div>
+2305:                                           </div>
+2306:                                         </div>
+2307:                                         <div className="flex items-center gap-1 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold text-red-400 shrink-0 ml-1">
+2308:                                           <span className="text-[9px]">💀</span>
+2309:                                           <span>{m.kills || 0} Kills</span>
+2310:                                         </div>
+2311:                                       </div>
+2312:                                     );
+2313:                                   })}
+2314:                                 </div>
+2315:                               </div>
+2316:                             )}
+2317: 
+2318:                             {/* Match Breakdown — Clean Grid */}
+2319:                             {matchResults.length > 0 && (() => {
+2320:                               const sortedMatches = [...matchResults]
+2321:                                 .filter(mr => mr)
+2322:                                 .sort((a, b) => {
+2323:                                   const numA = parseInt(String(a.match_number || '').replace(/\D/g, '')) || 0;
+2324:                                   const numB = parseInt(String(b.match_number || '').replace(/\D/g, '')) || 0;
+2325:                                   return numA - numB;
+2326:                                 });
+2327:                               const totalMatchKills = sortedMatches.reduce((sum, mr) => sum + (mr.kills || 0), 0);
+2328:                               const totalMatchPts = sortedMatches.reduce((sum, mr) => sum + (mr.points || 0), 0);
+2329:                               const totalBooyahs = sortedMatches.filter(mr => mr.placement === 1).length;
+2330: 
+2331:                               return (
+2332:                                 <div className="bg-slate-900/60 border border-slate-800/70 rounded-lg p-2">
+2333:                                   {/* Section header with totals */}
+2334:                                   <div className="flex items-center justify-between mb-1.5 px-0.5">
+2335:                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+2336:                                       <Trophy className="w-3.5 h-3.5 text-cyan-400" /> Match Breakdown
+2337:                                       <span className="text-slate-600 font-normal normal-case">({sortedMatches.length} matches)</span>
+2338:                                     </span>
+2339:                                     <div className="flex items-center gap-2 text-[10px]">
+2340:                                       {totalBooyahs > 0 && <span className="text-amber-400 font-bold">🏆 {totalBooyahs}x</span>}
+2341:                                       <span className="text-slate-400">Total: <span className="text-red-400 font-bold">{totalMatchKills} Kills</span></span>
+2342:                                       <span className="text-slate-600">·</span>
+2343:                                       <span className="text-cyan-400 font-bold">{totalMatchPts} Pts</span>
+2344:                                     </div>
+2345:                                   </div>
+2346: 
+2347:                                   <div className="grid grid-cols-2 gap-1.5">
+2348:                                     {sortedMatches.map((mr, mi) => {
+2349:                                       const pKillsRaw = mr.player_kills || mr.memberKills || mr.member_kills || [];
+2350:                                       const pKillsList = Array.isArray(pKillsRaw) && pKillsRaw.length > 0 ? pKillsRaw : members.map((m, idx) => {
+2351:                                         const totK = mr.kills || 0;
+2352:                                         let pK = 0;
+2353:                                         if (idx === 0) pK = Math.ceil(totK * 0.4);
+2354:                                         else if (idx === 1) pK = Math.floor(totK * 0.3);
+2355:                                         else if (idx === 2) pK = Math.floor(totK * 0.2);
+2356:                                         else pK = Math.max(0, totK - Math.ceil(totK * 0.4) - Math.floor(totK * 0.3) - Math.floor(totK * 0.2));
+2357:                                         return { ign: m.ign, kills: pK };
+2358:                                       });
+2359: 
+2360:                                       return (
+2361:                                         <div key={mi} className="bg-slate-950/70 border border-slate-800/50 rounded p-1.5">
+2362:                                           {/* Match header */}
+2363:                                           <div className="flex items-center justify-between mb-1">
+2364:                                             <span className="font-bold text-slate-200 text-[11px]">Match {String(mr.match_number || (mi+1)).replace(/\D/g, '')}</span>
+2365:                                             {mr.placement === 1
+2366:                                               ? <span className="text-amber-400 font-black text-[9.5px]">🏆 Booyah</span>
+2367:                                               : <span className="text-slate-400 text-[9.5px]">Rank #{mr.placement || '—'}</span>
+2368:                                             }
+2369:                                           </div>
+2370:                                           {/* Kills & Pts Bar */}
+2371:                                           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1 pb-1 border-b border-slate-800/40">
+2372:                                             <span>Kills: <strong className="text-red-400">{mr.kills || 0}</strong></span>
+2373:                                             <span>Pts: <strong className="text-cyan-400">{mr.points || 0}</strong></span>
+2374:                                           </div>
+2375:                                           {/* Player Kills inline */}
+2376:                                           {pKillsList && pKillsList.length > 0 && (
+2377:                                             <div className="grid grid-cols-2 gap-x-1.5 gap-y-0.5 text-[9.5px]">
+2378:                                               {pKillsList.filter(pk => pk).map((pk, pki) => (
+2379:                                                 <div key={pki} className="flex items-center justify-between">
+2380:                                                   <span className="text-slate-400 truncate max-w-[55px]">{pk.ign || `P${pki+1}`}</span>
+2381:                                                   <span className="text-red-400 font-bold">{pk.kills || 0}k</span>
+2382:                                                 </div>
+2383:                                               ))}
+2384:                                             </div>
+2385:                                           )}
+2386:                                         </div>
+2387:                                       );
+2388:                                     })}
+2389:                                   </div>
+2390:                                 </div>
+2391:                               );
+2392:                             })()}
+2393: 
+2394:                           </div>
+2395:                         </td>
+2396:                       </tr>
+2397:                     )}
+2398:                   </React.Fragment>
+2399:                 );
+2400:               })}
+2401:             </tbody>
+2402:           </table>
+2403:         </div>
+2404:       </Card>
+2405:     </div>
+2406:   );
+2407: }
+2408: 
+2409: function InfoCard({ icon: Icon, label, value, color }) {
+2410:   return (
+2411:     <div className={`p-4 rounded-lg bg-gradient-to-br ${
+2412:       color === 'purple' ? 'from-purple-900/30 to-purple-800/10 border border-purple-500/20' : 'from-cyan-900/30 to-cyan-800/10 border border-cyan-500/20'
+2413:     }`}>
+2414:       <Icon className={`w-5 h-5 mb-2 ${color === 'purple' ? 'text-purple-400' : 'text-cyan-400'}`} />
+2415:       <div className="text-xl font-bold text-gray-100">{value}</div>
+2416:       <div className="text-xs text-gray-400">{label}</div>
+2417:     </div>
+2418:   );
+2419: }
+2420: 
+2421: function DetailRow({ icon: Icon, label, value }) {
+2422:   return (
+2423:     <div className="flex items-center gap-3">
+2424:       <Icon className="w-5 h-5 text-purple-400" />
+2425:       <div className="flex-1">
+2426:         <p className="text-sm text-gray-400">{label}</p>
+2427:         <p className="font-semibold text-gray-100">{value}</p>
+2428:       </div>
+2429:     </div>
+2430:   );
+2431: }
+2432: 
+2433: function MoveCell({ reg, isQualifierType, isSemifinalType, sfATournament, sfBTournament, gfTournament, movingTeam, moveTeam }) {
+2434:   const isMoving = movingTeam && (movingTeam.id === reg.id || movingTeam.user_id === reg.team_leader_id);
+2435:   
+2436:   return (
+2437:     <td className="py-3 px-2 text-center">
+2438:       <div className="flex gap-1 justify-center">
+2439:         {isQualifierType && (
+2440:           <>
+2441:             {sfATournament ? (
+2442:               <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "semifinal", "A")} className="bg-purple-600 hover:bg-purple-700 text-xs h-7 px-2">
+2443:                 {isMoving && movingTeam?.group === "A" ? "..." : "SF-A"}
+2444:               </Button>
+2445:             ) : (
+2446:               <span className="text-gray-600 text-xs px-1" title="No Semifinal A tournament exists">SF-A</span>
+2447:             )}
+2448:             {sfBTournament ? (
+2449:               <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "semifinal", "B")} className="bg-purple-500 hover:bg-purple-600 text-xs h-7 px-2">
+2450:                 {isMoving && movingTeam?.group === "B" ? "..." : "SF-B"}
+2451:               </Button>
+2452:             ) : (
+2453:               <span className="text-gray-600 text-xs px-1" title="No Semifinal B tournament exists">SF-B</span>
+2454:             )}
+2455:           </>
+2456:         )}
+2457:         {(isQualifierType || isSemifinalType) && (
+2458:           gfTournament ? (
+2459:             <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "grand_final")} className="bg-red-600 hover:bg-red-700 text-xs h-7 px-2">
+2460:               {isMoving && movingTeam?.stage === "grand_final" ? "..." : "GF"}
+2461:             </Button>
+2462:           ) : (
+2463:             <span className="text-gray-600 text-xs px-1" title="No Grand Final tournament exists">GF</span>
+2464:           )
+2465:         )}
+2466:       </div>
+2467:     </td>
+2468:   );
+2469: }
+2470: 
+2471: function TeamCard({ reg, index, isSolo, showPoints, grandFinal, showGroupBadge = true }) {
+2472:   const [expanded, setExpanded] = useState(false);
+2473:   const [memberAvatars, setMemberAvatars] = useState({});
+2474: 
+2475:   const isQualified = reg.is_qualified || reg.status === "Qualified";
+2476:   const hasMembers = !isSolo && reg.team_members && reg.team_members.length > 0;
+2477:   const userChosenSlot = reg.slot_number ?? reg.slot ?? reg.selected_slot ?? reg.slot_no ?? reg.group_slot;
+2478:   const userChosenGroup = reg.group_number ?? reg.group ?? reg.group_name;
+2479:   // Unique slot per team: use stored slot or globally unique index+1
+2480:   const slotNum = userChosenSlot !== undefined && userChosenSlot !== null && userChosenSlot !== "" 
+2481:     ? String(userChosenSlot).replace(/[^0-9]/g, '') || userChosenSlot 
+2482:     : ((index || 0) + 1);
+2483:   const groupNum = userChosenGroup !== undefined && userChosenGroup !== null && userChosenGroup !== ""
+2484:     ? String(userChosenGroup).replace(/[^0-9]/g, '') || userChosenGroup
+2485:     : (Math.floor((index || 0) / 12) + 1);
+2486: 
+2487:   React.useEffect(() => {
+2488:     if (!expanded || !hasMembers) return;
+2489:     let isMounted = true;
+2490: 
+2491:     const fetchMemberAvatars = async () => {
+2492:       const avatarMap = {};
+2493:       await Promise.all(reg.team_members.map(async (m) => {
+2494:         const mUid = m.uid || m.game_id || m.in_game_id;
+2495:         const key = mUid || m.ign;
+2496:         const existingDp = m.avatar_url || m.avatar || m.logo_url || m.logo || m.image || m.photoURL || m.dp;
+2497:         if (existingDp) {
+2498:           avatarMap[key] = existingDp;
+2499:           return;
+2500:         }
+2501: 
+2502:         try {
+2503:           let uObj = null;
+2504:           if (mUid) {
+2505:             const byUid = await User.filter({ game_uid: mUid }).catch(() => []);
+2506:             if (byUid && byUid.length > 0) uObj = byUid[0];
+2507:             else {
+2508:               const byUid2 = await User.filter({ game_id: mUid }).catch(() => []);
+2509:               if (byUid2 && byUid2.length > 0) uObj = byUid2[0];
+2510:               else {
+2511:                 const byUid3 = await User.filter({ uid: mUid }).catch(() => []);
+2512:                 if (byUid3 && byUid3.length > 0) uObj = byUid3[0];
+2513:               }
+2514:             }
+2515:           }
+2516:           if (!uObj && m.ign) {
+2517:             const byIgn = await User.filter({ ign: m.ign }).catch(() => []);
+2518:             if (byIgn && byIgn.length > 0) uObj = byIgn[0];
+2519:           }
+2520: 
+2521:           if (uObj) {
+2522:             const dp = uObj.avatar_url || uObj.avatar || uObj.dp || uObj.photoURL;
+2523:             if (dp) avatarMap[key] = dp;
+2524:           }
+2525:         } catch (e) {}
+2526:       }));
+2527: 
+2528:       if (isMounted && Object.keys(avatarMap).length > 0) {
+2529:         setMemberAvatars(prev => ({ ...prev, ...avatarMap }));
+2530:       }
+2531:     };
+2532: 
+2533:     fetchMemberAvatars();
+2534:     return () => { isMounted = false; };
+2535:   }, [expanded, hasMembers, reg.team_members]);
+2536: 
+2537:   return (
+2538:     <div className="bg-slate-900/60 rounded-lg overflow-hidden border border-slate-800/80 transition-all">
+2539:       {/* Compact Main Row */}
+2540:       <div
+2541:         className={`flex items-center gap-2.5 px-3 py-2 ${hasMembers ? 'cursor-pointer hover:bg-slate-800/50 transition-colors' : ''}`}
+2542:         onClick={() => hasMembers && setExpanded(!expanded)}
+2543:       >
+2544:         {/* Compact Logo / Rank Badge */}
+2545:         {reg.team_logo_url ? (
+2546:           <img 
+2547:             src={reg.team_logo_url} 
+2548:             alt="logo" 
+2549:             className="w-7 h-7 rounded-md object-cover border border-slate-700/80 flex-shrink-0" 
+2550:             onError={e => e.target.style.display='none'} 
+2551:           />
+2552:         ) : (
+2553:           <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${
+2554:             grandFinal && index === 0 ? 'bg-amber-500 text-slate-950 font-black' :
+2555:             grandFinal && index === 1 ? 'bg-slate-400 text-slate-950 font-black' :
+2556:             grandFinal && index === 2 ? 'bg-amber-700 text-white font-black' :
+2557:             'bg-slate-800 border border-slate-700/80 text-orange-400 font-bold'
+2558:           }`}>
+2559:             {index + 1}
+2560:           </div>
+2561:         )}
+2562: 
+2563:         {/* Team Name */}
+2564:         <div className="flex-1 min-w-0 flex items-center gap-2">
+2565:           <p className="font-bold text-white text-xs truncate">
+2566:             {isSolo ? (reg.team_members?.[0]?.ign || reg.team_leader_ign) : reg.team_name}
+2567:           </p>
+2568:           {isQualified && <span className="text-emerald-400 text-[11px] font-bold">✓</span>}
+2569:         </div>
+2570: 
+2571:         {/* Group & Slot Badge + Controls */}
+2572:         <div className="flex items-center gap-2 flex-shrink-0">
+2573:           {showGroupBadge ? (
+2574:             <span className="text-[10px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-md">
+2575:               G{groupNum} • #{slotNum}
+2576:             </span>
+2577:           ) : (
+2578:             <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+2579:               Slot #{slotNum}
+2580:             </span>
+2581:           )}
+2582: 
+2583:           {isSolo && reg.team_members?.[0]?.uid && (
+2584:             <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">UID: {reg.team_members[0].uid}</span>
+2585:           )}
+2586: 
+2587:           {showPoints && (
+2588:             <Badge className="bg-cyan-500/20 text-cyan-400 text-[10px] border border-cyan-500/30 px-1.5 py-0.2">
+2589:               {reg.total_points || 0} pts
+2590:             </Badge>
+2591:           )}
+2592: 
+2593:           {hasMembers && (
+2594:             <span className="text-slate-500 text-[10px]">{expanded ? '▲' : '▼'}</span>
+2595:           )}
+2596:         </div>
+2597:       </div>
+2598:       
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,69 @@
+Created At: 2026-08-23T08:29:02+05:30
+Completed At: 2026-08-23T08:29:02+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 3022
+Total Bytes: 161929
+Showing lines 2100 to 2160
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2100:         // 1. Find stage-specific leaderboard entry strictly for targetStageNorm
+2101:         const stageSpecificLb = lbList.find(lb => {
+2102:           const isMatchUser = (
+2103:             (lb.user_id && String(lb.user_id) === String(reg.team_leader_id)) ||
+2104:             (lb.user_id && String(lb.user_id) === String(reg.user_id)) ||
+2105:             (lb.id && String(lb.id) === String(reg.id)) ||
+2106:             (lb.team_name && reg.team_name && String(lb.team_name).trim().toLowerCase() === String(reg.team_name).trim().toLowerCase()) ||
+2107:             String(lb.unique_id || "").includes(String(reg.id || '___')) ||
+2108:             String(lb.unique_id || "").includes(String(reg.team_leader_id || '___'))
+2109:           );
+2110:           if (!isMatchUser) return false;
+2111: 
+2112:           const lbStageNorm = String(lb.stage || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+2113:           return lbStageNorm === targetStageNorm;
+2114:         });
+2115: 
+2116:         // 2. Find stage score from reg.stage_scores strictly for targetStageNorm
+2117:         const regScore = reg.stage_scores?.[targetStageNorm] || reg.stage_scores?.[selectedStage];
+2118: 
+2119:         // Isolated Stage Scores:
+2120:         // If a stage-specific score exists for this stage, use it. Otherwise, new/unplayed stages start at 0!
+2121:         const effectiveKills = stageSpecificLb ? (stageSpecificLb.kills ?? 0) : (regScore ? (regScore.kills ?? 0) : 0);
+2122:         const effectivePoints = stageSpecificLb ? (stageSpecificLb.points ?? 0) : (regScore ? (regScore.points ?? 0) : 0);
+2123:         const effectiveResults = stageSpecificLb ? (stageSpecificLb.match_results || []) : (regScore ? (regScore.match_results || []) : []);
+2124: 
+2125:         rows.push({
+2126:           ...(stageSpecificLb || {}),
+2127:           _rowUid: `reg-${i}-${reg.id || reg.team_leader_id || i}`,
+2128:           id: stageSpecificLb?.id || reg.id,
+2129:           team_name: reg.team_name || stageSpecificLb?.team_name || reg.team_leader_ign || `Team ${i + 1}`,
+2130:           player_ign: reg.team_leader_ign || stageSpecificLb?.player_ign || "Leader",
+2131:           player_uid: reg.team_members?.[0]?.uid || reg.team_leader_uid || stageSpecificLb?.player_uid || '-',
+2132:           kills: effectiveKills,
+2133:           points: effectivePoints,
+2134:           team_members: (reg.team_members && reg.team_members.length > 0) ? reg.team_members : (stageSpecificLb?.team_members || []),
+2135:           user_id: reg.team_leader_id || stageSpecificLb?.user_id,
+2136:           team_logo_url: reg.team_logo_url || stageSpecificLb?.team_logo_url || "",
+2137:           is_qualified: Boolean(stageSpecificLb?.is_qualified || reg.is_qualified || reg.status === "Qualified"),
+2138:           stage: reg.stage || stageSpecificLb?.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+2139:           group_number: String(stageSpecificLb?.group_number || reg.group_number || Math.floor(i / 12) + 1),
+2140:           match_results: effectiveResults
+2141:         });
+2142:       });
+2143:     } else {
+2144:       (leaderboardEntries || []).forEach((lb, idx) => {
+2145:         rows.push({
+2146:           ...lb,
+2147:           _rowUid: `lb-${idx}-${lb.id || lb.user_id || idx}`,
+2148:           id: lb.id,
+2149:           team_name: lb.team_name || lb.player_ign || "Unknown Team",
+2150:           player_ign: lb.player_ign || "Leader",
+2151:           player_uid: lb.player_uid || '-',
+2152:           kills: lb.kills || 0,
+2153:           points: lb.points || 0,
+2154:           team_members: lb.team_members || [],
+2155:           user_id: lb.user_id,
+2156:           team_logo_url: lb.team_logo_url || "",
+2157:           is_qualified: Boolean(lb.is_qualified),
+2158:           stage: lb.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+2159:           group_number: String(lb.group_number || Math.floor(idx / 12) + 1),
+2160:           match_results: lb.match_results || []
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,220 @@
+Created At: 2026-08-23T08:25:43+05:30
+Completed At: 2026-08-23T08:25:43+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 3022
+Total Bytes: 161929
+Showing lines 1200 to 1411
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1200: 
+1201:                           {/* Group & Slot Row (2 Columns) */}
+1202:                           <div className="grid grid-cols-2 gap-2 text-center bg-slate-900/90 border border-slate-800/80 rounded-lg p-2.5">
+1203:                             <div>
+1204:                               <p className="text-[10px] text-slate-400 font-bold uppercase">Group</p>
+1205:                               <p className="text-xs font-bold text-white mt-0.5">Group {userGroupNum}</p>
+1206:                             </div>
+1207:                             <div className="border-l border-slate-800/80">
+1208:                               <p className="text-[10px] text-slate-400 font-bold uppercase">Slot Number</p>
+1209:                               <p className="text-xs font-black text-orange-400 mt-0.5">Slot {userSlotNum}</p>
+1210:                             </div>
+1211:                           </div>
+1212: 
+1213:                           {/* Single Combined Match Date & Time Box */}
+1214:                           <div className="bg-slate-900/90 border border-slate-800/80 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+1215:                             <span className="text-slate-400 font-bold uppercase text-[10px]">Match Date & Time:</span>
+1216:                             <span className="font-bold text-amber-400">
+1217:                               {(() => {
+1218:                                 const rawTime = getGroupMatchTime(userGroupNum, userRegObj);
+1219:                                 if (!rawTime) return "To Be Announced (TBA)";
+1220:                                 try {
+1221:                                   const d = new Date(rawTime);
+1222:                                   if (isNaN(d.getTime())) return String(rawTime);
+1223:                                   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) + ", " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+1224:                                 } catch (e) {
+1225:                                   return "To Be Announced (TBA)";
+1226:                                 }
+1227:                               })()}
+1228:                             </span>
+1229:                           </div>
+1230: 
+1231:                           {/* Official Squad Roster Table */}
+1232:                           <div className="space-y-1.5 pt-1">
+1233:                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">YOUR SQUAD</p>
+1234:                             
+1235:                             {userRegObj?.team_members && userRegObj.team_members.length > 0 ? (
+1236:                               userRegObj.team_members.map((m, idx) => {
+1237:                                 const memberUid = m.uid || m.game_id || m.in_game_id;
+1238:                                 const mIgn = m.ign || m.name || `Player ${idx + 1}`;
+1239:                                 let avatarSrc = m.avatar_url || m.avatar || m.dp || m.photoURL || m.logo || m.logo_url || "";
+1240:                                 
+1241:                                 if (!avatarSrc && user) {
+1242:                                   if ((memberUid && (memberUid === user.game_uid || memberUid === user.game_id || memberUid === user.uid)) ||
+1243:                                       (mIgn && (mIgn.toLowerCase() === (user.ign || '').toLowerCase() || mIgn.toLowerCase() === (user.full_name || '').toLowerCase())) ||
+1244:                                       (idx === 0 && (userRegObj.user_id === user.id || userRegObj.team_leader_id === user.id))) {
+1245:                                     avatarSrc = user.avatar_url || user.avatar || user.dp || user.photoURL || "";
+1246:                                   }
+1247:                                 }
+1248: 
+1249:                                 return (
+1250:                                   <div key={idx} className="flex items-center justify-between text-xs bg-slate-900/40 border border-slate-800/40 rounded-lg px-2.5 py-1.5">
+1251:                                     <div className="flex items-center gap-2 min-w-0">
+1252:                                       {avatarSrc ? (
+1253:                                         <img
+1254:                                           src={avatarSrc}
+1255:                                           alt={mIgn}
+1256:                                           className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+1257:                                           onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
+1258:                                         />
+1259:                                       ) : null}
+1260:                                       <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${avatarSrc ? 'hidden' : 'flex'}`}>
+1261:                                         {mIgn.charAt(0).toUpperCase()}
+1262:                                       </div>
+1263:                                       <span className="font-bold text-white truncate">{mIgn}</span>
+1264:                                       {m.isLeader && <span className="text-[7.5px] font-black text-amber-400 bg-amber-500/20 px-1 py-0.2 rounded shrink-0">IGL</span>}
+1265:                                     </div>
+1266:                                     {memberUid && (
+1267:                                       <span className="text-slate-400 font-mono text-[11px] shrink-0 ml-2">UID: {memberUid}</span>
+1268:                                     )}
+1269:                                   </div>
+1270:                                 );
+1271:                               })
+1272:                             ) : (
+1273:                               <div className="flex items-center justify-between text-xs bg-slate-900/40 border border-slate-800/40 rounded-lg px-2.5 py-1.5">
+1274:                                 <div className="flex items-center gap-2 min-w-0">
+1275:                                   {user?.avatar_url ? (
+1276:                                     <img
+1277:                                       src={user.avatar_url}
+1278:                                       alt="Leader"
+1279:                                       className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+1280:                                       onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
+1281:                                     />
+1282:                                   ) : null}
+1283:                                   <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${user?.avatar_url ? 'hidden' : 'flex'}`}>
+1284:                                     {(userRegObj?.team_leader_ign || user?.ign || 'P').charAt(0).toUpperCase()}
+1285:                                   </div>
+1286:                                   <span className="font-bold text-white truncate">{userRegObj?.team_leader_ign || user?.ign || 'Player'}</span>
+1287:                                 </div>
+1288:                                 {(userRegObj?.team_leader_uid || userRegObj?.leader_uid || userRegObj?.uid || userRegObj?.game_id) && (
+1289:                                   <span className="text-slate-400 font-mono text-[11px] shrink-0 ml-2">UID: {userRegObj?.team_leader_uid || userRegObj?.leader_uid || userRegObj?.uid || userRegObj?.game_id}</span>
+1290:                                 )}
+1291:                               </div>
+1292:                             )}
+1293:                           </div>
+1294: 
+1295:                           {/* Live Match Countdown Timer */}
+1296:                           <div className="pt-2">
+1297:                             <MatchLiveCountdown matchTimeStr={getGroupMatchTime(userGroupNum, userRegObj)} />
+1298:                           </div>
+1299: 
+1300:                           {/* MATCH CREDENTIALS BUTTON */}
+1301:                           <div className="pt-2">
+1302:                             <Button 
+1303:                               onClick={() => setShowCredentialsModal(true)}
+1304:                               className={`w-full h-11 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all cursor-pointer ${matchCredentials ? "bg-cyan-600 hover:bg-cyan-500 text-white animate-[pulse_2s_ease-in-out_infinite] shadow-cyan-900/30 border border-cyan-400" : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"}`}
+1305:                             >
+1306:                               <Key className={`w-4 h-4 mr-2 ${matchCredentials ? 'text-cyan-100' : 'text-orange-400'}`} />
+1307:                               {matchCredentials ? "VIEW MATCH CREDENTIALS!" : "VIEW MATCH CREDENTIALS"}
+1308:                             </Button>
+1309:                           </div>
+1310: 
+1311: 
+1312:                         </div>
+1313:                       );
+1314:                     })()}
+1315:                   </div>
+1316: 
+1317:                 ) : (
+1318:                   <div>
+1319:                     {(() => {
+1320:                       const now = new Date();
+1321:                       const closeTime = tournament.registration_closes ? new Date(tournament.registration_closes) : null;
+1322:                       const isTimePast = closeTime && !isNaN(closeTime.getTime()) ? now >= closeTime : false;
+1323:                       const isActuallyOpen = tournament.status === "Registration Open" && !isTimePast;
+1324: 
+1325:                       if (isActuallyOpen) {
+1326:                         if (isSlotsFull) {
+1327:                           return (
+1328:                             <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3.5 text-center space-y-1">
+1329:                               <div className="flex items-center justify-center gap-1.5 text-amber-400 font-black text-xs uppercase tracking-wider">
+1330:                                 <AlertTriangle className="w-4 h-4" />
+1331:                                 <span>Slots Full ({totalRegisteredCount}/{maxTeams})</span>
+1332:                               </div>
+1333:                               <p className="text-[11px] text-slate-300">
+1334:                                 All tournament slots are filled. No more registrations can be accepted.
+1335:                               </p>
+1336:                             </div>
+1337:                           );
+1338:                         } else {
+1339:                           return (
+1340:                             <Button onClick={() => setShowRegistrationModal(true)} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 font-black text-xs h-11 rounded-xl shadow-lg cursor-pointer active:scale-95 transition-transform">
+1341:                               Register Now
+1342:                             </Button>
+1343:                           );
+1344:                         }
+1345:                       } else {
+1346:                         return (
+1347:                           <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 text-center">
+1348:                             <p className="text-xs font-bold text-slate-400">Registration Closed</p>
+1349:                           </div>
+1350:                         );
+1351:                       }
+1352:                     })()}
+1353:                   </div>
+1354:                 )}
+1355:               </div>
+1356:             )}
+1357:           </TabsContent>
+1358: 
+1359:           {/* ── TEAMS TAB (SINGLE TOURNAMENT 3-STAGE PROGRESSION SYSTEM) ── */}
+1360:           <TabsContent value="teams" className="space-y-3 mt-0">
+1361:             {/* Stage Switcher - Premium Step Flow Navigation */}
+1362:             {(() => {
+1363:               const stagesList = tournamentStagesList;
+1364:               const activeIdx = stagesList.findIndex(s => s.id === activeStageFilter || s.name === activeStageFilter);
+1365:               const currentActiveIdx = activeIdx >= 0 ? activeIdx : 0;
+1366: 
+1367:               return (
+1368:                 <div className="bg-slate-900/80 border border-slate-800/60 rounded-2xl p-2.5 mb-3">
+1369:                   <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
+1370:                     {stagesList.map((st, i) => {
+1371:                       const isViewing = i === currentActiveIdx;
+1372:                       const isCompleted = i < currentOngoingStageIdx;
+1373:                       const isOngoing = i === currentOngoingStageIdx;
+1374: 
+1375:                       return (
+1376:                         <React.Fragment key={st.id}>
+1377:                           {i > 0 && (
+1378:                             <div className={`h-[2px] w-4 shrink-0 rounded-full transition-all duration-300 ${
+1379:                               i <= currentOngoingStageIdx ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+1380:                               'bg-slate-700/60'
+1381:                             }`} />
+1382:                           )}
+1383:                           <button
+1384:                             onClick={() => setActiveStageFilter(st.id)}
+1385:                             className={`group flex items-center gap-1.5 py-1.5 px-3 text-[11px] font-black transition-all duration-300 shrink-0 whitespace-nowrap rounded-xl border cursor-pointer active:scale-95 ${
+1386:                               isViewing 
+1387:                                 ? "text-orange-300 bg-gradient-to-br from-orange-500/20 to-amber-500/10 border-orange-500/50 shadow-[0_0_12px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/40" 
+1388:                                 : isCompleted
+1389:                                   ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/15"
+1390:                                   : isOngoing
+1391:                                     ? "text-amber-300 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+1392:                                     : "text-slate-500 bg-slate-900/40 border-slate-800/60 hover:text-slate-300 hover:border-slate-700"
+1393:                             }`}
+1394:                           >
+1395:                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+1396:                               isViewing
+1397:                                 ? (isCompleted
+1398:                                     ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-slate-950 font-black shadow-[0_0_8px_rgba(249,115,22,0.5)]'
+1399:                                     : 'bg-gradient-to-br from-orange-500 to-amber-500 text-slate-950 shadow-[0_0_8px_rgba(249,115,22,0.5)]')
+1400:                                 : isCompleted
+1401:                                   ? 'bg-emerald-500 text-slate-950 font-black'
+1402:                                   : isOngoing
+1403:                                     ? 'bg-amber-400 text-slate-950 font-black'
+1404:                                     : 'bg-slate-800 text-slate-500 border border-slate-700/60'
+1405:                             }`}>
+1406:                               {isCompleted ? '✓' : i + 1}
+1407:                             </span>
+1408:                             <span className="uppercase tracking-wider">{st.name}</span>
+1409:                           </button>
+1410:                         </React.Fragment>
+1411:                       );
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

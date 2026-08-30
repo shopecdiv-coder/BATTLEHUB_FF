@@ -142,11 +142,14 @@ export default function TournamentEmailHistory({ tournaments }) {
             <SelectValue placeholder="Select a tournament to view email history" />
           </SelectTrigger>
           <SelectContent>
-            {(tournaments || []).map(t => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.title} — {format(new Date(t.date_time), "dd MMM yyyy")}
-              </SelectItem>
-            ))}
+            {(tournaments || []).map(t => {
+              const isValidDate = t.date_time && !isNaN(new Date(t.date_time).getTime());
+              return (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.title} - {isValidDate ? format(new Date(t.date_time), "dd MMM yyyy") : "No Date"}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
 
@@ -176,7 +179,10 @@ export default function TournamentEmailHistory({ tournaments }) {
                         {reg.payment_method || "N/A"}
                       </Badge>
                     </div>
-                    <p className="text-xs text-gray-500">{reg.team_name} • {format(new Date(reg.created_date), "dd MMM, HH:mm")}</p>
+                    {(() => {
+                      const isValidDate = reg.created_date && !isNaN(new Date(reg.created_date).getTime());
+                      return <p className="text-xs text-gray-500">{reg.team_name} • {isValidDate ? format(new Date(reg.created_date), "dd MMM, HH:mm") : "Unknown Date"}</p>;
+                    })()}
                     <p className="text-xs text-blue-400">{reg.created_by || "No email"}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

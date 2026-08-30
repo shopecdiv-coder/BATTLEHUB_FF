@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { PaymentRequest } from "@/entities/PaymentRequest";
 import { Diamond } from "@/entities/Diamond";
 import { Notification } from "@/entities/Notification";
+import { SendEmail } from "@/api/integrations";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,36 @@ export default function PaymentManagement({ requests, onUpdate }) {
           dismissable: true,
           created_at: now
         });
+      }
+
+      // Send SES Email Notification
+      if (request.user_email) {
+        try {
+          const emailSubject = `Payment Verified - ${request.diamond_amount} Coins Credited`;
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; background: #0f0f11; color: #ffffff; border-radius: 12px; border: 1px solid #333;">
+              <h2 style="color: #4ade80; text-align: center; margin-bottom: 20px;">💰 COINS CREDITED SUCCESSFULLY</h2>
+              <p style="font-size: 16px;">Hello <b>${request.user_ign || 'Player'}</b>,</p>
+              <p style="font-size: 15px; color: #cbd5e1;">Your recent payment request has been verified and approved by the admin.</p>
+              
+              <div style="background: #1e1e24; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4ade80;">
+                <p style="margin: 5px 0;"><b>Coins Added:</b> ${request.diamond_amount} BH Coins</p>
+                <p style="margin: 5px 0;"><b>Payment App:</b> ${request.payment_app || "N/A"}</p>
+                <p style="margin: 5px 0;"><b>Admin Note:</b> ${adminNotes[request.id] || 'Thank you for your purchase!'}</p>
+              </div>
+              
+              <p style="font-size: 14px; color: #94a3b8;">You can now use these coins to register for premium tournaments. Check your wallet balance in the app.</p>
+              <p style="font-size: 14px; color: #94a3b8; margin-top: 20px;">Thank You,<br/><b>BattleHub Esports Team</b></p>
+            </div>
+          `;
+          await SendEmail({ 
+            to: request.user_email, 
+            subject: emailSubject, 
+            html: emailHtml 
+          });
+        } catch (emailErr) {
+          console.warn("Failed to send coin credit email:", emailErr);
+        }
       }
 
       await PaymentRequest.update(request.id, {

@@ -2,107 +2,37 @@ import { db } from './firebaseClient';
 import { collection, addDoc } from 'firebase/firestore';
 import CryptoJS from 'crypto-js';
 
-// 1. UploadFile - Images to Base64 (direct to Firestore), Videos to Cloudinary
-export const UploadFile = async ({ file }) => {
+import { uploadFileToAWS } from '@/utils/awsStorage';
+
+// 1. UploadFile - Now uses AWS S3 globally
+export const UploadFile = async ({ file, onProgress }) => {
   return new Promise(async (resolve, reject) => {
     if (!file) {
       reject(new Error("No file provided"));
       return;
     }
 
-    // --- IMAGES: Base64 Compression ---
-    if (file.type.startsWith('image/')) {
-      try {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800;
-            const MAX_HEIGHT = 800;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > MAX_WIDTH) {
-                height *= MAX_WIDTH / width;
-                width = MAX_WIDTH;
-              }
-            } else {
-              if (height > MAX_HEIGHT) {
-                width *= MAX_HEIGHT / height;
-                height = MAX_HEIGHT;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Compress as JPEG at 70% quality to save Firestore space
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            resolve({ file_url: dataUrl });
-          };
-          img.onerror = () => reject(new Error("Image processing failed"));
-          img.src = e.target.result;
-        };
-        reader.onerror = () => reject(new Error("File read failed"));
-        reader.readAsDataURL(file);
-      } catch (err) {
-        reject(err);
-      }
-      return; // Stop here for images
-    }
-
-    // --- VIDEOS: Cloudinary Upload ---
     try {
-      const cloudName = "didrpegpv";
-      const apiKey = "152364715435361";
-      const apiSecret = "lF9Ql4CAQMo35ScTgmSgvRCAAyc";
+      const file_url = await uploadFileToAWS(file, onProgress);
       
-      const timestamp = Math.round((new Date).getTime() / 1000);
-      
-      const strToSign = `timestamp=${timestamp}${apiSecret}`;
-      const signature = CryptoJS.SHA1(strToSign).toString(CryptoJS.enc.Hex);
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("api_key", apiKey);
-      formData.append("timestamp", timestamp);
-      formData.append("signature", signature);
-
-      const resourceType = "auto";
-
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
-        method: "POST",
-        body: formData
-      });
-
-      const result = await response.json();
-      
-      if (result.secure_url) {
-        resolve({ file_url: result.secure_url });
-      } else {
-        console.error("Cloudinary upload failed", result);
-        reject(new Error(result.error?.message || "Upload failed"));
-      }
-    } catch (e) {
-      console.error("Error uploading to Cloudinary:", e);
-      reject(e);
+      resolve({ file_url });
+    } catch (error) {
+      console.error("Upload error:", error);
+      reject(error);
     }
   });
 };
 
 // 2. SendEmail - Queue email in a Firestore 'mail' collection (compatible with "Trigger Email" extension)
-export const SendEmail = async ({ to, subject, body }) => {
+export const SendEmail = async ({ to, subject, body, html }) => {
   try {
     const colRef = collection(db, 'mail');
     await addDoc(colRef, {
       to,
       message: {
         subject,
-        text: body
+        text: body,
+        ...(html ? { html } : {})
       },
       created_date: new Date().toISOString()
     });

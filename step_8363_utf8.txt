@@ -1,0 +1,290 @@
+Created At: 2026-08-23T06:32:03+05:30
+Completed At: 2026-08-23T06:32:04+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2702
+Total Bytes: 144059
+Showing lines 2500 to 2640
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2500:             <Button size="sm" disabled={!!movingTeam} onClick={() => moveTeam(reg, "grand_final")} className="bg-red-600 hover:bg-red-700 text-xs h-7 px-2">
+
+2501:               {isMoving && movingTeam?.stage === "grand_final" ? "..." : "GF"}
+
+2502:             </Button>
+
+2503:           ) : (
+
+2504:             <span className="text-gray-600 text-xs px-1" title="No Grand Final tournament exists">GF</span>
+
+2505:           )
+
+2506:         )}
+
+2507:       </div>
+
+2508:     </td>
+
+2509:   );
+
+2510: }
+
+2511: 
+
+2512: function TeamCard({ reg, index, isSolo, showPoints, grandFinal, showGroupBadge = true }) {
+
+2513:   const [expanded, setExpanded] = useState(false);
+
+2514:   const [memberAvatars, setMemberAvatars] = useState({});
+
+2515: 
+
+2516:   const statusLower = String(reg.status || "").toLowerCase();
+
+2517:   const isDisqualified = Boolean(reg.is_disqualified || reg.is_eliminated || statusLower === "disqualified" || statusLower === "eliminated" || statusLower === "rejected");
+
+2518:   const isQualified = !isDisqualified && Boolean(reg.is_qualified || statusLower === "qualified" || statusLower === "finalist" || reg.is_finalist || reg.is_semifinalist);
+
+2519:   const hasMembers = !isSolo && reg.team_members && reg.team_members.length > 0;
+
+2520:   const userChosenSlot = reg.slot_number ?? reg.slot ?? reg.selected_slot ?? reg.slot_no ?? reg.group_slot;
+
+2521:   const userChosenGroup = reg.group_number ?? reg.group ?? reg.group_name;
+
+2522:   // Unique slot per team: use stored slot or globally unique index+1
+
+2523:   const slotNum = userChosenSlot !== undefined && userChosenSlot !== null && userChosenSlot !== "" 
+
+2524:     ? String(userChosenSlot).replace(/[^0-9]/g, '') || userChosenSlot 
+
+2525:     : ((index || 0) + 1);
+
+2526:   const groupNum = userChosenGroup !== undefined && userChosenGroup !== null && userChosenGroup !== ""
+
+2527:     ? String(userChosenGroup).replace(/[^0-9]/g, '') || userChosenGroup
+
+2528:     : (Math.floor((index || 0) / 12) + 1);
+
+2529: 
+
+2530:   // Dynamic Card Styling
+
+2531:   const cardStyle = isQualified
+
+2532:     ? "bg-emerald-950/25 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.12)]"
+
+2533:     : isDisqualified
+
+2534:       ? "bg-red-950/25 border-red-500/30 opacity-80"
+
+2535:       : "bg-slate-900/60 border-slate-800/80";
+
+2536: 
+
+2537:   React.useEffect(() => {
+
+2538:     if (!expanded || !hasMembers) return;
+
+2539:     let isMounted = true;
+
+2540: 
+
+2541:     const fetchMemberAvatars = async () => {
+
+2542:       const avatarMap = {};
+
+2543:       await Promise.all(reg.team_members.map(async (m) => {
+
+2544:         const mUid = m.uid || m.game_id || m.in_game_id;
+
+2545:         const key = mUid || m.ign;
+
+2546:         const existingDp = m.avatar_url || m.avatar || m.logo_url || m.logo || m.image || m.photoURL || m.dp;
+
+2547:         if (existingDp) {
+
+2548:           avatarMap[key] = existingDp;
+
+2549:           return;
+
+2550:         }
+
+2551: 
+
+2552:         try {
+
+2553:           let uObj = null;
+
+2554:           if (mUid) {
+
+2555:             const byUid = await User.filter({ game_uid: mUid }).catch(() => []);
+
+2556:             if (byUid && byUid.length > 0) uObj = byUid[0];
+
+2557:             else {
+
+2558:               const byUid2 = await User.filter({ game_id: mUid }).catch(() => []);
+
+2559:               if (byUid2 && byUid2.length > 0) uObj = byUid2[0];
+
+2560:               else {
+
+2561:                 const byUid3 = await User.filter({ uid: mUid }).catch(() => []);
+
+2562:                 if (byUid3 && byUid3.length > 0) uObj = byUid3[0];
+
+2563:               }
+
+2564:             }
+
+2565:           }
+
+2566:           if (!uObj && m.ign) {
+
+2567:             const byIgn = await User.filter({ ign: m.ign }).catch(() => []);
+
+2568:             if (byIgn && byIgn.length > 0) uObj = byIgn[0];
+
+2569:           }
+
+2570: 
+
+2571:           if (uObj) {
+
+2572:             const dp = uObj.avatar_url || uObj.avatar || uObj.dp || uObj.photoURL;
+
+2573:             if (dp) avatarMap[key] = dp;
+
+2574:           }
+
+2575:         } catch (e) {}
+
+2576:       }));
+
+2577: 
+
+2578:       if (isMounted && Object.keys(avatarMap).length > 0) {
+
+2579:         setMemberAvatars(prev => ({ ...prev, ...avatarMap }));
+
+2580:       }
+
+2581:     };
+
+2582: 
+
+2583:     fetchMemberAvatars();
+
+2584:     return () => { isMounted = false; };
+
+2585:   }, [expanded, hasMembers, reg.team_members]);
+
+2586: 
+
+2587:   return (
+
+2588:     <div className={`rounded-lg overflow-hidden border transition-all ${cardStyle}`}>
+
+2589:       {/* Compact Main Row */}
+
+2590:       <div
+
+2591:         className={`flex items-center gap-2.5 px-3 py-2 ${hasMembers ? 'cursor-pointer hover:bg-slate-800/50 transition-colors' : ''}`}
+
+2592:         onClick={() => hasMembers && setExpanded(!expanded)}
+
+2593:       >
+
+2594:         {/* Compact Logo / Rank Badge */}
+
+2595:         {reg.team_logo_url ? (
+
+2596:           <img 
+
+2597:             src={reg.team_logo_url} 
+
+2598:             alt="logo" 
+
+2599:             className="w-7 h-7 rounded-md object-cover border border-slate-700/80 flex-shrink-0" 
+
+2600:             onError={e => e.target.style.display='none'} 
+
+2601:           />
+
+2602:         ) : (
+
+2603:           <div className={`w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${
+
+2604:             grandFinal && index === 0 ? 'bg-amber-500 text-slate-950 font-black' :
+
+2605:             grandFinal && index === 1 ? 'bg-slate-400 text-slate-950 font-black' :
+
+2606:             grandFinal && index === 2 ? 'bg-amber-700 text-white font-black' :
+
+2607:             isQualified ? 'bg-emerald-600 text-white font-bold' :
+
+2608:             isDisqualified ? 'bg-red-700 text-white font-bold' :
+
+2609:             'bg-slate-800 border border-slate-700/80 text-orange-400 font-bold'
+
+2610:           }`}>
+
+2611:             {index + 1}
+
+2612:           </div>
+
+2613:         )}
+
+2614: 
+
+2615:         {/* Team Name */}
+
+2616:         <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+
+2617:           <p className={`font-bold text-xs truncate ${isQualified ? 'text-emerald-300 font-black' : isDisqualified ? 'text-red-400 line-through' : 'text-white'}`}>
+
+2618:             {isSolo ? (reg.team_members?.[0]?.ign || reg.team_leader_ign) : reg.team_name}
+
+2619:           </p>
+
+2620:           {isQualified && (
+
+2621:             <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0 shadow-sm">
+
+2622:               <span>✓</span> QUALIFIED{(() => {
+
+2623:                 const raw = String(reg.stage || reg.stage_id || "").trim();
+
+2624:                 if (!raw) return "";
+
+2625:                 const formatted = raw.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+2626:                 return `: ${formatted.toUpperCase()}`;
+
+2627:               })()}
+
+2628:             </span>
+
+2629:           )}
+
+2630:           {isDisqualified && (
+
+2631:             <span className="text-[9px] font-black uppercase tracking-wider text-red-400 bg-red-500/20 border border-red-500/40 px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0 shadow-sm">
+
+2632:               <span>✕</span> ELIMINATED
+
+2633:             </span>
+
+2634:           )}
+
+2635:         </div>
+
+2636: 
+
+2637:         {/* Group & Slot Badge + Controls */}
+
+2638:         <div className="flex items-center gap-2 flex-shrink-0">
+
+2639:           {showGroupBadge ? (
+
+2640:             <span className="text-[10px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-md">
+
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -9,6 +9,8 @@ import { Bell, X, Trash2, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+import { db } from "@/api/firebaseClient";
+import { collection, query, where, onSnapshot, limit, deleteDoc, doc, updateDoc } from "firebase/firestore";
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
@@ -18,56 +20,99 @@ export default function NotificationBell() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 60000);
-    return () => clearInterval(interval);
+    let unsubs = [];
+    const init = async () => {
+      try {
+        const currentUser = await User.me();
+        setUser(currentUser);
+
+        let docs1 = [];
+        let docs2 = [];
+
+        const syncNotifs = () => {
+          const map = new Map();
+          docs1.forEach(d => map.set(d.id, d));
+          docs2.forEach(d => map.set(d.id, d));
+
+          const combined = Array.from(map.values())
+            .sort((a,b) => (new Date(b.created_date || b.created_at || 0)).getTime() - (new Date(a.created_date || a.created_at || 0)).getTime())
+            .slice(0, 20);
+
+          setNotifications(combined);
+          setUnreadCount(combined.filter(n => !n.read).length);
+        };
+
+        const q1 = query(collection(db, "notifications"), where("recipient_id", "==", currentUser.id), limit(20));
+        const unsub1 = onSnapshot(q1, (snapshot) => {
+          docs1 = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          syncNotifs();
+        }, (err) => console.warn("Notifs q1 error:", err));
+
+        const q2 = query(collection(db, "notifications"), where("user_id", "==", currentUser.id), limit(20));
+        const unsub2 = onSnapshot(q2, (snapshot) => {
+          docs2 = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          syncNotifs();
+        }, (err) => console.warn("Notifs q2 error:", err));
+
+        unsubs.push(unsub1, unsub2);
+      } catch (e) {
+        // User not logged in
+      }
+    };
+    init();
+
+    return () => {
+      unsubs.forEach(unsub => unsub && unsub());
+    };
   }, []);
-
-  const loadNotifications = async () => {
-    try {
-      const currentUser = await User.me();
-      setUser(currentUser);
-
-      // Single API call - fetch user notifications only to reduce rate limiting
-      const userNotifs = await Notification.filter({ recipient_id: currentUser.id }).then(res => res.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15)).catch(() => []);
-      
-      setNotifications(userNotifs);
-      setUnreadCount(userNotifs.filter(n => !n.read).length);
-    } catch (error) {
-      // User not logged in
-    }
-  };
 
   const markAsRead = async (notification) => {
     if (!notification.read) {
-      await Notification.update(notification.id, { read: true });
-      await loadNotifications();
+      // Optimistic UI update
+      setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      try {
+        await updateDoc(doc(db, "notifications", notification.id), { read: true });
+      } catch (e) {
+        console.warn("markAsRead error:", e);
+      }
     }
   };
 
   const markAllAsRead = async () => {
-    const updates = notifications.filter(n => !n.read).map(notif => 
-      Notification.update(notif.id, { read: true })
-    );
-    await Promise.all(updates);
-    await loadNotifications();
+    const unread = notifications.filter(n => !n.read);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+    for (const notif of unread) {
+      try {
+        await updateDoc(doc(db, "notifications", notif.id), { read: true });
+      } catch (e) {}
+    }
   };
 
   const clearAll = async () => {
     if (confirm("Delete all notifications?")) {
-      for (const notif of notifications) {
-        await Notification.delete(notif.id);
-      }
+      const toDelete = [...notifications];
       setNotifications([]);
       setUnreadCount(0);
-      alert("Cleared!");
+      for (const notif of toDelete) {
+        try {
+          await deleteDoc(doc(db, "notifications", notif.id));
+        } catch (e) {}
+      }
     }
   };
 
   const deleteNotification = async (id, e) => {
-    e.stopPropagation();
-    await Notification.delete(id);
-    await loadNotifications();
+    if (e) e.stopPropagation();
+    // Optimistic UI removal
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    try {
+      await deleteDoc(doc(db, "notifications", id));
+    } catch (e) {
+      console.warn("deleteNotification error:", e);
+    }
   };
 
   if (!user) return null;
@@ -179,7 +224,9 @@ export default function NotificationBell() {
                               </Badge>
                             </div>
                             <h4 className="font-semibold text-white text-sm mb-1">{notif.title}</h4>
-                            <p className="text-gray-300 text-xs whitespace-pre-wrap">{notif.message}</p>
+                            <p className="text-gray-300 text-xs whitespace-pre-wrap">
+                              {notif.message?.replace(/\([A-Za-z0-9]{25,35}\)/g, (m) => m.startsWith('(BH') ? m : '')}
+                            </p>
                             <p className="text-gray-600 text-xs mt-1">
                               {format(new Date(notif.created_at || notif.created_date), "MMM d, h:mm a")}
                             </p>

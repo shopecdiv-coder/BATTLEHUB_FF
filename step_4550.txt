@@ -1,0 +1,429 @@
+Created At: 2026-08-13T13:21:08+05:30
+Completed At: 2026-08-13T13:21:08+05:30
+File Path: `file:///e:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2450
+Total Bytes: 127424
+Showing lines 780 to 1200
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+780:             {/* Bottom Title & Organizer Overlay */}
+781:             <div className="absolute bottom-3 left-4 right-4 z-10 flex items-end justify-between gap-2">
+782:               <div className="space-y-0.5">
+783:                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md leading-tight">
+784:                   {tournament.title}
+785:                 </h1>
+786: 
+787:                 <div className="flex items-center gap-1.5 pt-0.5">
+788:                   <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+789:                     by <span className="text-white font-bold">{tournament.organizer_name || "BattleHub Admin"}</span>
+790:                     <svg className="w-4 h-4 text-[#0ea5e9] shrink-0 inline-block drop-shadow-sm ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+791:                       <path d="M10.9 2.1a2.4 2.4 0 0 1 2.2 0l1.3.7c.4.2.8.3 1.3.3l1.5.1a2.4 2.4 0 0 1 2.2 1.6l.5 1.4c.2.4.4.8.7 1.1l1.1 1 a2.4 2.4 0 0 1 .7 2.6l-.4 1.4c-.1.5-.1 1 0 1.5l.4 1.4a2.4 2.4 0 0 1-.7 2.6l-1.1 1c-.3.3-.5.7-.7 1.1l-.5 1.4a2.4 2.4 0 0 1-2.2 1.6l-1.5.1c-.5 0-.9.1-1.3.3l-1.3.7a2.4 2.4 0 0 1-2.2 0l-1.3-.7c-.4-.2-.8-.3-1.3-.3l-1.5-.1a2.4 2.4 0 0 1-2.2-1.6l-.5-1.4c-.2-.4-.4-.8-.7-1.1l-1.1-1a2.4 2.4 0 0 1-.7-2.6l.4-1.4c.1-.5.1-1 0-1.5l-.4-1.4a2.4 2.4 0 0 1 .7-2.6l1.1-1c.3-.3.5-.7.7-1.1l.5-1.4a2.4 2.4 0 0 1 2.2-1.6l1.5-.1c.5 0 .9-.1 1.3-.3l1.3-.7zM9.7 14.3l-2.3-2.3a.9.9 0 0 0-1.3 1.3l3 3c.4.4 1 .4 1.4 0l6-6a.9.9 0 0 0-1.3-1.3l-5.5 5.3z" />
+792:                     </svg>
+793:                   </p>
+794:                 </div>
+795:               </div>
+796: 
+797:               {/* Right Side Bottom: Game Mode Badge */}
+798:               <div className="shrink-0 mb-0.5">
+799:                 <span className="bg-slate-900/90 border border-slate-700/80 text-slate-200 text-[10px] sm:text-xs font-bold uppercase px-3 py-1.5 rounded-xl backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+800:                   <Gamepad2 className="w-3.5 h-3.5 text-orange-400" />
+801:                   {tournament.mode || "DUO"} • FREE FIRE
+802:                 </span>
+803:               </div>
+804:             </div>
+805:           </div>
+806: 
+807:           {/* ── 4 STAT CARDS GRID ── */}
+808:           <div className="p-3 bg-slate-900 border-t border-slate-800">
+809:             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+810:               
+811:               {/* Card 1: Prize Pool */}
+812:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+813:                 <div className="flex items-center justify-between mb-1">
+814:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">PRIZE POOL</span>
+815:                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
+816:                 </div>
+817:                 <p className="text-base font-black text-amber-400 flex items-center gap-1">
+818:                   🪙 {tournament.prize_pool?.toLocaleString() || 0}
+819:                 </p>
+820:               </div>
+821: 
+822:               {/* Card 2: Entry Fee */}
+823:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+824:                 <div className="flex items-center justify-between mb-1">
+825:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ENTRY FEE</span>
+826:                   <Ticket className="w-3.5 h-3.5 text-orange-400" />
+827:                 </div>
+828:                 <div>
+829:                   <p className="text-base font-black text-orange-400">
+830:                     {isSemifinalOrFinal ? "Points" : tournament.entry_fee ? `🪙 ${tournament.entry_fee}` : "FREE"}
+831:                   </p>
+832:                   <p className="text-[9px] text-slate-500 font-medium">Per Squad</p>
+833:                 </div>
+834:               </div>
+835: 
+836:               {/* Card 3: Teams & Slots Progress */}
+837:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+838:                 <div className="flex items-center justify-between mb-1">
+839:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">SLOTS</span>
+840:                   <Users className="w-3.5 h-3.5 text-slate-400" />
+841:                 </div>
+842:                 <div>
+843:                   <p className="text-base font-black text-white">
+844:                     {totalRegisteredCount} <span className="text-xs text-slate-500 font-normal">/ {maxTeams}</span>
+845:                   </p>
+846:                   <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden mt-1">
+847:                     <div 
+848:                       className={`h-full rounded-full transition-all duration-500 ${isSlotsFull ? "bg-amber-400" : "bg-orange-500"}`}
+849:                       style={{ width: `${Math.min(100, (totalRegisteredCount / maxTeams) * 100)}%` }}
+850:                     />
+851:                   </div>
+852:                 </div>
+853:               </div>
+854: 
+855:               {/* Card 4: Map & Mode */}
+856:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+857:                 <div className="flex items-center justify-between mb-1">
+858:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">MAP & MODE</span>
+859:                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
+860:                 </div>
+861:                 <div>
+862:                   <p className="text-base font-bold text-white truncate">
+863:                     {tournament.map || "Bermuda"}
+864:                   </p>
+865:                   <p className="text-[9px] text-slate-500 font-medium uppercase">{tournament.mode || "Squad"}</p>
+866:                 </div>
+867:               </div>
+868: 
+869:             </div>
+870:           </div>
+871:         </div>
+872: 
+873: 
+874: 
+875: 
+876:         {/* ── MODERN ESPORTS TABS BAR ── */}
+877:         <div>
+878:           <Tabs defaultValue="details" className="w-full">
+879:             <TabsList className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-1 grid grid-cols-4 h-12 w-full mb-4 shadow-xl backdrop-blur-md">
+880:               {[
+881:                 { id: "details", label: "Overview", icon: ScrollText },
+882:                 { id: "teams", label: `Teams (${registrations.length})`, icon: Users },
+883:                 { id: "standings", label: "Standings", icon: Trophy },
+884:                 { id: "rules", label: "Rules", icon: ScrollText },
+885:               ].map((t) => {
+886: 
+887:                 const IconComponent = t.icon;
+888:                 return (
+889:                   <TabsTrigger
+890:                     key={t.id}
+891:                     value={t.id}
+892:                     className="data-[state=active]:bg-orange-500 data-[state=active]:text-slate-950 text-slate-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
+893:                   >
+894:                     <IconComponent className="w-3.5 h-3.5" />
+895:                     <span>{t.label}</span>
+896:                   </TabsTrigger>
+897:                 );
+898:               })}
+899:             </TabsList>
+900: 
+901:           {/* ── DETAILS TAB (OVERVIEW) ── */}
+902:           <TabsContent value="details" className="space-y-3 mt-0">
+903:             {/* Info Card - Ultra Clean & Professional */}
+904:             <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5 space-y-2.5">
+905:               <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Tournament Info</p>
+906: 
+907:               <div className="space-y-2 text-xs divide-y divide-slate-800/60">
+908:                 <div className="flex items-center justify-between pt-1">
+909:                   <span className="text-slate-400 font-medium">Start Date & Time</span>
+910:                   <span className="text-white font-semibold">{safeFormatDate(tournament.start_time || tournament.start_date || tournament.date_time)}</span>
+911:                 </div>
+912: 
+913:                 <div className="flex items-center justify-between pt-2">
+914:                   <span className="text-slate-400 font-medium">End Date & Time</span>
+915:                   <span className="text-white font-semibold">{safeFormatDate(tournament.end_time || tournament.end_date || tournament.tournament_end_time)}</span>
+916:                 </div>
+917: 
+918:                 <div className="flex items-center justify-between pt-2">
+919:                   <span className="text-slate-400 font-medium">Registration Closes</span>
+920:                   <span className="text-white font-semibold">{safeFormatDate(getRegCloseTime(tournament))}</span>
+921:                 </div>
+922:               </div>
+923:             </div>
+924: 
+925:             {/* Prize Distribution (Single Sleek Segmented Strip) */}
+926:             <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+927:               <div className="flex items-center justify-between mb-2">
+928:                 <p className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+929:                   <Trophy className="w-3.5 h-3.5 text-amber-400" /> Prize Distribution
+930:                 </p>
+931:                 {tournament.prize_image_url && (
+932:                   <button onClick={() => setShowPrizeImageModal(true)} className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+933:                     <Image className="w-3 h-3" /> Chart
+934:                   </button>
+935:                 )}
+936:               </div>
+937: 
+938:               <div className="flex items-center justify-between divide-x divide-slate-800/80 bg-slate-900/90 border border-slate-800/80 rounded-lg py-2 px-1">
+939:                 {/* 1st Place */}
+940:                 <div className="flex-1 text-center px-1">
+941:                   <span className="text-[10px] font-bold text-slate-400 block">🥇 1st Place</span>
+942:                   <span className="text-xs font-black text-amber-400 mt-0.5 block">
+943:                     🪙 {
+944:                       tournament.prize_distribution?.first ?? 
+945:                       tournament.prize_distribution?.['1st'] ?? 
+946:                       tournament.prize_distribution?.pos_1 ?? 
+947:                       (tournament.prize_pool ? Math.round(tournament.prize_pool * 0.5) : 0)
+948:                     }
+949:                   </span>
+950:                 </div>
+951: 
+952:                 {/* 2nd Place */}
+953:                 <div className="flex-1 text-center px-1">
+954:                   <span className="text-[10px] font-bold text-slate-400 block">🥈 2nd Place</span>
+955:                   <span className="text-xs font-black text-slate-200 mt-0.5 block">
+956:                     🪙 {
+957:                       tournament.prize_distribution?.second ?? 
+958:                       tournament.prize_distribution?.['2nd'] ?? 
+959:                       tournament.prize_distribution?.pos_2 ?? 
+960:                       (tournament.prize_pool ? Math.round(tournament.prize_pool * 0.3) : 0)
+961:                     }
+962:                   </span>
+963:                 </div>
+964: 
+965:                 {/* 3rd Place */}
+966:                 <div className="flex-1 text-center px-1">
+967:                   <span className="text-[10px] font-bold text-slate-400 block">🥉 3rd Place</span>
+968:                   <span className="text-xs font-black text-slate-300 mt-0.5 block">
+969:                     🪙 {
+970:                       tournament.prize_distribution?.third ?? 
+971:                       tournament.prize_distribution?.['3rd'] ?? 
+972:                       tournament.prize_distribution?.pos_3 ?? 
+973:                       (tournament.prize_pool ? Math.round(tournament.prize_pool * 0.2) : 0)
+974:                     }
+975:                   </span>
+976:                 </div>
+977:               </div>
+978:             </div>
+979: 
+980:             {/* Registration & Slot Ticket Card */}
+981:             {!isSemifinalOrFinal && (
+982:               <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3.5 space-y-3">
+983:                 <div className="flex items-center justify-between">
+984:                   <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">Registration & Slot Ticket</p>
+985:                   {isRegistered && (
+986:                     <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+987:                       ✓ Registered
+988:                     </span>
+989:                   )}
+990:                 </div>
+991: 
+992:                 {isRegistered ? (
+993:                   <div>
+994:                     {(() => {
+995:                       const userRegIndex = registrations.findIndex(r => r.team_leader_id === user?.id || r.id === userRegistration?.id);
+996:                       const userRegObj = userRegistration || registrations[userRegIndex];
+997:                       const userChosenSlot = userRegObj?.slot_number ?? userRegObj?.slot ?? userRegObj?.selected_slot ?? userRegObj?.slot_no;
+998:                       const userChosenGroup = userRegObj?.group_number ?? userRegObj?.group;
+999:                       const userSlotNum = userChosenSlot !== undefined && userChosenSlot !== null && userChosenSlot !== "" 
+1000:                         ? String(userChosenSlot).replace(/[^0-9]/g, '') || userChosenSlot 
+1001:                         : (userRegIndex >= 0 ? ((userRegIndex % 12) + 1) : 1);
+1002:                       const userGroupNum = userChosenGroup !== undefined && userChosenGroup !== null && userChosenGroup !== ""
+1003:                         ? String(userChosenGroup).replace(/[^0-9]/g, '') || userChosenGroup
+1004:                         : (userRegIndex >= 0 ? (Math.floor(userRegIndex / 12) + 1) : 1);
+1005: 
+1006:                       return (
+1007:                         <div className="bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-3 shadow-xl">
+1008:                           {/* Team Header */}
+1009:                           <div className="flex items-center gap-3 pb-3 border-b border-slate-800/80">
+1010:                             {userRegObj?.team_logo_url ? (
+1011:                               <img
+1012:                                 src={userRegObj.team_logo_url}
+1013:                                 alt="Team Logo"
+1014:                                 className="w-11 h-11 rounded-xl object-cover border border-orange-500/50 shrink-0 shadow-md"
+1015:                                 onError={(e) => { e.target.style.display = 'none'; }}
+1016:                               />
+1017:                             ) : (
+1018:                               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-slate-950 flex items-center justify-center font-black text-base shrink-0 shadow-md">
+1019:                                 {(userRegObj?.team_name || userRegObj?.team_leader_ign || 'B').charAt(0).toUpperCase()}
+1020:                               </div>
+1021:                             )}
+1022: 
+1023:                             <div className="min-w-0 flex-1">
+1024:                               <p className="text-base font-black text-white truncate">{userRegObj?.team_name || userRegObj?.team_leader_ign || 'My Squad'}</p>
+1025:                               <p className="text-xs text-slate-400 mt-0.5">
+1026:                                 Leader: <span className="text-orange-400 font-bold">{userRegObj?.team_leader_ign || userRegObj?.player_name || user?.name || 'Leader'}</span>
+1027:                               </p>
+1028:                             </div>
+1029:                           </div>
+1030: 
+1031:                           {/* Group & Slot Row (2 Columns) */}
+1032:                           <div className="grid grid-cols-2 gap-2 text-center bg-slate-900/90 border border-slate-800/80 rounded-lg p-2.5">
+1033:                             <div>
+1034:                               <p className="text-[10px] text-slate-400 font-bold uppercase">Group</p>
+1035:                               <p className="text-xs font-bold text-white mt-0.5">Group {userGroupNum}</p>
+1036:                             </div>
+1037:                             <div className="border-l border-slate-800/80">
+1038:                               <p className="text-[10px] text-slate-400 font-bold uppercase">Slot Number</p>
+1039:                               <p className="text-xs font-black text-orange-400 mt-0.5">Slot {userSlotNum}</p>
+1040:                             </div>
+1041:                           </div>
+1042: 
+1043:                           {/* Single Combined Match Date & Time Box */}
+1044:                           <div className="bg-slate-900/90 border border-slate-800/80 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+1045:                             <span className="text-slate-400 font-bold uppercase text-[10px]">Match Date & Time:</span>
+1046:                             <span className="font-bold text-amber-400">
+1047:                               {(() => {
+1048:                                 const rawTime = getGroupMatchTime(userGroupNum, userRegObj);
+1049:                                 if (!rawTime) return "To Be Announced (TBA)";
+1050:                                 try {
+1051:                                   const d = new Date(rawTime);
+1052:                                   if (isNaN(d.getTime())) return String(rawTime);
+1053:                                   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) + ", " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+1054:                                 } catch (e) {
+1055:                                   return "To Be Announced (TBA)";
+1056:                                 }
+1057:                               })()}
+1058:                             </span>
+1059:                           </div>
+1060: 
+1061:                           {/* Official Squad Roster Table */}
+1062:                           <div className="space-y-1.5 pt-1">
+1063:                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">YOUR SQUAD</p>
+1064:                             
+1065:                             {userRegObj?.team_members && userRegObj.team_members.length > 0 ? (
+1066:                               userRegObj.team_members.map((m, idx) => {
+1067:                                 const memberUid = m.uid || m.game_id || m.in_game_id;
+1068:                                 const mIgn = m.ign || m.name || `Player ${idx + 1}`;
+1069:                                 let avatarSrc = m.avatar_url || m.avatar || m.dp || m.photoURL || m.logo || m.logo_url || "";
+1070:                                 
+1071:                                 if (!avatarSrc && user) {
+1072:                                   if ((memberUid && (memberUid === user.game_uid || memberUid === user.game_id || memberUid === user.uid)) ||
+1073:                                       (mIgn && (mIgn.toLowerCase() === (user.ign || '').toLowerCase() || mIgn.toLowerCase() === (user.full_name || '').toLowerCase())) ||
+1074:                                       (idx === 0 && (userRegObj.user_id === user.id || userRegObj.team_leader_id === user.id))) {
+1075:                                     avatarSrc = user.avatar_url || user.avatar || user.dp || user.photoURL || "";
+1076:                                   }
+1077:                                 }
+1078: 
+1079:                                 return (
+1080:                                   <div key={idx} className="flex items-center justify-between text-xs bg-slate-900/40 border border-slate-800/40 rounded-lg px-2.5 py-1.5">
+1081:                                     <div className="flex items-center gap-2 min-w-0">
+1082:                                       {avatarSrc ? (
+1083:                                         <img
+1084:                                           src={avatarSrc}
+1085:                                           alt={mIgn}
+1086:                                           className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+1087:                                           onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
+1088:                                         />
+1089:                                       ) : null}
+1090:                                       <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${avatarSrc ? 'hidden' : 'flex'}`}>
+1091:                                         {mIgn.charAt(0).toUpperCase()}
+1092:                                       </div>
+1093:                                       <span className="font-bold text-white truncate">{mIgn}</span>
+1094:                                       {m.isLeader && <span className="text-[7.5px] font-black text-amber-400 bg-amber-500/20 px-1 py-0.2 rounded shrink-0">IGL</span>}
+1095:                                     </div>
+1096:                                     {memberUid && (
+1097:                                       <span className="text-slate-400 font-mono text-[11px] shrink-0 ml-2">UID: {memberUid}</span>
+1098:                                     )}
+1099:                                   </div>
+1100:                                 );
+1101:                               })
+1102:                             ) : (
+1103:                               <div className="flex items-center justify-between text-xs bg-slate-900/40 border border-slate-800/40 rounded-lg px-2.5 py-1.5">
+1104:                                 <div className="flex items-center gap-2 min-w-0">
+1105:                                   {user?.avatar_url ? (
+1106:                                     <img
+1107:                                       src={user.avatar_url}
+1108:                                       alt="Leader"
+1109:                                       className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+1110:                                       onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
+1111:                                     />
+1112:                                   ) : null}
+1113:                                   <div className={`w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm ${user?.avatar_url ? 'hidden' : 'flex'}`}>
+1114:                                     {(userRegObj?.team_leader_ign || user?.ign || 'P').charAt(0).toUpperCase()}
+1115:                                   </div>
+1116:                                   <span className="font-bold text-white truncate">{userRegObj?.team_leader_ign || user?.ign || 'Player'}</span>
+1117:                                 </div>
+1118:                                 {(userRegObj?.team_leader_uid || userRegObj?.leader_uid || userRegObj?.uid || userRegObj?.game_id) && (
+1119:                                   <span className="text-slate-400 font-mono text-[11px] shrink-0 ml-2">UID: {userRegObj?.team_leader_uid || userRegObj?.leader_uid || userRegObj?.uid || userRegObj?.game_id}</span>
+1120:                                 )}
+1121:                               </div>
+1122:                             )}
+1123:                           </div>
+1124: 
+1125:                           {/* Live Match Countdown Timer */}
+1126:                           <div className="pt-2">
+1127:                             <MatchLiveCountdown matchTimeStr={getGroupMatchTime(userGroupNum, userRegObj)} />
+1128:                           </div>
+1129:                         </div>
+1130:                       );
+1131:                     })()}
+1132:                   </div>
+1133: 
+1134:                 ) : (
+1135:                   <div>
+1136:                     {tournament.status === "Registration Open" ? (
+1137:                       isSlotsFull ? (
+1138:                         <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3.5 text-center space-y-1">
+1139:                           <div className="flex items-center justify-center gap-1.5 text-amber-400 font-black text-xs uppercase tracking-wider">
+1140:                             <AlertTriangle className="w-4 h-4" />
+1141:                             <span>Slots Full ({totalRegisteredCount}/{maxTeams})</span>
+1142:                           </div>
+1143:                           <p className="text-[11px] text-slate-300">
+1144:                             All tournament slots are filled. No more registrations can be accepted.
+1145:                           </p>
+1146:                         </div>
+1147:                       ) : (
+1148:                         <Button onClick={() => setShowRegistrationModal(true)} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-slate-950 font-black text-xs h-11 rounded-xl shadow-lg cursor-pointer active:scale-95 transition-transform">
+1149:                           Register Now
+1150:                         </Button>
+1151:                       )
+1152:                     ) : (
+1153:                       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 text-center">
+1154:                         <p className="text-xs font-bold text-slate-400">Registration Closed</p>
+1155:                       </div>
+1156:                     )}
+1157:                   </div>
+1158:                 )}
+1159:               </div>
+1160:             )}
+1161:           </TabsContent>
+1162: 
+1163:           {/* ── TEAMS TAB (SINGLE TOURNAMENT 3-STAGE PROGRESSION SYSTEM) ── */}
+1164:           <TabsContent value="teams" className="space-y-3 mt-0">
+1165:             {/* Stage Switcher - Premium Step Flow Navigation */}
+1166:             {(() => {
+1167:               const defaultStages = [
+1168:                 { id: "qualifiers", name: "Qualifier" },
+1169:                 { id: "semifinals", name: "Semifinal" },
+1170:                 { id: "grand_final", name: "Grand Final" }
+1171:               ];
+1172:               const rawStages = (tournament?.stages && Array.isArray(tournament.stages) && tournament.stages.length > 0)
+1173:                 ? tournament.stages
+1174:                 : defaultStages;
+1175: 
+1176:               const stagesList = rawStages.map((st, i) => {
+1177:                 if (typeof st === 'string') {
+1178:                   const slug = st.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+1179:                   return { id: slug, name: st, idx: i };
+1180:                 }
+1181:                 return { id: st.id || `stage_${i}`, name: st.name || st.id || `Stage ${i+1}`, idx: i };
+1182:               });
+1183: 
+1184:               const activeIdx = stagesList.findIndex(s => s.id === activeStageFilter || s.name === activeStageFilter);
+1185:               const currentActiveIdx = activeIdx >= 0 ? activeIdx : 0;
+1186:               const currentStageObj = stagesList[currentActiveIdx] || stagesList[0];
+1187: 
+1188:               return (
+1189:                 <div className="bg-slate-900/80 border border-slate-800/60 rounded-2xl p-2.5 mb-3">
+1190:                   <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
+1191:                     {stagesList.map((st, i) => {
+1192:                       const isActive = i === currentActiveIdx;
+1193:                       const isPast = i < currentActiveIdx;
+1194: 
+1195:                       return (
+1196:                         <React.Fragment key={st.id}>
+1197:                           {i > 0 && (
+1198:                             <div className={`h-[2px] w-4 shrink-0 rounded-full transition-all duration-300 ${
+1199:                               isPast ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+1200:                               isActive ? 'bg-gradient-to-r from-orange-500 to-amber-400' :
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

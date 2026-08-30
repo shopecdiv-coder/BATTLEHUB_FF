@@ -1,0 +1,89 @@
+Created At: 2026-08-09T17:59:55+05:30
+Completed At: 2026-08-09T17:59:55+05:30
+File Path: `file:///e:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2343
+Total Bytes: 120197
+Showing lines 1720 to 1800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1720: 
+1721:     const rankStr = String(idx + 1);
+1722:     const matchesQ = tName.includes(q) || leaderIgn.includes(q) || uid.includes(q) || memberMatches || rankStr === q || `#${rankStr}` === q;
+1723: 
+1724:     return matchesGrp && matchesStage && matchesQ;
+1725:   });
+1726: 
+1727:   // Official eSports Tie-Breaker Rule Sorting:
+1728:   // Priority 1: Total Points (descending)
+1729:   const getBooyahCount = (row) => {
+1730:     if (!row?.match_results || !Array.isArray(row.match_results)) return 0;
+1731:     return row.match_results.filter(m => m && m.placement === 1).length;
+1732:   };
+1733:   
+1734:   const getLastMatchPlacement = (row) => {
+1735:     if (!row?.match_results || !Array.isArray(row.match_results)) return 999;
+1736:     const validMatches = row.match_results.filter(m => m);
+1737:     if (validMatches.length === 0) return 999;
+1738:     const sortedMatches = [...validMatches].sort((a,b) => String(b?.match_number||"").localeCompare(String(a?.match_number||"")));
+1739:     return sortedMatches[0]?.placement || 999;
+1740:   };
+1741: 
+1742:   const sortedFilteredRows = [...filteredRows].sort((a, b) => {
+1743:     const ptsA = a.points || 0;
+1744:     const ptsB = b.points || 0;
+1745:     if (ptsB !== ptsA) return ptsB - ptsA;
+1746: 
+1747:     const booA = getBooyahCount(a);
+1748:     const booB = getBooyahCount(b);
+1749:     if (booB !== booA) return booB - booA;
+1750: 
+1751:     const killA = a.kills || 0;
+1752:     const killB = b.kills || 0;
+1753:     if (killB !== killA) return killB - killA;
+1754: 
+1755:     const lastA = getLastMatchPlacement(a);
+1756:     const lastB = getLastMatchPlacement(b);
+1757:     return lastA - lastB;
+1758:   });
+1759: 
+1760:   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+1761: 
+1762:   const downloadOfficialStandings = async () => {
+1763:     if (isDownloadingPdf) return;
+1764:     setIsDownloadingPdf(true);
+1765:     const toastId = toast.loading("⚡ Initializing Esports Booklet Generator...");
+1766:     try {
+1767:       await generateTournamentPDF({
+1768:         tournament,
+1769:         leaderboardRows: sortedFilteredRows,
+1770:         registrations,
+1771:         matches,
+1772:         selectedStage,
+1773:         selectedGroup,
+1774:         onProgress: ({ page, totalPages, percentage, estimatedMb, remainingSec, title }) => {
+1775:           toast.loading(
+1776:             `📄 PDF Booklet Progress: ${percentage}%\n` +
+1777:             `Page ${page}/${totalPages}: ${title}\n` +
+1778:             `💾 Size: ~${estimatedMb} MB • ⏱️ ~${remainingSec}s left`,
+1779:             { id: toastId }
+1780:           );
+1781:         }
+1782:       });
+1783:       toast.success("Official Standings PDF Downloaded! 📄", { id: toastId });
+1784:     } catch (err) {
+1785:       console.error("PDF download failed:", err);
+1786:       toast.error("Failed to generate PDF. Please try again.", { id: toastId });
+1787:     } finally {
+1788:       setIsDownloadingPdf(false);
+1789:     }
+1790:   };
+1791: 
+1792:   return (
+1793:     <div className="space-y-3">
+1794:       {/* Main Standings Table Card */}
+1795:       <Card className="bg-slate-900/80 border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+1796:         {/* Header Bar */}
+1797:         <div className="bg-slate-950/90 border-b border-slate-800 p-2.5 space-y-2">
+1798:           {/* Top Row: Title + Badges on Left, Download Button on Right */}
+1799:           <div className="flex items-center justify-between gap-2">
+1800:             <div className="flex items-center gap-1.5 min-w-0">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

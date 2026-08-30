@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Tournament } from "@/entities/Tournament";
@@ -13,19 +14,37 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trophy, Eye, Send, Key, Download, Trash2, Gift, Target, Crown, Save, Edit, Search, CheckCircle, FileText, Users } from "lucide-react";
+import { Trophy, Eye, Send, Key, Download, Trash2, Gift, Target, Crown, Save, Edit, Search, CheckCircle, FileText, Users, Loader2 } from "lucide-react";
 import TournamentWinnerReward from "./TournamentWinnerReward";
 import { Notification } from "@/entities/Notification";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { generateTournamentPDF } from "../tournament/TournamentPDFReport";
+import SendIdPassDrawer from "./SendIdPassDrawer";
+import ManageKillsStagesDrawer from "./ManageKillsStagesDrawer";
+import StageMovementDrawer from "./StageMovementDrawer";
 
+
+// Safe date formatter — returns fallback string if date is invalid/null
+const safeFmt = (dateVal, fmt, fallback = "—") => {
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, fmt);
+  } catch (e) {
+    return fallback;
+  }
+};
 
 export default function TournamentManagement({ tournaments, onUpdate }) {
-  const [sendingMessage, setSendingMessage] = useState(null);
-  const [messageText, setMessageText] = useState("");
-  const [roomCode, setRoomCode] = useState("");
-  const [roomPassword, setRoomPassword] = useState("");
+  const [sendingIdPassDrawer, setSendingIdPassDrawer] = useState(null);
+  const [manageKillsDrawerTournament, setManageKillsDrawerTournament] = useState(null);
+  const [stageMovementTournament, setStageMovementTournament] = useState(null);
+  const [manageKillsDrawerTab, setManageKillsDrawerTab] = useState("standings");
   const [showRewardModal, setShowRewardModal] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(null);
+  const [activeModalTab, setActiveModalTab] = useState("leaderboard");
+  const [targetTournamentId, setTargetTournamentId] = useState("");
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [killsInput, setKillsInput] = useState({});
   const [firstPlaceId, setFirstPlaceId] = useState("");
@@ -56,154 +75,11 @@ export default function TournamentManagement({ tournaments, onUpdate }) {
   }, [tournaments]);
   const DELETE_CODE = "845436";
 
-  const buildWhatsAppMessage = (tournament, reg, customMessage, rCode, rPassword) => {
-    const matchDate = new Date(tournament.date_time).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-    const members = reg.team_members?.map((m, i) => `  ${i+1}. ${m.ign} | UID: ${m.uid}${m.isLeader ? " 👑" : ""}`).join("\n") || "";
-    const invoiceId = `BHFF-${new Date(reg.created_date).getTime().toString().slice(-8)}`;
-    const registeredAt = new Date(reg.created_date).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-    
-    return `🏆 *BATTLEHUB FF — MATCH CONFIRMATION* 🏆
-━━━━━━━━━━━━━━━━━━━━━
-
-✅ *REGISTRATION CONFIRMED*
-
-Hello *${reg.team_leader_ign}*! Your registration is confirmed.
-
-━━━━━━━━━━━━━━━━━━━━━
-🏆 *TOURNAMENT INFO*
-
-🏆 ${tournament.title}
-🎮 Mode: ${tournament.mode} | 🗺️ Map: ${tournament.map || "Bermuda"}
-📅 Match Date: ${matchDate}
-👥 Max Teams: ${tournament.max_teams}
-
-━━━━━━━━━━━━━━━━━━━━━
-${rCode ? `🔑 *ROOM CREDENTIALS*
-🏠 Room ID: \`${rCode}\`
-🔒 Password: \`${rPassword || "No Password"}\`
-━━━━━━━━━━━━━━━━━━━━━
-` : ""}${tournament.prize_pool ? `🏆 *PRIZE POOL*
-  🥇 1st: ₹${tournament.prize_distribution?.first || "TBA"}
-  🥈 2nd: ₹${tournament.prize_distribution?.second || "TBA"}
-  🥉 3rd: ₹${tournament.prize_distribution?.third || "TBA"}
-━━━━━━━━━━━━━━━━━━━━━
-` : ""}
-🧾 *ENTRY INVOICE*
-
-📄 Invoice ID: *#${invoiceId}*
-👤 Team: *${reg.team_name}*
-📱 Phone: ${reg.team_leader_phone || "N/A"}
-
-*Team Members:*
-${members}
-
-💰 Entry Fee: ${tournament.entry_fee || 0} ${reg.payment_method === "Diamond" ? "💎 Diamond" : "🪙 BH Coin"}
-💳 Payment Method: ${reg.payment_method || "BH Coin"}
-✅ Status: PAID & CONFIRMED
-📅 Registered: ${registeredAt}
-
-━━━━━━━━━━━━━━━━━━━━━
-${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━━━━━━━━━━━━━━━━━\n` : ""}
-⚠️ *IMPORTANT RULES*
-
-• Room ID & Password will be shared 10 minutes before match
-• Join the room on time — late entries rejected
-• Fair play mandatory — cheating = permanent ban
-• Keep this message as your entry proof
-
-━━━━━━━━━━━━━━━━━━━━━
-🌐 battlehubff.site | 📧 helpbattlehub@gmail.com
-
-🎮 Good luck! — *BattleHub FF Team* 🎮`;
-  };
-
-  const sendMessageToRegistered = async (tournament) => {
-    if (!messageText.trim() && !roomCode.trim()) return;
-    setIsSending(true);
-    try {
-      const registrations = await Registration.filter({ tournament_id: tournament.id });
-      if (!registrations.length) {
-        alert("⚠️ No registrations found for this tournament!");
-        setIsSending(false);
-        return;
-      }
-
-      // Send all messages in parallel for speed
-      await Promise.all(registrations.map(async (reg) => {
-        // Build the in-app message: room credentials + optional extra message
-        let inAppMsg = "";
-        if (roomCode.trim()) {
-          inAppMsg += `ROOM ID: ${roomCode.trim()}`;
-          if (roomPassword.trim()) inAppMsg += `\nPASSWORD: ${roomPassword.trim()}`;
-        }
-        if (messageText.trim()) {
-          inAppMsg += (inAppMsg ? "\n\n" : "") + messageText.trim();
-        }
-
-        const tasks = [
-          PlayerMessage.create({
-            tournament_id: tournament.id,
-            recipient_id: reg.team_leader_id,
-            recipient_ign: reg.team_leader_ign,
-            message: inAppMsg,
-            room_code: roomCode.trim(),
-            room_password: roomPassword.trim(),
-            sent_at: new Date().toISOString(),
-            read: false
-          })
-        ];
-        // Always create notification when sending
-        tasks.push(Notification.create({
-          recipient_id: reg.team_leader_id,
-          type: "Match Update",
-          title: roomCode.trim() 
-            ? `🔑 ${tournament.title} — Room Credentials` 
-            : `📢 ${tournament.title} — Match Update`,
-          message: roomCode.trim()
-            ? `Room ID: ${roomCode.trim()}${roomPassword.trim() ? ` | Password: ${roomPassword.trim()}` : ""}${messageText.trim() ? `\n\n📢 ${messageText.trim()}` : ""}`
-            : messageText.trim(),
-          link: createPageUrl(`TournamentDetail?id=${tournament.id}`),
-          priority: roomCode.trim() ? "Urgent" : "High",
-          dismissable: false,
-          created_at: new Date().toISOString()
-        }));
-        return Promise.all(tasks);
-      }));
-
-      // Update tournament with latest room credentials
-      await Tournament.update(tournament.id, {
-        room_code: roomCode.trim() || "",
-        room_password: roomPassword.trim() || "",
-        room_message: messageText.trim() || ""
-      });
-
-      alert(`✅ Message sent to ${registrations.length} registered player(s)!\n${roomCode.trim() ? `🔑 Room ID: ${roomCode.trim()}` : ""}${roomPassword.trim() ? `\n🔒 Password: ${roomPassword.trim()}` : ""}${messageText.trim() ? `\n📢 Extra: ${messageText.trim()}` : ""}`);
-
-      setSendingMessage(null);
-      setMessageText("");
-      setRoomCode("");
-      setRoomPassword("");
-      onUpdate();
-    } catch (err) {
-      console.error("Send message error:", err);
-      alert("❌ Error sending message. Please try again.");
-    }
-    setIsSending(false);
-  };
-
-  const deleteAllMessages = async (tournament) => {
-    if (!confirm("Delete all player messages for this tournament? This will remove room credentials from all registered players.")) return;
-
-    const messages = await PlayerMessage.filter({ tournament_id: tournament.id });
-    // Delete all in parallel for speed
-    await Promise.all(messages.map(msg => PlayerMessage.delete(msg.id)));
-
-    alert("✅ All messages cleared from all registered players!");
-    onUpdate();
-  };
 
   const openLeaderboard = async (tournament) => {
     setShowLeaderboard(tournament);
+    setActiveModalTab("leaderboard");
+    setTargetTournamentId("");
     setLeaderboardData([]);
     setKillsInput({});
 
@@ -322,7 +198,58 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
       console.error("Error:", e);
       alert("Failed to save");
     }
-    setSavingLB(false);
+      setSavingLB(false);
+  };
+
+  const promoteTeam = async (leaderId, targetTournId, teamIgn, currentTournamentId) => {
+    if (!targetTournId) {
+      toast.error("Please select a target tournament first.");
+      return;
+    }
+    const targetTournament = tournaments.find(t => t.id === targetTournId);
+    if (!targetTournament) return;
+
+    if (!confirm(`Promote "${teamIgn}" to "${targetTournament.title}"?`)) return;
+
+    try {
+      // Check duplicate
+      const existingRegs = await Registration.filter({ tournament_id: targetTournament.id }).catch(() => []);
+      if (existingRegs.find(r => r.team_leader_id === leaderId)) {
+        toast.error(`"${teamIgn}" is already in "${targetTournament.title}"!`);
+        return;
+      }
+
+      // Get source registration
+      const allSourceRegs = await Registration.filter({ tournament_id: currentTournamentId }).catch(() => []);
+      const sourceReg = allSourceRegs.find(r => r.team_leader_id === leaderId);
+
+      if (sourceReg) {
+        await Registration.update(sourceReg.id, { is_qualified: true, qualified_from_tournament_id: currentTournamentId, status: "Qualified" }).catch(() => null);
+      }
+
+      await Registration.create({
+        tournament_id: targetTournament.id,
+        tournament_title: targetTournament.title,
+        team_name: sourceReg?.team_name || teamIgn,
+        team_leader_id: leaderId,
+        team_leader_ign: sourceReg?.team_leader_ign || teamIgn,
+        team_leader_uid: sourceReg?.team_leader_uid || "",
+        team_leader_phone: sourceReg?.team_leader_phone || "",
+        team_members: sourceReg?.team_members || [{ ign: teamIgn, uid: "", isLeader: true }],
+        is_qualified: true,
+        qualified_from_tournament_id: currentTournamentId,
+        total_points: 0,
+        total_kills: 0,
+        status: "Qualified",
+        payment_status: "Paid"
+      });
+
+      await Tournament.update(targetTournament.id, { current_teams: (targetTournament.current_teams || 0) + 1 }).catch(() => null);
+      toast.success(`✅ "${teamIgn}" promoted successfully to ${targetTournament.title}!`);
+    } catch (error) {
+      console.error("Promote error:", error);
+      toast.error(`❌ Promotion failed: ${error.message || "Unknown error"}`);
+    }
   };
 
   const downloadKillsReport = async (tournament, entries, killsMap, fp, sp, tp) => {
@@ -394,70 +321,47 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
     URL.revokeObjectURL(url);
   };
 
+  const [downloadingPdfId, setDownloadingPdfId] = useState(null);
+
   const downloadRegistrationsPDF = async (tournament) => {
-    const registrations = await Registration.filter({ tournament_id: tournament.id });
-    
-    if (registrations.length === 0) {
-      alert("No registrations found for this tournament!");
-      return;
-    }
-
-    // Group registrations by date
-    const regsByDate = {};
-    registrations.forEach(reg => {
-      const dateKey = format(new Date(reg.created_date), "yyyy-MM-dd");
-      if (!regsByDate[dateKey]) {
-        regsByDate[dateKey] = [];
-      }
-      regsByDate[dateKey].push(reg);
-    });
-
-    // Create PDF content as text
-    let pdfContent = `═══════════════════════════════════════════════\n`;
-    pdfContent += `       🏆 BATTLE HUB TOURNAMENT 🏆\n`;
-    pdfContent += `       REGISTRATION DETAILS\n`;
-    pdfContent += `═══════════════════════════════════════════════\n\n`;
-    pdfContent += `TOURNAMENT: ${tournament.title}\n`;
-    pdfContent += `Mode: ${tournament.mode} | Map: ${tournament.map}\n`;
-    pdfContent += `Date: ${format(new Date(tournament.date_time), "PPP p")}\n`;
-    pdfContent += `Total Teams: ${registrations.length}\n`;
-    pdfContent += `\n═══════════════════════════════════════════════\n`;
-
-    // Show registrations grouped by date
-    Object.keys(regsByDate).sort().reverse().forEach(dateKey => {
-      const dateRegs = regsByDate[dateKey];
-      pdfContent += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-      pdfContent += `📅 ${format(new Date(dateKey), "dd MMM yyyy")} - ${dateRegs.length} Registrations\n`;
-      pdfContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    if (downloadingPdfId) return;
+    setDownloadingPdfId(tournament.id);
+    const toastId = toast.loading("Fetching Tournament Data...");
+    try {
+      const leaderboardRows = await TournamentLeaderboard.filter({ tournament_id: tournament.id });
+      const registrations = await Registration.filter({ tournament_id: tournament.id });
       
-      dateRegs.forEach((reg, index) => {
-        pdfContent += `\n--- TEAM ${index + 1}: ${reg.team_name} ---\n`;
-        pdfContent += `📌 Registration Time: ${format(new Date(reg.created_date), "hh:mm a")}\n`;
-        pdfContent += `👤 Team Leader: ${reg.team_leader_ign} (ID: ${reg.team_leader_id})\n`;
-        pdfContent += `💰 Payment Status: ${reg.payment_status}\n`;
-        pdfContent += `📋 Status: ${reg.status}\n`;
-        pdfContent += `\n👥 Team Members:\n`;
-        reg.team_members?.forEach((member, i) => {
-          pdfContent += `  ${i + 1}. IGN: ${member.ign} | UID: ${member.uid}\n`;
-        });
+      if (leaderboardRows.length === 0 && registrations.length === 0) {
+        toast.error("No data found for this tournament!", { id: toastId });
+        setIsDownloadingPdf(false);
+        return;
+      }
+      
+      toast.loading("⚡ Initializing Esports Booklet Generator...", { id: toastId });
+
+      await generateTournamentPDF({
+        tournament,
+        leaderboardRows: leaderboardRows.sort((a,b) => (a.rank||999)-(b.rank||999)),
+        registrations,
+        matches: [],
+        selectedStage: "Overall",
+        selectedGroup: "All",
+        onProgress: ({ page, totalPages, percentage, estimatedMb, remainingSec, title }) => {
+          toast.loading(
+            `📄 PDF Booklet Progress: ${percentage}%\n` +
+            `Page ${page}/${totalPages}: ${title}\n` +
+            `💾 Size: ~${estimatedMb} MB • ⏱️ ~${remainingSec}s left`,
+            { id: toastId }
+          );
+        }
       });
-    });
-
-    pdfContent += `\n═══════════════════════════════════════════════\n`;
-    pdfContent += `     Thank you for being a part of our\n`;
-    pdfContent += `          BATTLE HUB TOURNAMENT! 🏆\n`;
-    pdfContent += `═══════════════════════════════════════════════\n`;
-
-    // Download as text file
-    const blob = new Blob([pdfContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${tournament.title}_Registrations_${format(new Date(), 'yyyy-MM-dd')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+      toast.success("Official Standings PDF Downloaded! 📄", { id: toastId });
+    } catch (err) {
+      console.error("PDF download failed:", err);
+      toast.error(`Failed to generate PDF: ${err.message || err}`, { id: toastId, duration: 6000 });
+    } finally {
+      setDownloadingPdfId(null);
+    }
   };
 
   if (tournaments.length === 0) {
@@ -479,174 +383,12 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
         />
       )}
 
-      {/* Leaderboard Management Modal */}
-      {showLeaderboard && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowLeaderboard(null)}>
-          <Card className="bg-gray-900 border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-white">
-                <div className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-purple-400" />
-                  Manage Kills & Wins - {showLeaderboard.title}
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setShowLeaderboard(null)}>✕</Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Top 3 Selection */}
-              <div className="grid md:grid-cols-3 gap-3">
-                <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Crown className="w-5 h-5 text-yellow-400" />
-                    <Label className="text-yellow-400 text-sm">🥇 1st Place (+15)</Label>
-                  </div>
-                  <select
-                    value={firstPlaceId}
-                    onChange={(e) => setFirstPlaceId(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm"
-                  >
-                    <option value="">Select 1st</option>
-                    {leaderboardData.map(e => (
-                      <option key={e.user_id} value={e.user_id}>
-                        {e.player_ign}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="p-4 bg-gray-500/10 border border-gray-500/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Crown className="w-5 h-5 text-gray-400" />
-                    <Label className="text-gray-400 text-sm">🥈 2nd Place (+10)</Label>
-                  </div>
-                  <select
-                    value={secondPlaceId}
-                    onChange={(e) => setSecondPlaceId(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm"
-                  >
-                    <option value="">Select 2nd</option>
-                    {leaderboardData.map(e => (
-                      <option key={e.user_id} value={e.user_id}>
-                        {e.player_ign}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Crown className="w-5 h-5 text-orange-400" />
-                    <Label className="text-orange-400 text-sm">🥉 3rd Place (+5)</Label>
-                  </div>
-                  <select
-                    value={thirdPlaceId}
-                    onChange={(e) => setThirdPlaceId(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-sm"
-                  >
-                    <option value="">Select 3rd</option>
-                    {leaderboardData.map(e => (
-                      <option key={e.user_id} value={e.user_id}>
-                        {e.player_ign}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <Input
-                  value={lbSearch}
-                  onChange={e => setLbSearch(e.target.value)}
-                  placeholder="Search player..."
-                  className="bg-gray-800 border-gray-700 text-white pl-9"
-                />
-              </div>
-
-              {/* Players Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-2 px-2 text-gray-400 text-sm">#</th>
-                      <th className="text-left py-2 px-2 text-gray-400 text-sm">Player</th>
-                      <th className="text-left py-2 px-2 text-gray-400 text-sm">UID</th>
-                      <th className="text-center py-2 px-2 text-gray-400 text-sm">Kills</th>
-                      <th className="text-center py-2 px-2 text-gray-400 text-sm">Win</th>
-                      <th className="text-center py-2 px-2 text-gray-400 text-sm">Points</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboardData.filter(e => !lbSearch || e.player_ign?.toLowerCase().includes(lbSearch.toLowerCase()) || e.player_uid?.includes(lbSearch) || e.unique_id?.toLowerCase().includes(lbSearch.toLowerCase())).map((entry, index) => (
-                      <tr key={entry.id} className="border-b border-gray-700/50">
-                        <td className="py-2 px-2 text-white">{index + 1}</td>
-                        <td className="py-2 px-2">
-                          <p className="text-white font-semibold">{entry.player_ign}</p>
-                          <p className="text-xs text-gray-500">{entry.unique_id}</p>
-                        </td>
-                        <td className="py-2 px-2 text-cyan-400 text-sm">{entry.player_uid || '-'}</td>
-                        <td className="py-2 px-2 text-center">
-                          <Input
-                            type="number"
-                            value={killsInput[entry.id] || 0}
-                            onChange={(e) => setKillsInput({...killsInput, [entry.id]: parseInt(e.target.value) || 0})}
-                            className="w-16 bg-gray-800 border-gray-700 text-white text-center mx-auto"
-                            min="0"
-                          />
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          {firstPlaceId === entry.user_id ? (
-                            <Badge className="bg-yellow-500/20 text-yellow-400">🥇</Badge>
-                          ) : secondPlaceId === entry.user_id ? (
-                            <Badge className="bg-gray-500/20 text-gray-400">🥈</Badge>
-                          ) : thirdPlaceId === entry.user_id ? (
-                            <Badge className="bg-orange-500/20 text-orange-400">🥉</Badge>
-                          ) : (
-                            <span className="text-gray-500">-</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-2 text-center text-cyan-400 font-bold">
-                          {((killsInput[entry.id] || 0) * 2) + (
-                            firstPlaceId === entry.user_id ? 15 :
-                            secondPlaceId === entry.user_id ? 10 :
-                            thirdPlaceId === entry.user_id ? 5 : 0
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={saveLeaderboard}
-                  disabled={savingLB}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {savingLB ? "Saving..." : "Save & Update All Stats"}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => downloadKillsReport(showLeaderboard, leaderboardData, killsInput, firstPlaceId, secondPlaceId, thirdPlaceId)}
-                  className="bg-blue-600 hover:bg-blue-700 shrink-0"
-                  title="Download TXT Report"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Report
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {/* Tournament Search */}
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
         <Input
+          type="search"
+          autoComplete="off"
           value={tournamentSearch}
           onChange={(e) => setTournamentSearch(e.target.value)}
           placeholder="Search tournaments by name or ID..."
@@ -673,10 +415,10 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="outline" className="text-xs text-white font-bold border-gray-500">
-                      {format(new Date(tournament.date_time), "dd MMM yyyy")}
+                      {safeFmt(tournament.date_time, "dd MMM yyyy")}
                     </Badge>
                     <Badge variant="outline" className="text-xs text-white font-bold border-gray-500">
-                      {format(new Date(tournament.date_time), "hh:mm a")}
+                      {safeFmt(tournament.date_time, "hh:mm a")}
                     </Badge>
                   </div>
                 </div>
@@ -707,7 +449,7 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                 <div>
                   <p className="text-gray-400">Date</p>
                   <p className="text-gray-100 font-semibold">
-                    {format(new Date(tournament.date_time), "MMM d, yyyy")}
+                    {safeFmt(tournament.date_time, "MMM d, yyyy")}
                   </p>
                 </div>
                 <div>
@@ -719,33 +461,17 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
               </div>
 
               {/* Status Control */}
-              <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="flex gap-2 mb-4">
                 <Button
                   onClick={async () => {
-                    const updatePayload = { status: "Registration Open" };
-                    if (tournament.registration_closes && new Date(tournament.registration_closes) < new Date()) {
-                      updatePayload.registration_closes = null;
-                    }
-                    await Tournament.update(tournament.id, updatePayload);
+                    await Tournament.update(tournament.id, { status: "Registration Open" });
                     onUpdate();
                   }}
                   size="sm"
                   className={`${tournament.status === "Registration Open" ? "bg-green-600" : "bg-gray-700"}`}
                 >
-                  Open
+                  Registration Open
                 </Button>
-                {tournament.tournament_type !== "Semifinal" && tournament.tournament_type !== "Grand Final" && (
-                  <Button
-                    onClick={async () => {
-                      await Tournament.update(tournament.id, { status: "Registration Closed" });
-                      onUpdate();
-                    }}
-                    size="sm"
-                    className={`${tournament.status === "Registration Closed" ? "bg-yellow-600" : "bg-gray-700"}`}
-                  >
-                    Closed
-                  </Button>
-                )}
                 <Button
                   onClick={async () => {
                     if (tournament.status === "Live") {
@@ -797,26 +523,28 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
 
                 <Button
                   onClick={() => downloadRegistrationsPDF(tournament)}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  disabled={downloadingPdfId === tournament.id}
+                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF
+                  {downloadingPdfId === tournament.id ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Standings
+                    </>
+                  )}
                 </Button>
 
                 <Button
-                  onClick={() => setSendingMessage(tournament.id)}
+                  onClick={() => setSendingIdPassDrawer(tournament)}
                   className="bg-green-500 hover:bg-green-600"
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Message
-                </Button>
-
-                <Button
-                  onClick={() => deleteAllMessages(tournament)}
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear Messages
+                  <Key className="w-4 h-4 mr-2" />
+                  Send ID/Pass
                 </Button>
 
                 <Button
@@ -828,11 +556,22 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                 </Button>
 
                 <Button
-                  onClick={() => openLeaderboard(tournament)}
-                  className="bg-purple-500 hover:bg-purple-600"
+                  onClick={() => {
+                    setManageKillsDrawerTab("kills");
+                    setManageKillsDrawerTournament(tournament);
+                  }}
+                  className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-purple-600/25 cursor-pointer"
                 >
-                  <Target className="w-4 h-4 mr-2" />
-                  Manage Kills/Wins
+                  <Target className="w-4 h-4 mr-2 text-white" />
+                  Manage Kills & Leaderboard
+                </Button>
+
+                <Button
+                  onClick={() => setStageMovementTournament(tournament)}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-lg shadow-emerald-600/25 cursor-pointer"
+                >
+                  <Trophy className="w-4 h-4 mr-2 text-emerald-200" />
+                  ⚡ Move Stage
                 </Button>
 
                 {tournament.status === "Completed" && (
@@ -852,6 +591,7 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                   <div className="flex gap-2">
                     <input
                       type="password"
+                      autoComplete="new-password"
                       value={deleteCode}
                       onChange={(e) => setDeleteCode(e.target.value)}
                       placeholder="Enter code"
@@ -874,83 +614,55 @@ ${customMessage ? `📢 *Message from Admin:*\n${customMessage}\n━━━━━
                   </div>
                 </div>
               )}
-
-              {sendingMessage === tournament.id && (
-                <div className="space-y-3 pt-3 border-t border-gray-700">
-                  <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <p className="text-blue-400 text-xs font-semibold">📱 Message Preview — Full WhatsApp message with team invoice will be sent to each player</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-gray-300 flex items-center gap-1 text-sm">
-                        <Key className="w-3 h-3" /> Room ID
-                      </Label>
-                      <Input
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value)}
-                        placeholder="Enter Room ID"
-                        className="bg-gray-900 border-gray-700 text-gray-100"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-gray-300 flex items-center gap-1 text-sm">
-                        <Key className="w-3 h-3" /> Password
-                      </Label>
-                      <Input
-                        value={roomPassword}
-                        onChange={(e) => setRoomPassword(e.target.value)}
-                        placeholder="Enter Password"
-                        className="bg-gray-900 border-gray-700 text-gray-100"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-gray-300 text-sm">Extra Message (Optional)</Label>
-                    <Textarea
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      placeholder="Additional message for players..."
-                      rows={2}
-                      className="bg-gray-900 border-gray-700 text-gray-100 text-sm"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => { setSendingMessage(null); setMessageText(""); setRoomCode(""); setRoomPassword(""); }}
-                      className="border-gray-700"
-                      disabled={isSending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => sendMessageToRegistered(tournament)}
-                      disabled={isSending || (!messageText.trim() && !roomCode.trim())}
-                      className="bg-green-500 hover:bg-green-600 active:scale-95"
-                    >
-                      {isSending ? (
-                        <><span className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> Sending...
-                      </>) : (
-                        <><Send className="w-4 h-4 mr-2" /> Send to All Registered</>)}
-                    </Button>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
       ))}
       
-      {editingTournament && (
-        <TournamentEditor
-          tournament={editingTournament}
-          onClose={() => setEditingTournament(null)}
-          onSave={onUpdate}
-        />
-      )}
+      <AnimatePresence>
+        {editingTournament && (
+          <TournamentEditor
+            key={editingTournament.id}
+            tournament={editingTournament}
+            onClose={() => setEditingTournament(null)}
+            onSave={onUpdate}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {sendingIdPassDrawer && (
+          <SendIdPassDrawer 
+            key="send-id-pass-drawer"
+            tournament={sendingIdPassDrawer} 
+            onClose={() => setSendingIdPassDrawer(null)}
+            onUpdate={onUpdate}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {manageKillsDrawerTournament && (
+          <ManageKillsStagesDrawer
+            key="manage-kills-stages-drawer"
+            tournament={manageKillsDrawerTournament}
+            initialTab={manageKillsDrawerTab}
+            onClose={() => setManageKillsDrawerTournament(null)}
+            onUpdate={onUpdate}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {stageMovementTournament && (
+          <StageMovementDrawer
+            key="stage-movement-drawer"
+            tournament={stageMovementTournament}
+            onClose={() => setStageMovementTournament(null)}
+            onUpdate={onUpdate}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

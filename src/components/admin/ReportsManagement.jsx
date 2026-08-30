@@ -4,6 +4,7 @@ import { BanRecord } from "@/entities/BanRecord";
 import { User } from "@/entities/User";
 import { CommunityPost } from "@/entities/CommunityPost";
 import { Notification } from "@/entities/Notification";
+import { ReputationLog, UserGroup } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Eye, Check, X, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/api/firebaseClient";
+import BHTVPlayer from "@/components/ui/BHTVPlayer";
 
 export default function ReportsManagement({ reports, onUpdate }) {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -54,6 +58,136 @@ export default function ReportsManagement({ reports, onUpdate }) {
               recipient_id: report.reporter_id,
               title: "Report Reviewed",
               message: `Your report against ${report.reported_ign}'s post was reviewed and was found not to violate our policies.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        }
+      } else if (report.type === 'reputation') {
+        if (action === "ban" || action === "approve") {
+          const userObj = await User.get(report.reported_user_id);
+          const currentRep = userObj?.reputation_score !== undefined ? userObj.reputation_score : 5.0;
+          const severity = report.severity || 0.2;
+          const newRep = Math.max(0, currentRep - severity);
+          
+          await ReputationLog.create({
+            user_id: report.reported_user_id,
+            reporter_id: report.reporter_id,
+            reason: report.reason,
+            change_amount: -severity,
+            type: 'negative',
+            timestamp: new Date().toISOString()
+          });
+
+          await User.update(report.reported_user_id, { reputation_score: newRep });
+
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Report Action Taken",
+              message: `Thank you for reporting ${report.reported_ign}. We have reviewed your report and taken appropriate action.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        } else if (action === "dismiss") {
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Report Reviewed",
+              message: `Your report against ${report.reported_ign} has been reviewed and dismissed. No action was taken.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        }
+      } else if (report.type === 'media_post') {
+        if (action === "ban") {
+          await updateDoc(doc(db, 'media_posts', report.target_id), {
+            status: 'banned',
+            ban_reason: report.reason + (adminNotes ? " - " + adminNotes : "")
+          });
+          
+          if (report.reported_user_id && report.reported_user_id !== 'unknown') {
+            await Notification.create({
+              recipient_id: report.reported_user_id,
+              title: "Media Post Banned",
+              message: `Your video was banned due to violating our policies. Reason: ${report.reason}.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Report Resolved",
+              message: `Thank you for your report against a media post. The post has been reviewed and banned.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        } else if (action === "dismiss") {
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Report Reviewed",
+              message: `Your report against a media post was reviewed and was found not to violate our policies.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        }
+      } else if (report.type === 'group') {
+        if (action === "ban") {
+          const currentUser = await User.me();
+          const durationDays = banSeverity === "Permanent" ? 0 : parseInt(banDuration);
+          const startDate = new Date();
+          const endDate = durationDays > 0 ? new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000) : null;
+
+          await UserGroup.update(report.group_id, {
+            is_banned: true,
+            ban_reason: report.reason + (adminNotes ? " - " + adminNotes : ""),
+            banned_at: startDate.toISOString(),
+            ban_until: endDate?.toISOString() || null,
+            banned_by: currentUser?.id || 'admin'
+          });
+          
+          await BanRecord.create({
+            target_type: "group",
+            group_id: report.group_id,
+            user_ign: report.reported_ign,
+            reason: report.reason + (adminNotes ? " - " + adminNotes : ""),
+            severity: banSeverity,
+            duration_days: durationDays,
+            start_date: startDate.toISOString(),
+            end_date: endDate?.toISOString() || null,
+            evidence_urls: report.evidence_urls || [],
+            banned_by: currentUser?.id
+          });
+          
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Group Report Action Taken",
+              message: `Thank you for reporting ${report.reported_ign}. The group has been banned.`,
+              type: "system",
+              read: false,
+              created_date: new Date().toISOString()
+            });
+          }
+        } else if (action === "dismiss") {
+          if (report.reporter_id) {
+            await Notification.create({
+              recipient_id: report.reporter_id,
+              title: "Group Report Reviewed",
+              message: `Your report against ${report.reported_ign} has been reviewed and dismissed.`,
               type: "system",
               read: false,
               created_date: new Date().toISOString()
@@ -210,7 +344,7 @@ export default function ReportsManagement({ reports, onUpdate }) {
                         return (
                           <div key={i} className="relative w-full h-40 bg-black rounded border border-gray-700 hover:border-purple-500/50 overflow-hidden">
                             {isVideo ? (
-                              <video src={url} controls className="w-full h-full object-contain" />
+                              <BHTVPlayer src={url} className="w-full h-full object-contain bg-black" />
                             ) : (
                               <a href={url} target="_blank" rel="noopener noreferrer">
                                 <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-contain" />
@@ -223,7 +357,7 @@ export default function ReportsManagement({ reports, onUpdate }) {
                   </div>
                 )}
 
-                {selectedReport.type !== 'community_post' && (
+                {selectedReport.type !== 'community_post' && selectedReport.type !== 'reputation' && (
                   <div className="space-y-2">
                     <label className="text-sm text-gray-400">Ban Severity</label>
                     <Select value={banSeverity} onValueChange={setBanSeverity}>
@@ -239,7 +373,7 @@ export default function ReportsManagement({ reports, onUpdate }) {
                   </div>
                 )}
 
-                {selectedReport.type !== 'community_post' && banSeverity === "Temporary" && (
+                {selectedReport.type !== 'community_post' && selectedReport.type !== 'reputation' && banSeverity === "Temporary" && (
                   <div className="space-y-2">
                     <label className="text-sm text-gray-400">Ban Duration (Days)</label>
                     <Select value={banDuration} onValueChange={setBanDuration}>
@@ -279,12 +413,16 @@ export default function ReportsManagement({ reports, onUpdate }) {
                   Dismiss
                 </Button>
                 <Button
-                  onClick={() => handleResolve(selectedReport, "ban")}
+                  onClick={() => handleResolve(selectedReport, selectedReport.type === 'reputation' ? "approve" : "ban")}
                   disabled={processing}
                   className="bg-red-500 hover:bg-red-600 text-white"
                 >
                   <Check className="w-4 h-4 mr-2" />
-                  {selectedReport.type === 'community_post' ? "Delete Post" : (banSeverity === "Warning" ? "Resolve with Warning" : "Issue Ban")}
+                  {selectedReport.type === 'community_post' 
+                    ? "Delete Post" 
+                    : selectedReport.type === 'reputation' 
+                      ? "Deduct Reputation" 
+                      : (banSeverity === "Warning" ? "Resolve with Warning" : "Issue Ban")}
                 </Button>
               </div>
             </motion.div>

@@ -344,7 +344,7 @@ export default function LeaderboardControl() {
                   className={`flex items-center gap-3 p-3 rounded-lg ${
                     index === 0 ? 'bg-yellow-900/20 border border-yellow-500/30' :
                     index === 1 ? 'bg-gray-700/50 border border-gray-500/30' :
-                    index === 2 ? 'bg-orange-900/20 border border-orange-500/30' :
+                    index === 2 ? 'bg-orange-900/20 border border-orange-600/30' :
                     'bg-gray-700/30'
                   }`}
                 >
@@ -352,7 +352,7 @@ export default function LeaderboardControl() {
                     {index < 3 ? (
                       <Crown className={`w-5 h-5 mx-auto ${
                         index === 0 ? 'text-yellow-400' :
-                        index === 1 ? 'text-gray-300' : 'text-orange-400'
+                        index === 1 ? 'text-gray-300' : 'text-orange-500'
                       }`} />
                     ) : (
                       <span className="text-gray-400 font-bold">#{entry.rank}</span>
@@ -423,7 +423,7 @@ export default function LeaderboardControl() {
                   className={`flex items-center gap-3 p-3 rounded-lg ${
                     index === 0 ? 'bg-yellow-900/20 border border-yellow-500/30' :
                     index === 1 ? 'bg-gray-700/50 border border-gray-500/30' :
-                    index === 2 ? 'bg-orange-900/20 border border-orange-500/30' :
+                    index === 2 ? 'bg-orange-900/20 border border-orange-600/30' :
                     'bg-gray-700/30'
                   }`}
                 >
@@ -431,7 +431,7 @@ export default function LeaderboardControl() {
                     {index < 3 ? (
                       <Crown className={`w-5 h-5 mx-auto ${
                         index === 0 ? 'text-yellow-400' :
-                        index === 1 ? 'text-gray-300' : 'text-orange-400'
+                        index === 1 ? 'text-gray-300' : 'text-orange-500'
                       }`} />
                     ) : (
                       <span className="text-gray-400 font-bold">#{index + 1}</span>

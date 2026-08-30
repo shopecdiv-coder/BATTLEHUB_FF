@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { LegalContent } from "@/entities/LegalContent";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, FileText } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function RefundPolicy() {
+  const navigate = useNavigate();
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,66 +27,189 @@ export default function RefundPolicy() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <Skeleton className="h-12 w-64 bg-gray-800" />
-          <Card className="bg-gray-900/50 border-gray-800">
-            <CardContent className="p-8">
-              <Skeleton className="h-6 w-full bg-gray-800 mb-4" />
-              <Skeleton className="h-6 w-3/4 bg-gray-800 mb-4" />
-              <Skeleton className="h-6 w-full bg-gray-800" />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-            <Shield className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-400">
-              Refund Policy
-            </h1>
-            <p className="text-gray-400">Understanding our refund terms</p>
+    <div className="min-h-screen bg-black p-4 pb-24 text-slate-300">
+      <div className="max-w-3xl mx-auto">
+        <Button
+          onClick={() => navigate(-1)}
+          variant="ghost"
+          className="text-gray-400 hover:text-white mb-4 -ml-2 text-xs"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          Back
+        </Button>
+        
+        {/* Document Header */}
+        <div className="mb-6 pb-4 border-b border-white/10">
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-2 tracking-tight">
+            REFUND & CANCELLATION POLICY
+          </h1>
+          <div className="text-xs text-slate-400 space-y-0.5">
+            <p><strong>Effective Date:</strong> 30 August 2026</p>
+            <p><strong>Last Updated:</strong> 30 August 2026</p>
           </div>
         </div>
 
-        <Card className="bg-gray-900/50 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-gray-100 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-green-400" />
-              {content?.title || "Refund Policy"}
-            </CardTitle>
-            {content?.version && (
-              <p className="text-sm text-gray-500">Version: {content.version}</p>
-            )}
-          </CardHeader>
-          <CardContent className="prose prose-invert max-w-none">
-            {content?.content ? (
-              <div className="text-gray-300 whitespace-pre-wrap leading-relaxed">
-                {content.content}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Shield className="w-16 h-16 mx-auto text-gray-700 mb-4" />
-                <p className="text-gray-500 text-lg">Refund Policy content not available</p>
-                <p className="text-gray-600 text-sm mt-2">Please contact support for refund inquiries</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {content ? (
+          <div 
+            className="text-slate-300 whitespace-pre-wrap leading-relaxed text-sm"
+            dangerouslySetInnerHTML={{ __html: content.content }}
+          />
+        ) : (
+          <div className="space-y-6 text-xs sm:text-sm text-slate-300 leading-relaxed">
+            
+            {/* Preamble */}
+            <div className="space-y-2">
+              <p className="text-slate-400">
+                This Refund & Cancellation Policy (&ldquo;Policy&rdquo;) governs refunds, cancellations, failed transactions, and other payment-related matters on the BattleHub Platform.
+              </p>
+            </div>
 
-        {content?.updated_date && (
-          <p className="text-sm text-gray-500 text-center">
-            Last updated: {new Date(content.updated_date).toLocaleDateString()}
-          </p>
+            <hr className="border-white/10" />
+
+            {/* 1 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">1. Tournament Entry Fees</h2>
+              <p className="text-slate-400 mb-1.5">
+                Once a player successfully registers for a tournament, the entry fee is generally non-refundable, except where a refund is specifically provided under this Policy, the applicable tournament rules, or required by law.
+              </p>
+              <p className="text-slate-400">
+                No refund will generally be provided where the player voluntarily leaves the tournament, fails to check in or join the match, provides incorrect registration information, is disqualified for violating tournament rules, is found to have cheated or engaged in fraudulent activity, fails to participate due to their own device, internet, or account-related issue, or where the tournament has already commenced and the relevant service has been provided.
+              </p>
+            </section>
+
+            {/* 2 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">2. Tournament Cancellation</h2>
+              <p className="text-slate-400 mb-1.5">
+                If BattleHub cancels a tournament before it begins for reasons attributable to BattleHub, eligible participants may receive a refund of the applicable entry fee.
+              </p>
+              <p className="text-slate-400">
+                Where an independent Tournament Organizer cancels a tournament, the refund will be handled in accordance with the organizer&rsquo;s published refund terms and applicable law.
+              </p>
+            </section>
+
+            {/* 3 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">3. Postponement or Rescheduling</h2>
+              <p className="text-slate-400 mb-1.5">
+                If a tournament is postponed or rescheduled, the existing registration may remain valid for the revised schedule.
+              </p>
+              <p className="text-slate-400">
+                Where a refund is available due to the postponement or rescheduling, it will be processed according to the applicable tournament rules and this Policy.
+              </p>
+            </section>
+
+            {/* 4 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">4. Technical Problems</h2>
+              <p className="text-slate-400 mb-1.5">
+                If a significant technical issue prevents a tournament from being conducted fairly, BattleHub or the Tournament Organizer may restart the affected match, reschedule the match, cancel the affected match, provide a full or partial refund where appropriate, or take another reasonable corrective action.
+              </p>
+              <p className="text-slate-400">
+                Minor technical issues, player-side network problems, device problems, or game-server issues do not automatically qualify for a refund.
+              </p>
+            </section>
+
+            {/* 5 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">5. Failed Payments</h2>
+              <p className="text-slate-400 mb-1.5">
+                If an amount is deducted from the user&rsquo;s bank account, card, or UPI account but the BattleHub transaction is unsuccessful, the transaction will be reviewed. Where the payment has been successfully received but the service was not credited, the applicable amount may be refunded or the service or credit may be restored.
+              </p>
+              <p className="text-slate-400">
+                The time taken for the amount to appear in the user&rsquo;s account may depend on the bank, UPI provider, payment gateway, or other financial institution.
+              </p>
+            </section>
+
+            {/* 6 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">6. Duplicate Payments</h2>
+              <p className="text-slate-400">
+                If a user is charged multiple times for the same transaction due to a technical or payment-processing error, the duplicate transaction will be reviewed. Once verified, the duplicate amount will be refunded through the applicable payment channel.
+              </p>
+            </section>
+
+            {/* 7 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">7. Cheating or Disqualification</h2>
+              <p className="text-slate-400 mb-1.5">
+                Entry fees are generally non-refundable when a player is disqualified for hacking, cheating, scripts, unauthorized software, match fixing, collusion, account sharing, identity fraud, result manipulation, or other serious violations of BattleHub&rsquo;s Fair Play Policy.
+              </p>
+              <p className="text-slate-400">
+                Any prize associated with such participation may also be withheld or cancelled where legally permissible.
+              </p>
+            </section>
+
+            {/* 8 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">8. Wallet, Coins and Credits</h2>
+              <p className="text-slate-400 mb-1.5">
+                Where BattleHub provides digital coins, credits, or wallet functionality, the applicable terms will be displayed before purchase.
+              </p>
+              <p className="text-slate-400">
+                Unless otherwise stated or required by law, successfully credited digital balances may not be refundable after purchase. Fraudulently obtained balances may be cancelled or reversed.
+              </p>
+            </section>
+
+            {/* 9 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">9. Refund Request</h2>
+              <p className="text-slate-400 mb-1.5">
+                Refund requests should be submitted to <a href="mailto:contact@battlehub.site" className="text-orange-400 underline">contact@battlehub.site</a>.
+              </p>
+              <p className="text-slate-400">
+                The request should include, where available: BattleHub username, registered email or mobile number, tournament name, transaction ID, payment reference or UTR, amount paid, date of transaction, reason for the request, and supporting evidence if applicable. BattleHub may request additional information to verify the transaction.
+              </p>
+            </section>
+
+            {/* 10 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">10. Refund Processing</h2>
+              <p className="text-slate-400">
+                Approved refunds will normally be processed through the original payment method where technically and legally feasible. The time required for the refund to reach the user&rsquo;s account depends on the relevant payment provider, bank, card network, UPI system, or other financial institution.
+              </p>
+            </section>
+
+            {/* 11 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">11. Chargebacks and Fraud</h2>
+              <p className="text-slate-400">
+                Users are encouraged to contact BattleHub support before initiating a chargeback where the issue can reasonably be resolved through our support process. Fraudulent transactions, unauthorized payment methods, false refund claims, or chargeback abuse may result in account restrictions or suspension, subject to applicable law.
+              </p>
+            </section>
+
+            {/* 12 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">12. Legal Rights</h2>
+              <p className="text-slate-400">
+                Nothing in this Policy is intended to restrict any refund, cancellation, consumer, or statutory right that cannot legally be excluded under applicable Indian law.
+              </p>
+            </section>
+
+            {/* 13 */}
+            <section>
+              <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">13. Contact</h2>
+              <div className="border-t border-b border-white/10 py-2.5 my-2 space-y-0.5 text-xs text-slate-300">
+                <p><strong className="text-white">BattleHub</strong></p>
+                <p>Refund & Payment Support</p>
+                <p><strong className="text-white">Email:</strong> <a href="mailto:contact@battlehub.site" className="text-orange-400 underline">contact@battlehub.site</a></p>
+                <p><strong className="text-white">Location:</strong> Gautam Buddha Nagar, Greater Noida, Uttar Pradesh, India</p>
+              </div>
+              <p className="text-center text-xs text-slate-500 pt-3">
+                &copy; 2026 BattleHub . All Rights Reserved.
+              </p>
+            </section>
+
+          </div>
         )}
+
       </div>
     </div>
   );

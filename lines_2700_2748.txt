@@ -1,0 +1,57 @@
+Created At: 2026-08-23T08:13:42+05:30
+Completed At: 2026-08-23T08:13:43+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2748
+Total Bytes: 146580
+Showing lines 2700 to 2748
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2700:             <Badge className="bg-cyan-500/20 text-cyan-400 text-[10px] border border-cyan-500/30 px-1.5 py-0.2">
+2701:               {reg.total_points || 0} pts
+2702:             </Badge>
+2703:           )}
+2704: 
+2705:           {hasMembers && (
+2706:             <span className="text-slate-500 text-[10px]">{expanded ? '▲' : '▼'}</span>
+2707:           )}
+2708:         </div>
+2709:       </div>
+2710:       
+2711:       {/* Compact Expanded Roster Drawer */}
+2712:       {expanded && hasMembers && (
+2713:         <div className="border-t border-slate-800/60 bg-slate-950/70 p-2 space-y-1">
+2714:           {reg.team_members.map((member, idx) => {
+2715:             const mUid = member.uid || member.game_id || member.in_game_id;
+2716:             const pName = member.ign || member.name || `Player ${idx + 1}`;
+2717:             const key = mUid || pName;
+2718:             const avatarSrc = member.avatar_url || member.avatar || member.logo_url || member.logo || member.image || memberAvatars[key];
+2719: 
+2720:             return (
+2721:               <div key={idx} className="flex items-center justify-between py-1.5 px-2.5 bg-slate-900/80 border border-slate-800/80 rounded-lg text-xs">
+2722:                 <div className="flex items-center gap-2 min-w-0">
+2723:                   {avatarSrc ? (
+2724:                     <img
+2725:                       src={avatarSrc}
+2726:                       alt={pName}
+2727:                       className="w-6 h-6 rounded-full object-cover border border-amber-500/40 shrink-0 shadow-sm"
+2728:                       onError={(e) => { e.target.style.display = 'none'; }}
+2729:                     />
+2730:                   ) : (
+2731:                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 flex items-center justify-center text-[10px] font-black text-amber-400 shrink-0 shadow-sm">
+2732:                       {pName.charAt(0).toUpperCase()}
+2733:                     </div>
+2734:                   )}
+2735:                   <span className="font-semibold text-slate-200 truncate">{pName}</span>
+2736:                 </div>
+2737:                 {mUid && (
+2738:                   <span className="text-slate-400 font-mono text-[11px] shrink-0 ml-2">UID: {mUid}</span>
+2739:                 )}
+2740:               </div>
+2741:             );
+2742:           })}
+2743:         </div>
+2744:       )}
+2745:     </div>
+2746:   );
+2747: }
+2748: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

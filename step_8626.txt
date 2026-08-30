@@ -1,0 +1,84 @@
+Created At: 2026-08-23T07:09:27+05:30
+Completed At: 2026-08-23T07:09:28+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2693
+Total Bytes: 143734
+Showing lines 1170 to 1245
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1170:           <TabsContent value="teams" className="space-y-3 mt-0">
+1171:             {/* Stage Switcher - Premium Step Flow Navigation */}
+1172:             {(() => {
+1173:               const defaultStages = [
+1174:                 { id: "qualifiers", name: "Qualifier" },
+1175:                 { id: "semifinals", name: "Semifinal" },
+1176:                 { id: "grand_final", name: "Grand Final" }
+1177:               ];
+1178:               const rawStages = (tournament?.stages && Array.isArray(tournament.stages) && tournament.stages.length > 0)
+1179:                 ? tournament.stages
+1180:                 : defaultStages;
+1181: 
+1182:               const stagesList = rawStages.map((st, i) => {
+1183:                 if (typeof st === 'string') {
+1184:                   const slug = st.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+1185:                   return { id: slug, name: st, idx: i };
+1186:                 }
+1187:                 return { id: st.id || `stage_${i}`, name: st.name || st.id || `Stage ${i+1}`, idx: i };
+1188:               });
+1189: 
+1190:               const activeIdx = stagesList.findIndex(s => s.id === activeStageFilter || s.name === activeStageFilter);
+1191:               const currentActiveIdx = activeIdx >= 0 ? activeIdx : 0;
+1192:               const currentStageObj = stagesList[currentActiveIdx] || stagesList[0];
+1193: 
+1194:               return (
+1195:                 <div className="bg-slate-900/80 border border-slate-800/60 rounded-2xl p-2.5 mb-3">
+1196:                   <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
+1197:                     {stagesList.map((st, i) => {
+1198:                       const isActive = i === currentActiveIdx;
+1199:                       const isPast = i < currentActiveIdx;
+1200: 
+1201:                       return (
+1202:                         <React.Fragment key={st.id}>
+1203:                           {i > 0 && (
+1204:                             <div className={`h-[2px] w-4 shrink-0 rounded-full transition-all duration-300 ${
+1205:                               isPast ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+1206:                               isActive ? 'bg-gradient-to-r from-orange-500 to-amber-400' :
+1207:                               'bg-slate-700/60'
+1208:                             }`} />
+1209:                           )}
+1210:                           <button
+1211:                             onClick={() => setActiveStageFilter(st.id)}
+1212:                             className={`group flex items-center gap-1.5 py-1.5 px-3 text-[11px] font-black transition-all duration-300 shrink-0 whitespace-nowrap rounded-xl border cursor-pointer active:scale-95 ${
+1213:                               isActive 
+1214:                                 ? "text-orange-300 bg-gradient-to-br from-orange-500/20 to-amber-500/10 border-orange-500/50 shadow-[0_0_12px_rgba(249,115,22,0.15)]" 
+1215:                                 : isPast
+1216:                                   ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/15"
+1217:                                   : "text-slate-400 hover:text-slate-200 bg-slate-800/60 border-slate-700/60 hover:border-slate-600/80"
+1218:                             }`}
+1219:                           >
+1220:                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+1221:                               isActive
+1222:                                 ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-slate-950 shadow-[0_0_8px_rgba(249,115,22,0.5)]'
+1223:                                 : isPast
+1224:                                   ? 'bg-emerald-500 text-slate-950'
+1225:                                   : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600'
+1226:                             }`}>
+1227:                               {isPast ? '✓' : i + 1}
+1228:                             </span>
+1229:                             <span className="uppercase tracking-wider">{st.name}</span>
+1230:                           </button>
+1231:                         </React.Fragment>
+1232:                       );
+1233:                     })}
+1234:                   </div>
+1235:                 </div>
+1236:               );
+1237:             })()}
+1238: 
+1239: 
+1240:             {/* Search & Group Filter Header */}
+1241:             {(() => {
+1242:               const defaultStages = [
+1243:                 { id: "qualifiers", name: "Qualifiers" },
+1244:                 { id: "semifinals", name: "Semifinals" },
+1245:                 { id: "grand_final", name: "Grand Final" }
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

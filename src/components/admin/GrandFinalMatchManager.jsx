@@ -185,7 +185,7 @@ export default function GrandFinalMatchManager({ tournament }) {
                 {[1, 2, 3, 4, 5].map(n => <SelectItem key={n} value={String(n)}>{n} Match{n > 1 ? "es" : ""}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button onClick={() => createMatches(setupCount)} disabled={saving} className="bg-gradient-to-r from-yellow-600 to-orange-600">
+            <Button onClick={() => createMatches(setupCount)} disabled={saving} className="bg-gradient-to-r from-yellow-600 to-orange-700">
               <Plus className="w-4 h-4 mr-1" /> Create Matches
             </Button>
           </div>
@@ -212,7 +212,7 @@ export default function GrandFinalMatchManager({ tournament }) {
         <Trophy className="w-6 h-6 text-yellow-400" />
         <h2 className="text-xl font-bold text-white">Grand Final — Match Management</h2>
         <Badge className="bg-purple-500/20 text-purple-400">1 Kill = 1 Point</Badge>
-        <Badge className="bg-blue-500/20 text-blue-400">{matches.length} Match{matches.length > 1 ? "es" : ""}</Badge>
+        <Badge className="bg-orange-500/20 text-blue-400">{matches.length} Match{matches.length > 1 ? "es" : ""}</Badge>
         {matches.length < 5 && (
           <Button onClick={addMatch} disabled={saving} size="sm" className="ml-auto bg-gray-700 hover:bg-gray-600 text-xs">
             <Plus className="w-3 h-3 mr-1" /> Add Match (M{matches.length + 1})
@@ -240,7 +240,7 @@ export default function GrandFinalMatchManager({ tournament }) {
                     <th className="text-center py-2 px-1" title="Booyah count">👑</th>
                     <th className="text-center py-2 px-1 text-red-400">Kills</th>
                     <th className="text-center py-2 px-2 text-yellow-400">Total</th>
-                    {rankedStandings.some(t => t._isTie) && <th className="text-center py-2 px-1 text-orange-400 text-xs">Tie?</th>}
+                    {rankedStandings.some(t => t._isTie) && <th className="text-center py-2 px-1 text-orange-500 text-xs">Tie?</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -248,7 +248,7 @@ export default function GrandFinalMatchManager({ tournament }) {
                     const s = team._stats;
                     return (
                       <tr key={team.id} className={`border-b border-gray-700/50 ${
-                        i === 0 ? 'bg-yellow-500/10' : i === 1 ? 'bg-gray-400/10' : i === 2 ? 'bg-orange-500/10' : ''
+                        i === 0 ? 'bg-yellow-500/10' : i === 1 ? 'bg-gray-400/10' : i === 2 ? 'bg-orange-600/10' : ''
                       }`}>
                         <td className="py-2 px-2 font-bold text-white">
                           {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
@@ -263,7 +263,7 @@ export default function GrandFinalMatchManager({ tournament }) {
                         <td className="text-center py-2 px-2 text-yellow-400 font-bold">{s.totalPoints}</td>
                         {rankedStandings.some(t => t._isTie) && (
                           <td className="text-center py-2 px-1">
-                            {team._isTie && <span className="text-orange-400 text-xs font-bold">⚠️TIE</span>}
+                            {team._isTie && <span className="text-orange-500 text-xs font-bold">⚠️TIE</span>}
                           </td>
                         )}
                       </tr>

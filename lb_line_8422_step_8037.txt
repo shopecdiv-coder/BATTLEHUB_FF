@@ -1,0 +1,79 @@
+Created At: 2026-08-23T06:04:47+05:30
+Completed At: 2026-08-23T06:04:47+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2598
+Total Bytes: 136470
+Showing lines 1820 to 1890
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1820:     } else {
+1821:       // Fallback if no registrations exist yet
+1822:       (leaderboardEntries || []).forEach((lb, idx) => {
+1823:         rows.push({
+1824:           ...lb,
+1825:           _rowUid: `lb-${idx}-${lb.id || lb.user_id || idx}`,
+1826:           id: lb.id,
+1827:           team_name: lb.team_name || lb.player_ign || "Unknown Team",
+1828:           player_ign: lb.player_ign || "Leader",
+1829:           player_uid: lb.player_uid || '-',
+1830:           kills: lb.kills || 0,
+1831:           points: lb.points || 0,
+1832:           team_members: lb.team_members || [],
+1833:           user_id: lb.user_id,
+1834:           team_logo_url: lb.team_logo_url || "",
+1835:           is_qualified: Boolean(lb.is_qualified),
+1836:           stage: lb.stage || (isGrandFinalType ? "Grand Final" : isSemifinalType ? "Semifinals" : "Qualifier"),
+1837:           group_number: String(lb.group_number || Math.floor(idx / 12) + 1),
+1838:           match_results: lb.match_results || []
+1839:         });
+1840:       });
+1841:     }
+1842: 
+1843:     return rows;
+1844:   })();
+1845: 
+1846:   const getRegForEntry = (entry) => registrations.find(r => r.team_leader_id === entry.user_id || r.id === entry.id);
+1847:   const adminMsg = leaderboardEntries && leaderboardEntries.length > 0 ? (leaderboardEntries[0]?.admin_message || "") : "";
+1848:   const isFinalized = leaderboardEntries && leaderboardEntries.length > 0 && leaderboardEntries[0]?.is_finalized;
+1849: 
+1850:   // Qualification counts
+1851:   const totalQualifiedCount = rawRows.filter(r => r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified").length;
+1852: 
+1853:   // Search, Group & Stage Filter
+1854:   const filteredRows = rawRows.filter((r, idx) => {
+1855:     const origIdx = registrations.findIndex(reg => reg.id === r.id || (reg.team_leader_id && reg.team_leader_id === r.user_id));
+1856:     const realIdx = origIdx >= 0 ? origIdx : idx;
+1857:     
+1858:     const grp = r.group_number !== undefined && r.group_number !== null && String(r.group_number).trim() !== ""
+1859:       ? String(r.group_number).replace(/[^0-9]/g, '') || String(r.group_number)
+1860:       : String(Math.floor(realIdx / 12) + 1);
+1861: 
+1862:     const matchesGrp = selectedGroup === "all" || selectedGroup === grp;
+1863: 
+1864:     const isQual = r.is_qualified || getRegForEntry(r)?.is_qualified || getRegForEntry(r)?.status === "Qualified";
+1865:     const regStage = String(r.stage || "").toLowerCase();
+1866: 
+1867:     let matchesStage = true;
+1868:     if (selectedStage === "all") {
+1869:       matchesStage = true;
+1870:     } else if (selectedStage === "qualified") {
+1871:       matchesStage = isQual;
+1872:     } else {
+1873:       const selLower = selectedStage.toLowerCase();
+1874:       const stObj = stagesList.find(s => String(s.id || s).toLowerCase() === selLower || String(s.name || s).toLowerCase() === selLower);
+1875:       const targetName = (stObj?.name || selectedStage).toLowerCase();
+1876:       const targetId = (stObj?.id || selectedStage).toLowerCase();
+1877: 
+1878:       if (targetName.includes("qualifier") || targetName.includes("round 1") || targetId.includes("qualifier")) {
+1879:         matchesStage = true;
+1880:       } else {
+1881:         matchesStage = regStage === targetId ||
+1882:                        regStage === targetName ||
+1883:                        (targetName && regStage.includes(targetName)) ||
+1884:                        (targetName.includes("semi") && (regStage.includes("semi") || isQual)) ||
+1885:                        (targetName.includes("final") && (regStage.includes("final") || regStage.includes("grand")));
+1886:       }
+1887:     }
+1888: 
+1889:     const q = (searchQuery || "").toLowerCase().trim();
+1890:     if (!q) return matchesGrp && matchesStage;
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

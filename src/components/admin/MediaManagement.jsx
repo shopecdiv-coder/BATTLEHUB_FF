@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Edit, Image as ImageIcon, Video, FileText, UploadCloud, Loader2, Star, Check } from "lucide-react";
+import { Plus, Trash2, Edit, Image as ImageIcon, Video, FileText, UploadCloud, Loader2, Star, Check, Play, Search, Edit2, FileVideo, Calendar, CheckCircle, Save, X } from "lucide-react";
+import { uploadFileToAWS } from '@/utils/awsStorage';
 import { base44 } from "@/api/base44Client";
 
 export default function MediaManagement() {
@@ -49,7 +50,7 @@ export default function MediaManagement() {
     if (!file) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = await uploadFileToAWS(file);
       if (file_url) {
         setFormData(prev => ({ ...prev, [field]: file_url }));
       } else {
@@ -110,6 +111,7 @@ export default function MediaManagement() {
       title: post.title || "",
       description: post.description || "",
       type: post.type || "text",
+      video_type: post.video_type || (post.type === 'video' ? 'long' : undefined),
       media_url: post.media_url || "",
       thumbnail_url: post.thumbnail_url || "",
       status: post.status || "published",
@@ -123,7 +125,7 @@ export default function MediaManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <ImageIcon className="text-orange-400" /> Media Management
+          <ImageIcon className="text-orange-500" /> Media Management
         </h2>
       </div>
 
@@ -145,32 +147,19 @@ export default function MediaManagement() {
             </div>
             <div className="space-y-2">
               <Label className="text-gray-300">Type</Label>
-              <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
+              <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val, video_type: val === 'video' ? (formData.video_type || 'long') : undefined })}>
                 <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="Content Type" /></SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700 text-white">
                   <SelectItem value="text">Text / Announcement</SelectItem>
                   <SelectItem value="image">Image Post</SelectItem>
-                  <SelectItem value="video">Video Post</SelectItem>
+                  <SelectItem value="video">Long Video</SelectItem>
+                  <SelectItem value="reel">Short / Reel</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {formData.type === "video" && (
-            <div className="space-y-2">
-              <Label className="text-gray-300">Video Format</Label>
-              <Select 
-                value={formData.video_type || "short"} 
-                onValueChange={(val) => setFormData({ ...formData, video_type: val })}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="Video Format" /></SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                  <SelectItem value="short">Short (Vertical Reel/Shorts)</SelectItem>
-                  <SelectItem value="long">Long (Horizontal Video)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+
 
           <div className="space-y-2">
             <Label className="text-gray-300">Description</Label>
@@ -186,7 +175,7 @@ export default function MediaManagement() {
             <div className="space-y-2 p-4 border border-dashed border-gray-700 rounded-xl bg-gray-800/50">
               <Label className="text-gray-300">Media Source ({formData.type})</Label>
               <Input 
-                placeholder={formData.type === "video" ? "Paste direct .mp4 video URL..." : "Paste Image URL..."}
+                placeholder={formData.type === "video" || formData.type === "reel" ? "Paste direct .mp4 video URL..." : "Paste Image URL..."}
                 value={formData.media_url || ""} 
                 onChange={e => setFormData({ ...formData, media_url: e.target.value })}
                 className="bg-gray-900 border-gray-700 text-white mb-4"
@@ -199,25 +188,25 @@ export default function MediaManagement() {
                   <Check className="w-4 h-4" /> Cloud Media Uploaded Successfully
                 </div>
               ) : uploading ? (
-                <div className="flex items-center gap-3 mt-2 text-orange-400 bg-orange-500/10 px-4 py-2 rounded-md w-max border border-orange-500/20">
+                <div className="flex items-center gap-3 mt-2 text-orange-500 bg-orange-600/10 px-4 py-2 rounded-md w-max border border-orange-600/20">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span className="text-sm font-medium">Uploading to cloud... Please wait</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-4 mt-2">
-                  <input type="file" id="media-upload" className="hidden" accept={formData.type === "video" ? "video/*" : "image/*"} onChange={e => handleFileUpload(e, "media_url")} />
+                  <input type="file" id="media-upload" className="hidden" accept={formData.type === "video" || formData.type === "reel" ? "video/*" : "image/*"} onChange={e => handleFileUpload(e, "media_url")} />
                   <Label htmlFor="media-upload" className="cursor-pointer bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-md text-white flex items-center gap-2 transition-colors shadow-sm">
                     <UploadCloud className="w-4 h-4" /> Choose File
                   </Label>
                   <span className="text-xs text-gray-500">
-                    {formData.type === "video" ? "Upload to Cloudinary" : "Images supported"}
+                    {formData.type === "video" || formData.type === "reel" ? "Upload to Cloudinary" : "Images supported"}
                   </span>
                 </div>
               )}
             </div>
           )}
 
-          {formData.type === "video" && (
+          {(formData.type === "video" || formData.type === "reel") && (
              <div className="space-y-2 p-4 border border-dashed border-gray-700 rounded-xl bg-gray-800/50">
               <Label className="text-gray-300">Video Thumbnail (Optional)</Label>
               {formData.thumbnail_url ? (
@@ -258,7 +247,7 @@ export default function MediaManagement() {
                 Cancel
               </Button>
             )}
-            <Button type="submit" disabled={uploading} className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
+            <Button type="submit" disabled={uploading} className="bg-gradient-to-r from-orange-600 to-red-500 text-white">
               {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
               {editingPost ? "Update Post" : "Publish Post"}
             </Button>
@@ -298,7 +287,7 @@ export default function MediaManagement() {
                     </td>
                     <td className="p-4">
                       <span className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-800 rounded-full w-fit capitalize">
-                        {post.type === "video" ? <Video className="w-3 h-3 text-cyan-400" /> : post.type === "image" ? <ImageIcon className="w-3 h-3 text-green-400" /> : <FileText className="w-3 h-3 text-gray-400" />}
+                        {post.type === "video" ? <Video className="w-3 h-3 text-cyan-400" /> : post.type === "reel" ? <Play className="w-3 h-3 text-purple-400" /> : post.type === "image" ? <ImageIcon className="w-3 h-3 text-green-400" /> : <FileText className="w-3 h-3 text-gray-400" />}
                         {post.type}
                       </span>
                     </td>
@@ -316,7 +305,7 @@ export default function MediaManagement() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => handleEdit(post)} className="text-blue-400 hover:bg-blue-500/10">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(post)} className="text-blue-400 hover:bg-orange-500/10">
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDelete(post.id)} className="text-red-400 hover:bg-red-500/10">

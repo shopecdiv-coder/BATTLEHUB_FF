@@ -40,7 +40,7 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
         try {
           const [entries, regs] = await Promise.all([
             TournamentLeaderboard.filter({ user_id: player.id }).then(res => res.sort((a,b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 20)).catch(() => []),
-            Registration.filter({ user_id: player.id }, "-created_date", 50).catch(() => [])
+            Registration.filter({ user_id: player.id }).then(res => res.sort((a,b) => new Date(b.created_date || b.created_at || 0) - new Date(a.created_date || a.created_at || 0)).slice(0, 50)).catch(() => [])
           ]);
           setLeaderboardEntries(entries || []);
           setRegistrations(regs || []);
@@ -99,7 +99,7 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-[#0b0c10] border border-[#1f2029] rounded-2xl overflow-hidden shadow-lg">
+      <Card className="bg-[#0b0c10] border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
         <CardContent className="p-4 sm:p-6">
           
           {/* Header Row */}
@@ -124,9 +124,9 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
                   <Radar 
                     name="Player" 
                     dataKey="A" 
-                    stroke="#ff5500" 
+                    stroke="#0ea5e9" 
                     strokeWidth={2}
-                    fill="#ff5500" 
+                    fill="#0ea5e9" 
                     fillOpacity={0.3} 
                   />
                   {/* Inner points on radar vertices */}
@@ -134,8 +134,8 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
                     name="PlayerDots" 
                     dataKey="A" 
                     stroke="none" 
-                    fill="#ff5500" 
-                    dot={{ r: 4, fill: '#ff5500' }}
+                    fill="#0ea5e9" 
+                    dot={{ r: 4, fill: '#0ea5e9' }}
                     activeDot={false}
                   />
                 </RadarChart>
@@ -144,7 +144,7 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
 
             {/* Detailed Stats Section (Right) */}
             <div className="flex-1">
-              <div className="bg-[#0c0d12] border border-[#1f2029] rounded-xl p-5 flex flex-col gap-6">
+              <div className="bg-[#0c0d12] border border-slate-800 rounded-xl p-5 flex flex-col gap-6">
                 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
@@ -192,11 +192,11 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
           </div>
           
           {/* NEW COMPACT CHARTS GRID */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-[#1f2029] pt-6 animate-in slide-in-from-right-12 fade-in duration-700">
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-6 animate-in slide-in-from-right-12 fade-in duration-700">
             
             {/* Win / Loss Pie Chart */}
-            <div className="bg-[#111115] border border-[#2a2a35] rounded-xl p-4 flex flex-col hover:border-[#3a3a45] transition-colors">
-              <h4 className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><BarChart2 className="w-3.5 h-3.5 text-[#ff5500]"/> Win / Loss Ratio</h4>
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex flex-col hover:border-[#3a3a45] transition-colors">
+              <h4 className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><BarChart2 className="w-3.5 h-3.5 text-[#0ea5e9]"/> Win / Loss Ratio</h4>
               <div className="flex-1 min-h-[120px]">
                 {pieData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -214,7 +214,7 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
             </div>
 
             {/* Monthly Participation Bar Chart */}
-            <div className="bg-[#111115] border border-[#2a2a35] rounded-xl p-4 flex flex-col hover:border-[#3a3a45] transition-colors">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex flex-col hover:border-[#3a3a45] transition-colors">
               <h4 className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-blue-400"/> Participation</h4>
               <div className="flex-1 min-h-[120px]">
                 {monthlyData.length > 0 ? (
@@ -234,7 +234,7 @@ export default function OverviewTabV2({ player, tabType = "your" }) {
             </div>
 
             {/* Kills Trend Line Chart */}
-            <div className="bg-[#111115] border border-[#2a2a35] rounded-xl p-4 flex flex-col hover:border-[#3a3a45] transition-colors">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex flex-col hover:border-[#3a3a45] transition-colors">
               <h4 className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-red-400"/> Kills Trend</h4>
               <div className="flex-1 min-h-[120px]">
                 {killsData.length > 0 ? (

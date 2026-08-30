@@ -40,7 +40,7 @@ export class FirestoreEntity {
   }
 
   // list(orderByField, limitCount)
-  async list(orderField = null, limitCount = 100) {
+  async list(orderField = null, limitCount = 2000) {
     const cacheKey = `list_${this.collectionName}_${orderField}_${limitCount}`;
     const cached = cacheGet(cacheKey);
     if (cached) return cached;
@@ -104,7 +104,7 @@ export class FirestoreEntity {
   }
 
   // filter(conditions, orderByField, limitCount)
-  async filter(conditions = {}, orderField = null, limitCount = 100) {
+  async filter(conditions = {}, orderField = null, limitCount = 2000) {
     const conditionKey = Object.entries(conditions).map(([k,v]) => `${k}:${v}`).join('|');
     const cacheKey = `filter_${this.collectionName}_${conditionKey}_${orderField}_${limitCount}`;
     const cached = cacheGet(cacheKey);
@@ -286,9 +286,29 @@ export class FirestoreEntity {
   }
 }
 
+export const calculateLevelFromXP = (xp = 0) => {
+  if (isNaN(xp) || xp < 0) return 1;
+  return Math.floor(Math.sqrt(xp / 100)) + 1;
+};
+
+export const getXPForLevel = (level = 1) => {
+  return Math.pow(level - 1, 2) * 100;
+};
+
 class UserEntityClass extends FirestoreEntity {
   constructor() {
     super('users');
+  }
+
+  async addXP(userId, amount) {
+    if (!userId || amount <= 0) return;
+    try {
+      const { doc, increment, setDoc } = await import('firebase/firestore');
+      const docRef = doc(db, 'users', userId);
+      await setDoc(docRef, { xp: increment(amount) }, { merge: true });
+    } catch(e) {
+      console.error("Error adding XP:", e);
+    }
   }
 
   async me() {
@@ -310,7 +330,7 @@ class UserEntityClass extends FirestoreEntity {
               if (emailSnap.exists()) {
                 const profileData = { ...emailSnap.data(), id: firebaseUser.uid };
                 const userDocRef = doc(db, 'users', firebaseUser.uid);
-                await setDoc(userDocRef, profileData);
+                await setDoc(userDocRef, profileData, { merge: true });
                 
                 // Migrate diamonds
                 try {
@@ -332,7 +352,7 @@ class UserEntityClass extends FirestoreEntity {
                   created_date: new Date().toISOString()
                 };
                 const docRef = doc(db, 'users', firebaseUser.uid);
-                await setDoc(docRef, defaultProfile);
+                await setDoc(docRef, defaultProfile, { merge: true });
                 resolve(defaultProfile);
               }
             }
@@ -340,7 +360,7 @@ class UserEntityClass extends FirestoreEntity {
             reject(e);
           }
         } else {
-          reject(new Error("No user authenticated"));
+          resolve(null);
         }
       });
     });
@@ -361,6 +381,14 @@ class UserEntityClass extends FirestoreEntity {
   }
 
   async logout() {
+    if (auth.currentUser) {
+      try {
+        const { doc, updateDoc } = await import('firebase/firestore');
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), { activity_status: 'Offline' });
+      } catch (err) {
+        console.error("Failed to set offline status:", err);
+      }
+    }
     return auth.signOut();
   }
 
@@ -398,6 +426,7 @@ export const ActiveUser = new FirestoreEntity('active_users');
 export const ChatSettings = new FirestoreEntity('chat_settings');
 export const Match = new FirestoreEntity('matches');
 export const Rating = new FirestoreEntity('ratings');
+export const AppProblemReport = new FirestoreEntity('app_problem_reports');
 export const SupportTicket = new FirestoreEntity('support_tickets');
 export const SupportContact = new FirestoreEntity('support_contacts');
 export const RedeemCode = new FirestoreEntity('redeem_codes');
@@ -410,10 +439,15 @@ export const MediaComment = new FirestoreEntity('media_comments');
 export const Friendship = new FirestoreEntity('friendships');
 export const Follower = new FirestoreEntity('followers');
 export const Party = new FirestoreEntity('parties');
+export const PartyInvite = new FirestoreEntity('party_invites');
 export const DirectMessage = new FirestoreEntity('direct_messages');
 export const Reputation = new FirestoreEntity('reputations');
+export const ReputationLog = new FirestoreEntity('reputation_logs');
+export const ProfileLike = new FirestoreEntity('profile_likes');
 export const UserAchievement = new FirestoreEntity('user_achievements');
+export const Channel = new FirestoreEntity('channels');
 export const SocialStat = new FirestoreEntity('social_stats');
+export const PlayerMatchHistory = new FirestoreEntity('player_match_history');
 
 
 export const User = new UserEntityClass();
@@ -424,6 +458,8 @@ export const CommunityPost = new FirestoreEntity('community_posts');
 export const PlayerMessage = new FirestoreEntity('player_messages');
 export const LegalContent = new FirestoreEntity('legal_contents');
 export const FAQ = new FirestoreEntity('faqs');
+export const Squad = new FirestoreEntity('squads');
+export const SquadRequest = new FirestoreEntity('squad_requests');
 export const LeaderboardEntry = new FirestoreEntity('leaderboard_entries');
 export const MessageTemplate = new FirestoreEntity('message_templates');
 export const PhotoLibrary = new FirestoreEntity('photo_library');
@@ -436,9 +472,17 @@ export const GroupChatMessage = new FirestoreEntity('group_chat_messages');
 // Store Entities
 export const Product = new FirestoreEntity('products');
 export const UserPurchase = new FirestoreEntity('user_purchases');
+export const UserOrder = new FirestoreEntity('user_orders');
+export const UserAddress = new FirestoreEntity('user_addresses');
+export const UserWishlist = new FirestoreEntity('user_wishlists');
+export const SellRequest = new FirestoreEntity('sell_requests');
+export const StoreBanner = new FirestoreEntity('store_banners');
+export const ProductReview = new FirestoreEntity('product_reviews');
 
 export const Announcement = new FirestoreEntity('announcements');
 export const TournamentMatch = new FirestoreEntity('tournament_matches');
+export const GameMap = new FirestoreEntity('game_maps');
+export const Blog = new FirestoreEntity('blogs');
 
 // Mock query object just in case
 export const Query = {

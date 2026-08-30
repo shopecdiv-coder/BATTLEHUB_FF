@@ -233,7 +233,7 @@ export default function PlayerProfilesManagement() {
                               <p className="text-gray-500 text-[10px]">Team: {match.team_name}</p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-bold text-sm ${match.placement === 1 ? 'text-yellow-400' : match.placement === 2 ? 'text-gray-300' : match.placement === 3 ? 'text-orange-400' : 'text-white'}`}>
+                              <p className={`font-bold text-sm ${match.placement === 1 ? 'text-yellow-400' : match.placement === 2 ? 'text-gray-300' : match.placement === 3 ? 'text-orange-500' : 'text-white'}`}>
                                 {match.placement > 0 ? (match.placement <= 3 ? ['🥇','🥈','🥉'][match.placement-1] : `#${match.placement}`) : '-'}
                               </p>
                               <p className="text-red-400 text-[10px]">{match.kills} kills</p>

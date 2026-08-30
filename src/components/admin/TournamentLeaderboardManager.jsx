@@ -464,11 +464,14 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                   <SelectValue placeholder="Choose tournament..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {tournaments.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.title} - {format(new Date(t.date_time), "dd MMM, hh:mm a")}
-                    </SelectItem>
-                  ))}
+                  {tournaments.map((t) => {
+                    const isValid = t.date_time && !isNaN(new Date(t.date_time).getTime());
+                    return (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.title} - {isValid ? format(new Date(t.date_time), "dd MMM, hh:mm a") : "No Date"}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -513,7 +516,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
               <span className="text-gray-500 text-xs">teams</span>
             </div>
             {(selectedTournament.stage === "grand_final" || selectedTournament.tournament_type === "Grand Final") && (
-              <Button size="sm" onClick={() => setShowGrandFinalManager(!showGrandFinalManager)} className="bg-gradient-to-r from-red-600 to-orange-600 text-xs">
+              <Button size="sm" onClick={() => setShowGrandFinalManager(!showGrandFinalManager)} className="bg-gradient-to-r from-red-600 to-orange-700 text-xs">
                 <Swords className="w-3 h-3 mr-1" />
                 {showGrandFinalManager ? "Hide" : "Grand Final M1–M5"}
               </Button>
@@ -526,7 +529,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
           )}
 
           {/* Point System Info */}
-          <Card className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border-blue-500/30">
+          <Card className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border-orange-500/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 flex-wrap text-sm">
                 {isGrandFinal ? (
@@ -572,7 +575,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                     </Button>
                   </>
                 )}
-                <Button onClick={downloadPDF} variant="outline" size="sm" className="border-blue-500/50 text-blue-400">
+                <Button onClick={downloadPDF} variant="outline" size="sm" className="border-orange-500/50 text-blue-400">
                   <Download className="w-4 h-4 mr-1" /> PDF
                 </Button>
               </div>
@@ -615,12 +618,12 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                         const isHighlighted = highlightTop > 0 && rankNum <= highlightTop;
                         const isTied = entry._isTie;
                         return (
-                        <tr key={entry.id} className={`border-b border-gray-700/50 ${selectedEntries.has(entry.id) ? 'bg-blue-500/10 ' : ''}${
+                        <tr key={entry.id} className={`border-b border-gray-700/50 ${selectedEntries.has(entry.id) ? 'bg-orange-500/10 ' : ''}${
                           isHighlighted
                             ? 'bg-yellow-500/20 border-l-4 border-l-yellow-400'
                             : rankNum === 1 ? 'bg-yellow-500/10'
                             : rankNum === 2 ? 'bg-gray-400/10'
-                            : rankNum === 3 ? 'bg-orange-500/10'
+                            : rankNum === 3 ? 'bg-orange-600/10'
                             : ''
                         }`}>
                           <td className="py-3 px-2 text-center">
@@ -638,11 +641,11 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                               <span className={`font-bold ${
                                 rankNum === 1 ? 'text-yellow-400' :
                                 rankNum === 2 ? 'text-gray-300' :
-                                rankNum === 3 ? 'text-orange-400' : 'text-white'
+                                rankNum === 3 ? 'text-orange-500' : 'text-white'
                               }`}>
                                 #{rankNum}
                               </span>
-                              {isTied && <span className="text-[9px] text-orange-400 font-bold">TIE ⚠️</span>}
+                              {isTied && <span className="text-[9px] text-orange-500 font-bold">TIE ⚠️</span>}
                               {isHighlighted && <span className="text-[9px] text-yellow-400">⭐ Advance</span>}
                             </div>
                           </td>
@@ -659,7 +662,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                                     {entry.is_qualified && <span className="text-green-400 text-xs" title="Qualified">✅</span>}
                                   </div>
                                   {entry.moved_to && (
-                                    <span className="text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded px-1.5 py-0.5">
+                                    <span className="text-[10px] text-blue-400 bg-orange-500/10 border border-orange-500/20 rounded px-1.5 py-0.5">
                                       📤 {entry.moved_to}
                                     </span>
                                   )}
@@ -770,7 +773,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                                   type="number"
                                   value={editingRankValue}
                                   onChange={e => setEditingRankValue(e.target.value)}
-                                  className="w-12 bg-gray-900 border border-blue-500/50 rounded text-white text-center text-xs h-6 px-1"
+                                  className="w-12 bg-gray-900 border border-orange-500/50 rounded text-white text-center text-xs h-6 px-1"
                                   onKeyDown={e => { if (e.key === 'Enter') saveManualRank(entry.id, editingRankValue); if (e.key === 'Escape') setEditingRankId(null); }}
                                 />
                                 <button onClick={() => saveManualRank(entry.id, editingRankValue)} className="text-green-400 hover:text-green-300">
@@ -807,7 +810,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
           )}
 
           {/* Admin Message for Leaderboard */}
-          <Card className="bg-gray-800 border-blue-500/30">
+          <Card className="bg-gray-800 border-orange-500/30">
             <CardContent className="p-4">
               <Label className="text-blue-300 text-sm font-semibold mb-2 block">📢 Leaderboard Message (shown to all players at top of leaderboard)</Label>
               <div className="flex gap-2">
@@ -815,10 +818,10 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                   value={adminMessage}
                   onChange={e => setAdminMessage(e.target.value)}
                   placeholder="e.g. Top 6 teams will move to Semifinals! Grand Finals on Sunday 8 PM."
-                  className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-blue-500/50 outline-none"
+                  className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:border-orange-500/50 outline-none"
                   disabled={isFinalized}
                 />
-                <Button onClick={saveAdminMessage} disabled={savingMessage || isFinalized} size="sm" className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
+                <Button onClick={saveAdminMessage} disabled={savingMessage || isFinalized} size="sm" className="bg-orange-600 hover:bg-blue-700 whitespace-nowrap">
                   {savingMessage ? "Saving..." : "Save Msg"}
                 </Button>
               </div>
@@ -840,7 +843,7 @@ export default function TournamentLeaderboardManager({ onUpdate }) {
                 <Button
                   onClick={finalizeLeaderboard}
                   disabled={saving}
-                  className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:opacity-90"
+                  className="bg-gradient-to-r from-yellow-600 to-orange-700 hover:opacity-90"
                 >
                   <Lock className="w-4 h-4 mr-2" />
                   Finalize & Notify

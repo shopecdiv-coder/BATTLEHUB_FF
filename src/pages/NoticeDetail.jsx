@@ -40,7 +40,7 @@ export default function NoticeDetail() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
       </div>
     );
   }
@@ -74,12 +74,12 @@ export default function NoticeDetail() {
           <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
             <CardHeader>
               <div className="flex items-center gap-3 mb-4">
-                <Calendar className="w-5 h-5 text-orange-400" />
-                <Badge variant="outline" className="text-orange-400">
+                <Calendar className="w-5 h-5 text-orange-500" />
+                <Badge variant="outline" className="text-orange-500">
                   {format(new Date(notice.date), "PPP")}
                 </Badge>
               </div>
-              <CardTitle className="text-3xl text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400">
+              <CardTitle className="text-3xl text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-400">
                 {notice.title}
               </CardTitle>
             </CardHeader>
@@ -94,7 +94,7 @@ export default function NoticeDetail() {
 
               {/* Winner Details */}
               {notice.winner_details && (
-                <div className="p-6 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-orange-500/30">
+                <div className="p-6 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-orange-600/30">
                   <div className="flex items-center gap-2 mb-4">
                     <Trophy className="w-6 h-6 text-[#FFD700]" />
                     <h3 className="text-xl font-bold text-gray-100">Winners</h3>
@@ -155,9 +155,9 @@ export default function NoticeDetail() {
                               rel="noopener noreferrer"
                               className="flex flex-col items-center justify-center h-64 bg-gradient-to-br from-red-900/30 to-orange-900/30 hover:from-red-900/40 hover:to-orange-900/40 transition-all"
                             >
-                              <FileText className="w-16 h-16 text-orange-400 mb-3" />
+                              <FileText className="w-16 h-16 text-orange-500 mb-3" />
                               <p className="text-gray-300 font-semibold">PDF Document</p>
-                              <Button className="mt-3 bg-orange-500 hover:bg-orange-600">
+                              <Button className="mt-3 bg-orange-600 hover:bg-orange-700">
                                 <Download className="w-4 h-4 mr-2" />
                                 Download
                               </Button>

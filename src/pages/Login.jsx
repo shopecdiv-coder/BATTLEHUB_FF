@@ -5,10 +5,10 @@ import { createPageUrl } from '@/utils';
 import { ChatSettings } from '@/entities/ChatSettings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, User as UserIcon, Lock, Mail, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Loader2, User as UserIcon, Lock, Mail, Eye, EyeOff, ArrowLeft, CheckCircle2, Gift } from 'lucide-react';
 
 export default function Login() {
-  const { login, register, resetPassword } = useAuth();
+  const { login, register, resetPassword, isAuthenticated, user, reloadUser, logout } = useAuth();
   const navigate = useNavigate();
   
   const [isLogin, setIsLogin] = useState(true);
@@ -18,6 +18,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -57,6 +58,51 @@ export default function Login() {
         await login(email, password);
       } else {
         await register(email, password, fullName);
+        
+        // Handle optional referral code
+        if (referralCode.trim()) {
+          try {
+            const { User } = await import('@/entities/User');
+            const { Referral } = await import('@/entities/Referral');
+            const { AppSettings } = await import('@/entities/AppSettings');
+            const { base44 } = await import('@/api/base44Client');
+            
+            const newUser = await User.me();
+            if (newUser) {
+              const inputCode = referralCode.trim().toUpperCase();
+              const byUniqueId = await User.filter({ unique_id: inputCode }).catch(() => []);
+              let referrer = byUniqueId.length > 0 ? byUniqueId[0] : null;
+              
+              if (!referrer) {
+                const allUsers = await User.list("-created_date", 200).catch(() => []);
+                referrer = allUsers.find(u => u.unique_id === inputCode);
+              }
+              
+              if (referrer && referrer.id !== newUser.id) {
+                let rewardAmount = 20;
+                const settings = await AppSettings.filter({ setting_key: "referral_system" }).catch(() => []);
+                if (settings.length > 0 && settings[0].setting_value) {
+                  rewardAmount = parseInt(settings[0].setting_value) || 20;
+                }
+                
+                await Referral.create({
+                  referrer_id: referrer.id,
+                  referrer_ign: referrer.ign || referrer.full_name || "Player",
+                  referred_user_id: newUser.id,
+                  referred_user_ign: newUser.ign || newUser.full_name || "Player",
+                  status: "Pending",
+                  reward_amount: rewardAmount,
+                  reward_credited: false,
+                  transferred: false
+                });
+
+                await base44.auth.updateMe({ referred_by: referrer.id });
+              }
+            }
+          } catch (refErr) {
+            console.error("Failed to process referral code during signup", refErr);
+          }
+        }
       }
       navigate(createPageUrl("Home"));
     } catch (err) {
@@ -97,6 +143,112 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const renderVerificationRequired = () => (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-center space-y-5">
+      <div className="mb-4">
+        <div className="w-16 h-16 bg-white/10 border border-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+          <Mail className="w-8 h-8 text-white" />
+        </div>
+        <h2 className="text-[26px] font-bold text-white tracking-wide">
+          Verify Your Email
+        </h2>
+        <p className="text-white/80 text-[13px] mt-2">
+          We've sent a verification link to:
+        </p>
+        <p className="text-sky-300 font-bold text-sm mt-1 truncate">
+          {user?.email}
+        </p>
+      </div>
+
+      <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 p-3.5 rounded-xl text-left text-xs leading-relaxed">
+        ⚠️ <b>Check Spam/Junk:</b> If you don't see the email, please check your spam folder.
+      </div>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-xl text-xs text-left font-medium">
+          {error}
+        </div>
+      )}
+
+      {resetSent && (
+        <div className="bg-[#3bb652]/20 border border-[#3bb652]/50 text-[#3bb652] px-4 py-2 rounded-xl text-xs font-semibold">
+          Verification email resent successfully!
+        </div>
+      )}
+
+      <div className="space-y-3 pt-2">
+        <Button
+          onClick={async () => {
+            setLoading(true);
+            setError(null);
+            try {
+              const { auth: firebaseAuth } = await import('@/api/firebaseClient');
+              if (firebaseAuth.currentUser) {
+                await firebaseAuth.currentUser.reload();
+                if (firebaseAuth.currentUser.emailVerified) {
+                  await reloadUser();
+                  navigate(createPageUrl("Home"));
+                } else {
+                  setError("❌ Email is not verified yet. Please check your inbox and click the verification link.");
+                }
+              }
+            } catch (err) {
+              setError("Failed to check verification. Please try again.");
+            } finally {
+              setLoading(false);
+            }
+          }}
+          disabled={loading}
+          className="w-full h-12 rounded-xl font-bold text-[14px] tracking-wide text-white border-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{
+            background: 'linear-gradient(90deg, #9bc83a 0%, #2f9a4b 100%)',
+            boxShadow: '0 4px 15px rgba(47, 154, 75, 0.4)'
+          }}
+        >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "I've Verified (Reload)"}
+        </Button>
+
+        <Button
+          onClick={async () => {
+            setLoading(true);
+            setError(null);
+            setResetSent(false);
+            try {
+              const { sendEmailVerification } = await import('firebase/auth');
+              const { auth: firebaseAuth } = await import('@/api/firebaseClient');
+              if (firebaseAuth.currentUser) {
+                await sendEmailVerification(firebaseAuth.currentUser);
+                setResetSent(true);
+              } else {
+                setError("No logged in user found.");
+              }
+            } catch (err) {
+              setError(err.message || "Failed to resend verification email.");
+            } finally {
+              setLoading(false);
+            }
+          }}
+          disabled={loading}
+          className="w-full h-11 rounded-xl text-white/95 border border-white/20 bg-white/5 hover:bg-white/10 text-xs font-bold transition-all"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Resend Verification Link"}
+        </Button>
+
+        <Button
+          onClick={() => {
+            logout(false);
+            setError(null);
+            setResetSent(false);
+          }}
+          variant="ghost"
+          className="w-full text-white/60 hover:text-white text-xs font-bold transition-colors"
+        >
+          Log Out / Change Account
+        </Button>
+      </div>
+    </div>
+  );
 
   const renderForgotPassword = () => (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -182,7 +334,11 @@ export default function Login() {
           boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
         }}
       >
-        {isForgotPassword ? renderForgotPassword() : (
+        {isAuthenticated && user && !user.emailVerified && user.role !== 'admin' ? (
+          renderVerificationRequired()
+        ) : isForgotPassword ? (
+          renderForgotPassword()
+        ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="mb-8">
               <h1 className="text-[32px] font-bold text-white tracking-wide">
@@ -240,6 +396,19 @@ export default function Login() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+
+              {!isLogin && (
+                <div className="relative mt-2">
+                  <Input
+                    type="text"
+                    placeholder="Referral Code (Optional)"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    className="w-full h-14 pl-5 pr-12 rounded-[14px] bg-transparent border-white/40 text-white placeholder:text-white/70 focus:border-white focus:bg-white/10 transition-colors text-[15px] font-mono uppercase"
+                  />
+                  <Gift className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70" />
+                </div>
+              )}
 
               {isLogin && (
                 <div className="flex items-center justify-between px-1 pt-1">

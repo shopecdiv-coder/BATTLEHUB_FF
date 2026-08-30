@@ -1,0 +1,808 @@
+Created At: 2026-08-21T23:37:33+05:30
+Completed At: 2026-08-21T23:37:33+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2511
+Total Bytes: 132513
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import React, { useState, useEffect } from "react";
+2: import { createPortal } from "react-dom";
+3: import { Tournament } from "@/entities/Tournament";
+4: import { Registration } from "@/entities/Registration";
+5: import { User } from "@/entities/User";
+6: import { Match } from "@/entities/Match";
+7: import { TournamentLeaderboard } from "@/entities/TournamentLeaderboard";
+8: import { Report } from "@/entities/Report";
+9: import { Link, useNavigate } from "react-router-dom";
+10: import { createPageUrl } from "@/utils";
+11: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+12: import { Button } from "@/components/ui/button";
+13: import { Badge } from "@/components/ui/badge";
+14: import { db } from "@/api/firebaseClient";
+15: import { collection, query, where, onSnapshot } from "firebase/firestore";
+16: import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+17: import { Textarea } from "@/components/ui/textarea";
+18: import { 
+19:   Calendar, Users, Trophy, MapPin, ArrowLeft, Clock, 
+20:   DollarSign, ScrollText, Flag, Key, Edit, Save, AlertTriangle, ChevronDown, ChevronUp, MessageCircle, Image, X, User as UserIcon, ArrowRight, Download, Gamepad2, CheckCircle2, Ticket, Sparkles, Loader2, Share2
+21: } from "lucide-react";
+22: import { Input } from "@/components/ui/input";
+23: import { Label } from "@/components/ui/label";
+24: import { format } from "date-fns";
+25: import { AnimatePresence, motion } from "framer-motion";
+26: import { toast } from "sonner";
+27: 
+28: import StepByStepRegistration, { MatchLiveCountdown } from "../components/tournament/StepByStepRegistration";
+29: import RegistrationInvoiceDownload from "../components/tournament/RegistrationInvoiceDownload";
+30: import MatchList from "../components/tournament/MatchList";
+31: import RegistrationCloseTimer from "../components/RegistrationCloseTimer";
+32: import TournamentChat from "../components/tournament/TournamentChat";
+33: import TournamentChatFullscreen from "../components/tournament/TournamentChatFullscreen";
+34: import InviteManager, { SendInvitePanel } from "../components/tournament/InviteSystem";
+35: import SquadsDrawer from "@/components/profile/v2/SquadsDrawer";
+36: import { generateTournamentPDF } from "../components/tournament/TournamentPDFReport";
+37: 
+38: 
+39: 
+40: export default function TournamentDetail() {
+41:   const safeFormatDate = (dateString) => {
+42:     if (!dateString) return "TBD";
+43:     try {
+44:       const d = new Date(dateString);
+45:       if (isNaN(d.getTime())) return "TBD";
+46:       return format(d, "PPP p");
+47:     } catch (e) {
+48:       return "TBD";
+49:     }
+50:   };
+51: 
+52:   const getRegCloseTime = (t) => {
+53:     if (!t) return null;
+54:     const explicit = t.registration_closes || t.registration_close_time || t.reg_close_date || t.registration_end_time;
+55:     if (explicit) return explicit;
+56:     
+57:     const startIso = t.start_time || t.start_date || t.date_time;
+58:     if (startIso) {
+59:       const startD = new Date(startIso);
+60:       if (!isNaN(startD.getTime())) {
+61:         return new Date(startD.getTime() - 30 * 60 * 1000).toISOString();
+62:       }
+63:     }
+64:     return null;
+65:   };
+66: 
+67:   const navigate = useNavigate();
+68:   const urlParams = new URLSearchParams(window.location.search);
+69:   const tournamentId = urlParams.get("id");
+70: 
+71:   const [tournament, setTournament] = useState(null);
+72:   const [matches, setMatches] = useState([]);
+73:   const [registrations, setRegistrations] = useState([]);
+74:   const [user, setUser] = useState(null);
+75:   const [loading, setLoading] = useState(true);
+76:   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+77:   const [isRegistered, setIsRegistered] = useState(false);
+78:   const [userRegistration, setUserRegistration] = useState(null);
+79:   const [leaderboardEntries, setLeaderboardEntries] = useState([]);
+80:   const [editingReg, setEditingReg] = useState(false);
+81:   const [editIGN, setEditIGN] = useState("");
+82:   const [editUID, setEditUID] = useState("");
+83:   const [savingEdit, setSavingEdit] = useState(false);
+84:   const [roomUnlockTime, setRoomUnlockTime] = useState(null);
+85:   const [prizeCollapsed, setPrizeCollapsed] = useState(false);
+86:   const [showChatPopup, setShowChatPopup] = useState(false);
+87:   const [showPrizeImageModal, setShowPrizeImageModal] = useState(false);
+88:   const [qualifiedRegistrations, setQualifiedRegistrations] = useState([]);
+89:   
+90:   // Target tournament states for move system
+91:   const [sfATournament, setSfATournament] = useState(null);
+92:   const [sfBTournament, setSfBTournament] = useState(null);
+93:   const [gfTournament, setGfTournament] = useState(null);
+94:   const [movingTeam, setMovingTeam] = useState(null); // { entry, stage, group }
+95:   
+96:   // Report states
+97:   const [showReportModal, setShowReportModal] = useState(null);
+98:   const [reportReason, setReportReason] = useState("");
+99:   const [reportDescription, setReportDescription] = useState("");
+100:   const [submittingReport, setSubmittingReport] = useState(false);
+101:   // Multi-Group Teams Filter States
+102:   const [teamSearchQuery, setTeamSearchQuery] = useState("");
+103:   const [teamGroupFilter, setTeamGroupFilter] = useState("all");
+104:   const [activeStageFilter, setActiveStageFilter] = useState("qualifiers");
+105: 
+106:   // New states for Match Credentials directly on the page
+107:   const [matchCredentials, setMatchCredentials] = useState(null);
+108:   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+109: 
+110:   useEffect(() => {
+111:     if (!tournamentId) return;
+112:     
+113:     const q = query(
+114:       collection(db, "player_messages"),
+115:       where("tournament_id", "==", String(tournamentId))
+116:     );
+117:     
+118:     const unsub = onSnapshot(q, (snap) => {
+119:       const msgs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+120:       
+121:       const possibleUserIds = new Set([
+122:         user?.id,
+123:         user?.uid,
+124:         user?.game_id,
+125:         userRegistration?.team_leader_id,
+126:         userRegistration?.user_id,
+127:         userRegistration?.id
+128:       ].filter(Boolean).map(String));
+129: 
+130:       const relevantMsgs = msgs.filter(m => {
+131:         if (!m.room_code && !m.message) return false;
+132:         if (user?.role === "admin") return true;
+133:         return possibleUserIds.has(String(m.recipient_id));
+134:       });
+135: 
+136:       if (relevantMsgs.length > 0) {
+137:         relevantMsgs.sort((a,b) => new Date(b.sent_at || 0).getTime() - new Date(a.sent_at || 0).getTime());
+138:         setMatchCredentials(relevantMsgs[0]);
+139:       } else if (tournament?.room_code) {
+140:         setMatchCredentials({
+141:           room_code: tournament.room_code,
+142:           room_password: tournament.room_password || "",
+143:           message: tournament.room_message || "Match Credentials released!"
+144:         });
+145:       } else {
+146:         setMatchCredentials(null);
+147:       }
+148:     });
+149:     
+150:     return () => unsub();
+151:   }, [user, userRegistration, tournamentId, tournament]);
+152: 
+153: 
+154:   useEffect(() => {
+155:     loadData();
+156:   }, []);
+157: 
+158:   useEffect(() => {
+159:     // Auto-hide room credentials after 20 minutes
+160:     if (tournament?.room_code && isRegistered) {
+161:       if (!roomUnlockTime) {
+162:         setRoomUnlockTime(new Date());
+163:       }
+164:       
+165:       const checkInterval = setInterval(() => {
+166:         if (roomUnlockTime) {
+167:           const now = new Date();
+168:           const diff = (now - new Date(roomUnlockTime)) / 1000 / 60; // minutes
+169:           
+170:           if (diff >= 20) {
+171:             // Hide room credentials locally
+172:             setTournament({...tournament, room_code: null, room_password: null});
+173:             clearInterval(checkInterval);
+174:           }
+175:         }
+176:       }, 10000); // Check every 10 seconds
+177:       
+178:       return () => clearInterval(checkInterval);
+179:     }
+180:   }, [tournament, isRegistered, roomUnlockTime]);
+181: 
+182:   const getGroupMatchTime = (groupNumber, userReg = null) => {
+183:     if (userReg?.group_match_time && typeof userReg.group_match_time === 'string') {
+184:       return userReg.group_match_time;
+185:     }
+186: 
+187:     const gNum = parseInt(groupNumber) || 1;
+188:     const groupIdx = Math.max(0, gNum - 1);
+189:     const schedules = tournament?.group_schedules;
+190: 
+191:     if (schedules) {
+192:       if (Array.isArray(schedules)) {
+193:         const item = schedules.find(s => s && (s.group_index === groupIdx || s.group_name === `Group ${gNum}`)) || schedules[groupIdx];
+194:         if (item) {
+195:           if (typeof item === 'string') return item;
+196:           if (typeof item === 'object' && item.date_time && typeof item.date_time === 'string') return item.date_time;
+197:         }
+198:       } else if (typeof schedules === 'object') {
+199:         const item = schedules[gNum] || schedules[`group_${gNum}`] || schedules[groupIdx];
+200:         if (typeof item === 'string') return item;
+201:         if (typeof item === 'object' && item.date_time && typeof item.date_time === 'string') return item.date_time;
+202:       }
+203:     }
+204: 
+205:     if (typeof tournament?.date_time === 'string' && tournament.date_time) return tournament.date_time;
+206:     if (typeof tournament?.start_time === 'string' && tournament.start_time) return tournament.start_time;
+207:     if (typeof tournament?.start_date === 'string' && tournament.start_date) return tournament.start_date;
+208: 
+209:     return null;
+210:   };
+211: 
+212:   const loadData = async () => {
+213:     try {
+214:       const tIdStr = String(tournamentId || "");
+215: 
+216:       // 1. INSTANT LOCAL CACHE RESTORE (0ms initial render)
+217:       try {
+218:         const cachedTourney = localStorage.getItem(`t_cache_${tIdStr}`);
+219:         if (cachedTourney) {
+220:           const parsedT = JSON.parse(cachedTourney);
+221:           if (parsedT && (parsedT.id === tIdStr || parsedT.id === tournamentId)) {
+222:             setTournament(parsedT);
+223:             setLoading(false);
+224:           }
+225:         }
+226:       } catch (e) {}
+227: 
+228:       // Check localStorage for instant registration status restore on back navigation
+229:       let localRegData = null;
+230:       try {
+231:         const possibleKeys = Object.keys(localStorage).filter(k => k.startsWith(`user_reg_${tIdStr}_`));
+232:         for (const key of possibleKeys) {
+233:           const rawLocal = localStorage.getItem(key);
+234:           if (rawLocal) {
+235:             const parsed = JSON.parse(rawLocal);
+236:             if (parsed && parsed.tournament_id === tIdStr) {
+237:               localRegData = parsed;
+238:               setIsRegistered(true);
+239:               setUserRegistration(parsed);
+240:               setEditIGN(parsed.team_members?.[0]?.ign || parsed.team_leader_ign || "");
+241:               setEditUID(parsed.team_members?.[0]?.uid || "");
+242:               break;
+243:             }
+244:           }
+245:         }
+246:       } catch (e) {}
+247: 
+248:       // 2. High-speed parallel loading (Single direct doc fetch, no duplicate queries)
+249:       const [currentUser, singleTournamentObj, allRegistrations, tournamentMatches, lbEntries] = await Promise.all([
+250:         User.me().catch(() => null),
+251:         Tournament.get(tournamentId).catch(() => null),
+252:         Registration.filter({ tournament_id: tIdStr }).catch(() => []),
+253:         Match.filter({ tournament_id: tournamentId }, "-match_number").catch(() => []),
+254:         TournamentLeaderboard.filter({ tournament_id: tournamentId }, "rank").catch(() => [])
+255:       ]);
+256: 
+257:       if (currentUser) setUser(currentUser);
+258:       
+259:       let currentTournament = singleTournamentObj;
+260:       if (currentTournament) {
+261:         setTournament(currentTournament);
+262:         try {
+263:           localStorage.setItem(`t_cache_${tIdStr}`, JSON.stringify(currentTournament));
+264:         } catch (e) {}
+265:       }
+266: 
+267:       setMatches(tournamentMatches || []);
+268:       // Only keep published leaderboard entries for the public view (Admins can preview drafts)
+269:       const isAdmin = currentUser && currentTournament && String(currentUser.id) === String(currentTournament.user_id);
+270:       const publishedLbEntries = isAdmin ? (lbEntries || []) : (lbEntries || []).filter(e => e.is_published !== false);
+271:       setLeaderboardEntries(publishedLbEntries);
+272: 
+273:       // Merge all registration sources ONLY for this specific tournament
+274:       const combinedRegs = (allRegistrations || []).filter(r => String(r.tournament_id || "") === String(tIdStr));
+275:       
+276:       if (localRegData && String(localRegData.tournament_id || "") === String(tIdStr) && !combinedRegs.some(r => r.id === localRegData.id)) {
+277:         combinedRegs.push(localRegData);
+278:       }
+279: 
+280:       // Also fetch user-specific registrations if user is logged in (filtered ONLY for this tournament)
+281:       if (currentUser?.id) {
+282:         try {
+283:           const userRegsById = await Registration.filter({ team_leader_id: String(currentUser.id), tournament_id: String(tIdStr) }).catch(() => []);
+284:           (userRegsById || []).forEach(ur => {
+285:             if (String(ur.tournament_id || "") === String(tIdStr) && !combinedRegs.some(r => r.id === ur.id)) {
+286:               combinedRegs.push(ur);
+287:             }
+288:           });
+289:         } catch (e) {}
+290:       }
+291: 
+292:       setRegistrations(combinedRegs);
+293: 
+294:       if (currentUser) {
+295:         const cId = String(currentUser.id || "");
+296:         const cUid = String(currentUser.uid || "");
+297:         const cGameUid = String(currentUser.game_uid || "");
+298:         const cGameId = String(currentUser.game_id || "");
+299:         const cIgn = currentUser.ign ? currentUser.ign.toLowerCase() : "";
+300: 
+301:         // Search in BOTH Firestore results AND local state
+302:         setRegistrations(currentRegs => {
+303:           const searchIn = currentRegs;
+304:           const userReg = searchIn.find(r => {
+305:             const rTId = String(r.tournament_id || "");
+306:             if (rTId && rTId !== tIdStr) return false;
+307: 
+308:             const lId = String(r.team_leader_id || r.user_id || "");
+309:             const lUid = String(r.team_leader_uid || "");
+310:             const lIgn = r.team_leader_ign ? r.team_leader_ign.toLowerCase() : "";
+311: 
+312:             if (lId && (lId === cId || lId === cUid)) return true;
+313:             if (lUid && (lUid === cGameUid || lUid === cGameId || lUid === cUid || lUid === cId)) return true;
+314:             if (lIgn && cIgn && lIgn === cIgn) return true;
+315: 
+316:             if (r.team_members && Array.isArray(r.team_members)) {
+317:               return r.team_members.some(m => {
+318:                 const mUid = String(m.uid || m.game_id || "");
+319:                 const mIgn = m.ign ? m.ign.toLowerCase() : "";
+320:                 return (mUid && (mUid === cGameUid || mUid === cGameId || mUid === cUid || mUid === cId)) || (mIgn && cIgn && mIgn === cIgn);
+321:               });
+322:             }
+323:             return false;
+324:           });
+325: 
+326:           if (userReg) {
+327:             setIsRegistered(true);
+328:             setUserRegistration(userReg);
+329:             setEditIGN(userReg.team_members?.[0]?.ign || userReg.team_leader_ign || "");
+330:             setEditUID(userReg.team_members?.[0]?.uid || "");
+331:             // Save to localStorage for instant restore on back navigation
+332:             try {
+333:               localStorage.setItem(`user_reg_${tIdStr}_${cId}`, JSON.stringify(userReg));
+334:               if (cUid && cUid !== cId) localStorage.setItem(`user_reg_${tIdStr}_${cUid}`, JSON.stringify(userReg));
+335:             } catch (e) {}
+336:           }
+337:           return searchIn;
+338:         });
+339:       }
+340: 
+341:       // Load existing target tournaments for move system (admin only) — only non-Completed
+342:       if (currentUser && currentUser.role === "admin") {
+343:         try {
+344:           const sfAll = await Tournament.filter({ tournament_type: "Semifinal" }).catch(() => []);
+345:           const gfAll = await Tournament.filter({ tournament_type: "Grand Final" }).catch(() => []);
+346:           const openSf = sfAll.filter(t => t.status !== "Completed" && t.status !== "Cancelled");
+347:           const openGf = gfAll.filter(t => t.status !== "Completed" && t.status !== "Cancelled");
+348:           setSfATournament(openSf.find(t => t.semifinal_group === "A") || null);
+349:           setSfBTournament(openSf.find(t => t.semifinal_group === "B") || null);
+350:           setGfTournament(openGf?.[0] || null);
+351:         } catch (e) { console.error("Admin move data load failed", e); }
+352:       }
+353:     } catch (error) {
+354:       console.error("Error loading tournament details:", error);
+355:     } finally {
+356:       setLoading(false);
+357:     }
+358:   };
+359: 
+360:   const handleRegistrationSuccess = async (createdReg) => {
+361:     setShowRegistrationModal(false);
+362:     
+363:     // IMMEDIATELY set registration state — this is the source of truth
+364:     if (createdReg) {
+365:       setIsRegistered(true);
+366:       setUserRegistration(createdReg);
+367:       setRegistrations(prev => {
+368:         const filtered = prev.filter(r => r.id !== createdReg.id);
+369:         return [createdReg, ...filtered];
+370:       });
+371: 
+372:       const tIdStr = String(tournamentId || "");
+373:       const cId = user ? String(user.id || user.uid || "") : "";
+374:       try {
+375:         if (cId) localStorage.setItem(`user_reg_${tIdStr}_${cId}`, JSON.stringify(createdReg));
+376:       } catch (e) {}
+377:     }
+378: 
+379:     // Wait a bit for Firestore to index the new document, then refresh
+380:     await new Promise(resolve => setTimeout(resolve, 1500));
+381:     await loadData();
+382:   };
+383: 
+384: 
+385:   const saveRegistrationEdit = async () => {
+386:     if (!userRegistration || !editIGN || !editUID) return;
+387:     setSavingEdit(true);
+388:     try {
+389:       const updatedMembers = userRegistration.team_members ? [...userRegistration.team_members] : [{ ign: "", uid: "" }];
+390:       if (updatedMembers.length > 0) {
+391:         updatedMembers[0] = { ign: editIGN, uid: editUID };
+392:       }
+393:       await Registration.update(userRegistration.id, {
+394:         team_leader_ign: editIGN,
+395:         team_members: updatedMembers
+396:       });
+397:       setEditingReg(false);
+398:       await loadData();
+399:       alert("✅ Details updated!");
+400:     } catch (e) {
+401:       console.error("Error:", e);
+402:       alert("Failed to update");
+403:     }
+404:     setSavingEdit(false);
+405:   };
+406: 
+407:   const submitReport = async (reportedTeam) => {
+408:     if (!reportReason || !user) return;
+409:     
+410:     // Check if user is registered in this tournament
+411:     if (!isRegistered) {
+412:       alert("❌ You must be registered in this tournament to report teams!");
+413:       setShowReportModal(null);
+414:       return;
+415:     }
+416:     
+417:     setSubmittingReport(true);
+418:     try {
+419:       await Report.create({
+420:         reporter_id: user.id,
+421:         reporter_ign: user.ign || user.full_name,
+422:         reporter_email: user.email || '',
+423:         
+424:         // Detailed Reported Team Information
+425:         reported_user_id: reportedTeam.user_id || reportedTeam.team_leader_id || '',
+426:         reported_team_id: reportedTeam.id || '',
+427:         reported_team_name: reportedTeam.team_name || reportedTeam.player_ign || reportedTeam.team_leader_ign || 'Unknown Team',
+428:         reported_ign: reportedTeam.player_ign || reportedTeam.team_leader_ign || '',
+429:         reported_team_leader_uid: reportedTeam.player_uid || reportedTeam.team_leader_uid || reportedTeam.team_members?.[0]?.uid || '',
+430:         reported_team_members: reportedTeam.team_members || [],
+431:         reported_team_kills: reportedTeam.kills || 0,
+432:         reported_team_points: reportedTeam.points || 0,
+433:         reported_team_stage: reportedTeam.stage || '',
+434:         reported_team_group: reportedTeam.group_number || '',
+435: 
+436:         // Tournament Details
+437:         tournament_id: String(tournamentId || ''),
+438:         tournament_title: tournament?.title || '',
+439:         
+440:         reason: reportReason,
+441:         description: reportDescription,
+442:         status: "Pending",
+443:         created_date: new Date().toISOString()
+444:       });
+445:       alert("✅ Team Report submitted! Admin will review all team details.");
+446:       setShowReportModal(null);
+447:       setReportReason("");
+448:       setReportDescription("");
+449:     } catch (e) {
+450:       console.error("Error:", e);
+451:       alert("Failed to submit report");
+452:     }
+453:     setSubmittingReport(false);
+454:   };
+455: 
+456:   const moveTeam = async (entry, stage, group) => {
+457:     const targetTournament = stage === "semifinal" ? (group === "A" ? sfATournament : sfBTournament) : gfTournament;
+458:     const playerName = entry.player_ign || entry.team_leader_ign;
+459:     
+460:     if (!targetTournament) {
+461:       alert(`❌ Koi ${stage === "semifinal" ? "Semifinal" : "Grand Final"} tournament nahi mila! Pehle Admin Dashboard se banao.`);
+462:       return;
+463:     }
+464:     if (!confirm(`"${playerName}" ko "${targetTournament.title}" mein move karo?`)) return;
+465:     
+466:     setMovingTeam(entry);
+467:     try {
+468:       const leaderId = entry.user_id || entry.team_leader_id;
+469: 
+470:       // Check duplicate
+471:       const existingRegs = await Registration.filter({ tournament_id: targetTournament.id }).catch(() => []);
+472:       if (existingRegs.find(r => r.team_leader_id === leaderId)) {
+473:         alert(`⚠️ "${playerName}" already "${targetTournament.title}" mein hai!`);
+474:         setMovingTeam(null);
+475:         return;
+476:       }
+477: 
+478:       // Get source registration
+479:       const allSourceRegs = await Registration.filter({ tournament_id: tournamentId }).catch(() => []);
+480:       const sourceReg = allSourceRegs.find(r => r.team_leader_id === leaderId);
+481: 
+482:       if (sourceReg) {
+483:         await Registration.update(sourceReg.id, { is_qualified: true, qualified_from_tournament_id: tournamentId, status: "Qualified" }).catch(() => null);
+484:       }
+485: 
+486:       await Registration.create({
+487:         tournament_id: targetTournament.id,
+488:         tournament_title: targetTournament.title,
+489:         team_name: sourceReg?.team_name || playerName,
+490:         team_leader_id: leaderId,
+491:         team_leader_ign: entry.player_ign || entry.team_leader_ign,
+492:         team_leader_uid: entry.player_uid || sourceReg?.team_leader_uid || "",
+493:         team_leader_phone: sourceReg?.team_leader_phone || "",
+494:         team_members: sourceReg?.team_members || [{ ign: playerName, uid: entry.player_uid || "", isLeader: true }],
+495:         is_qualified: true,
+496:         qualified_from_tournament_id: tournamentId,
+497:         semifinal_group: stage === "semifinal" ? group : undefined,
+498:         total_points: 0,
+499:         total_kills: 0,
+500:         status: "Qualified",
+501:         payment_status: "Paid"
+502:       });
+503: 
+504:       await Tournament.update(targetTournament.id, { current_teams: (targetTournament.current_teams || 0) + 1 }).catch(() => null);
+505:       alert(`✅ "${playerName}" successfully "${targetTournament.title}" mein move ho gaya!`);
+506:       await loadData();
+507:     } catch (error) {
+508:       console.error("Move error:", error);
+509:       alert(`❌ Move fail hua: ${error.message || "Unknown error"}`);
+510:     }
+511:     setMovingTeam(null);
+512:   };
+513: 
+514: 
+515: 
+516:   const isAdmin = user?.role === "admin";
+517:   const isQualifierType = tournament?.tournament_type === "Qualifier";
+518:   const isSemifinalType = tournament?.tournament_type === "Semifinal";
+519:   const canMove = isAdmin && (isQualifierType || isSemifinalType);
+520: 
+521:   if (loading) {
+522:     return (
+523:       <div className="min-h-screen bg-[#07070a] text-slate-100 pb-2 animate-pulse">
+524:         <div className="max-w-4xl mx-auto px-3 sm:px-4 pt-3 space-y-4">
+525:           {/* Skeleton Hero Banner Card */}
+526:           <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800/80 h-64 sm:h-72 p-4 flex flex-col justify-between">
+527:             <div className="flex items-center justify-between">
+528:               <div className="h-8 w-20 bg-slate-800 rounded-full" />
+529:               <div className="h-6 w-24 bg-slate-800 rounded-full" />
+530:             </div>
+531:             <div className="space-y-2">
+532:               <div className="h-7 w-3/4 bg-slate-800 rounded-lg" />
+533:               <div className="h-4 w-1/2 bg-slate-800/60 rounded-lg" />
+534:               <div className="flex gap-2 pt-2">
+535:                 <div className="h-6 w-20 bg-slate-800/60 rounded-md" />
+536:                 <div className="h-6 w-24 bg-slate-800/60 rounded-md" />
+537:                 <div className="h-6 w-16 bg-slate-800/60 rounded-md" />
+538:               </div>
+539:             </div>
+540:           </div>
+541: 
+542:           {/* Skeleton Tabs Bar */}
+543:           <div className="h-11 w-full bg-slate-900/80 border border-slate-800 rounded-xl p-1 grid grid-cols-4 gap-1">
+544:             <div className="h-full bg-slate-800/80 rounded-lg" />
+545:             <div className="h-full bg-slate-800/30 rounded-lg" />
+546:             <div className="h-full bg-slate-800/30 rounded-lg" />
+547:             <div className="h-full bg-slate-800/30 rounded-lg" />
+548:           </div>
+549: 
+550:           {/* Skeleton Content Cards */}
+551:           <div className="space-y-3">
+552:             {/* Ticket Card Skeleton */}
+553:             <div className="h-44 bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
+554:               <div className="h-4 w-36 bg-slate-800 rounded" />
+555:               <div className="h-28 bg-slate-950/60 border border-slate-800/60 rounded-xl" />
+556:             </div>
+557: 
+558:             {/* Info Card Skeleton */}
+559:             <div className="h-36 bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 space-y-3">
+560:               <div className="h-4 w-32 bg-slate-800 rounded" />
+561:               <div className="space-y-2.5 pt-1">
+562:                 <div className="h-4 w-full bg-slate-800/40 rounded" />
+563:                 <div className="h-4 w-full bg-slate-800/40 rounded" />
+564:                 <div className="h-4 w-full bg-slate-800/40 rounded" />
+565:               </div>
+566:             </div>
+567:           </div>
+568:         </div>
+569:       </div>
+570:     );
+571:   }
+572: 
+573:   if (!tournament) {
+574:     return (
+575:       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+576:         <Card className="p-12 text-center bg-gray-900/50 border-gray-800">
+577:           <h3 className="text-xl font-semibold text-gray-300">Tournament not found</h3>
+578:         </Card>
+579:       </div>
+580:     );
+581:   }
+582: 
+583:   // Generate 6-Digit Tournament ID
+584:   const get6DigitId = (id, dateStr) => {
+585:     if (dateStr) {
+586:       const timeMs = new Date(dateStr).getTime();
+587:       if (!isNaN(timeMs)) return String(timeMs).slice(-6);
+588:     }
+589:     if (id) {
+590:       const clean = String(id).replace(/\D/g, "");
+591:       if (clean.length >= 6) return clean.slice(-6);
+592:       if (clean.length > 0) return clean.padStart(6, "0");
+593:     }
+594:     return "896063";
+595:   };
+596: 
+597:   const tournamentNumber = get6DigitId(tournament.id, tournament.created_date);
+598:   const isSemifinalOrFinal = tournament.tournament_type === "Semifinal" || tournament.tournament_type === "Grand Final" || tournament.stage === "semifinal" || tournament.stage === "grand_final";
+599: 
+600:   const maxTeams = Math.max(1, Number(tournament?.max_teams) || 32);
+601:   const totalRegisteredCount = registrations?.length || 0;
+602:   const isSlotsFull = totalRegisteredCount >= maxTeams;
+603: 
+604:   return (
+605:     <div className="min-h-screen bg-[#07070a] text-slate-100 pb-2">
+606:       <div className="max-w-4xl mx-auto px-3 sm:px-4 pt-3 space-y-4">
+607: 
+608:         {/* ── HIGH-END ESPORTS HERO CARD BANNER ── */}
+609:         <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800/80 shadow-2xl shadow-orange-950/20 group">
+610:           
+611:           {/* Banner Image Container */}
+612:           <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-slate-950">
+613:             {tournament.banner_url ? (
+614:               <img 
+615:                 src={tournament.banner_url} 
+616:                 alt={tournament.title} 
+617:                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" 
+618:               />
+619:             ) : (
+620:               <div className="w-full h-full bg-gradient-to-br from-orange-950/70 via-slate-900 to-slate-950 flex items-center justify-center relative">
+621:                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-orange-500/10 via-transparent to-transparent" />
+622:                 <Gamepad2 className="w-20 h-20 text-orange-500/20 animate-pulse" />
+623:               </div>
+624:             )}
+625:             
+626:             {/* Light bottom gradient overlay for text readability without dimming image */}
+627:             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+628: 
+629:             {/* Floating Top Navigation & Status Bar */}
+630:             <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
+631:               
+632:               {/* Back Button & ID Badge */}
+633:               <div className="flex items-center gap-2">
+634:                 <button
+635:                   onClick={() => navigate(createPageUrl("Tournaments"))}
+636:                   className="flex items-center gap-1.5 text-xs font-bold text-slate-200 bg-slate-950/80 hover:bg-slate-900 hover:text-orange-400 backdrop-blur-md border border-slate-700/60 rounded-full px-3.5 py-1.5 transition-all shadow-lg active:scale-95"
+637:                 >
+638:                   <ArrowLeft className="w-3.5 h-3.5" /> Back
+639:                 </button>
+640:                 <span className="text-[11px] font-mono font-bold text-orange-400 bg-slate-950/80 backdrop-blur-md border border-slate-700/60 rounded-full px-3 py-1 shadow-lg">
+641:                   #{tournamentNumber}
+642:                 </span>
+643:               </div>
+644: 
+645:               {/* Status & Stage Badges */}
+646:               <div className="flex items-center gap-2">
+647:                 {isSemifinalOrFinal && (
+648:                   <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md ${
+649:                     tournament.tournament_type === "Grand Final" 
+650:                       ? "bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950" 
+651:                       : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+652:                   }`}>
+653:                     🏆 {tournament.tournament_type || "Semifinal"}
+654:                   </span>
+655:                 )}
+656:                 
+657:                 <span className={`text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md border flex items-center gap-1.5 shadow-lg ${
+658:                   tournament.status === "Live" 
+659:                     ? "bg-rose-500/20 text-rose-400 border-rose-500/40 shadow-rose-950/50" 
+660:                     : (tournament.status === "Registration Open" && isSlotsFull)
+661:                     ? "bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-amber-950/40"
+662:                     : tournament.status === "Registration Open" 
+663:                     ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-emerald-950/40" 
+664:                     : "bg-slate-800/80 text-slate-300 border-slate-700/60"
+665:                 }`}>
+666:                   {tournament.status === "Registration Open" && !isSlotsFull && (
+667:                     <span className="relative flex h-2 w-2">
+668:                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+669:                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+670:                     </span>
+671:                   )}
+672:                   {tournament.status === "Registration Open" && isSlotsFull && (
+673:                     <span className="relative flex h-2 w-2">
+674:                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+675:                     </span>
+676:                   )}
+677:                   {tournament.status === "Live" && (
+678:                     <span className="relative flex h-2 w-2">
+679:                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+680:                       <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+681:                     </span>
+682:                   )}
+683:                   {tournament.status === "Registration Open" && isSlotsFull ? "Slots Full" : tournament.status}
+684:                 </span>
+685:               </div>
+686:             </div>
+687: 
+688:             {/* Bottom Title & Organizer Overlay */}
+689:             <div className="absolute bottom-3 left-4 right-4 z-10 flex items-end justify-between gap-2">
+690:               <div className="space-y-0.5">
+691:                 <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md leading-tight">
+692:                   {tournament.title}
+693:                 </h1>
+694: 
+695:                 <div className="flex items-center gap-1.5 pt-0.5">
+696:                   <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+697:                     by <span className="text-white font-bold">{tournament.organizer_name || "BattleHub Admin"}</span>
+698:                     <svg className="w-4 h-4 text-[#0ea5e9] shrink-0 inline-block drop-shadow-sm ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+699:                       <path d="M10.9 2.1a2.4 2.4 0 0 1 2.2 0l1.3.7c.4.2.8.3 1.3.3l1.5.1a2.4 2.4 0 0 1 2.2 1.6l.5 1.4c.2.4.4.8.7 1.1l1.1 1 a2.4 2.4 0 0 1 .7 2.6l-.4 1.4c-.1.5-.1 1 0 1.5l.4 1.4a2.4 2.4 0 0 1-.7 2.6l-1.1 1c-.3.3-.5.7-.7 1.1l-.5 1.4a2.4 2.4 0 0 1-2.2 1.6l-1.5.1c-.5 0-.9.1-1.3.3l-1.3.7a2.4 2.4 0 0 1-2.2 0l-1.3-.7c-.4-.2-.8-.3-1.3-.3l-1.5-.1a2.4 2.4 0 0 1-2.2-1.6l-.5-1.4c-.2-.4-.4-.8-.7-1.1l-1.1-1a2.4 2.4 0 0 1-.7-2.6l.4-1.4c.1-.5.1-1 0-1.5l-.4-1.4a2.4 2.4 0 0 1 .7-2.6l1.1-1c.3-.3.5-.7.7-1.1l.5-1.4a2.4 2.4 0 0 1 2.2-1.6l1.5-.1c.5 0 .9-.1 1.3-.3l1.3-.7zM9.7 14.3l-2.3-2.3a.9.9 0 0 0-1.3 1.3l3 3c.4.4 1 .4 1.4 0l6-6a.9.9 0 0 0-1.3-1.3l-5.5 5.3z" />
+700:                     </svg>
+701:                   </p>
+702:                 </div>
+703:               </div>
+704: 
+705:               {/* Right Side Bottom: Game Mode Badge */}
+706:               <div className="shrink-0 mb-0.5">
+707:                 <span className="bg-slate-900/90 border border-slate-700/80 text-slate-200 text-[10px] sm:text-xs font-bold uppercase px-3 py-1.5 rounded-xl backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+708:                   <Gamepad2 className="w-3.5 h-3.5 text-orange-400" />
+709:                   {tournament.mode || "DUO"} • FREE FIRE
+710:                 </span>
+711:               </div>
+712:             </div>
+713:           </div>
+714: 
+715:           {/* ── 4 STAT CARDS GRID ── */}
+716:           <div className="p-3 bg-slate-900 border-t border-slate-800">
+717:             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+718:               
+719:               {/* Card 1: Prize Pool */}
+720:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+721:                 <div className="flex items-center justify-between mb-1">
+722:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">PRIZE POOL</span>
+723:                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
+724:                 </div>
+725:                 <p className="text-base font-black text-amber-400 flex items-center gap-1">
+726:                   🪙 {tournament.prize_pool?.toLocaleString() || 0}
+727:                 </p>
+728:               </div>
+729: 
+730:               {/* Card 2: Entry Fee */}
+731:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+732:                 <div className="flex items-center justify-between mb-1">
+733:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ENTRY FEE</span>
+734:                   <Ticket className="w-3.5 h-3.5 text-orange-400" />
+735:                 </div>
+736:                 <div>
+737:                   <p className="text-base font-black text-orange-400">
+738:                     {isSemifinalOrFinal ? "Points" : tournament.entry_fee ? `🪙 ${tournament.entry_fee}` : "FREE"}
+739:                   </p>
+740:                   <p className="text-[9px] text-slate-500 font-medium">Per Squad</p>
+741:                 </div>
+742:               </div>
+743: 
+744:               {/* Card 3: Teams & Slots Progress */}
+745:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+746:                 <div className="flex items-center justify-between mb-1">
+747:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">SLOTS</span>
+748:                   <Users className="w-3.5 h-3.5 text-slate-400" />
+749:                 </div>
+750:                 <div>
+751:                   <p className="text-base font-black text-white">
+752:                     {totalRegisteredCount} <span className="text-xs text-slate-500 font-normal">/ {maxTeams}</span>
+753:                   </p>
+754:                   <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden mt-1">
+755:                     <div 
+756:                       className={`h-full rounded-full transition-all duration-500 ${isSlotsFull ? "bg-amber-400" : "bg-orange-500"}`}
+757:                       style={{ width: `${Math.min(100, (totalRegisteredCount / maxTeams) * 100)}%` }}
+758:                     />
+759:                   </div>
+760:                 </div>
+761:               </div>
+762: 
+763:               {/* Card 4: Map & Mode */}
+764:               <div className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between">
+765:                 <div className="flex items-center justify-between mb-1">
+766:                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">MAP & MODE</span>
+767:                   <MapPin className="w-3.5 h-3.5 text-slate-400" />
+768:                 </div>
+769:                 <div>
+770:                   <p className="text-base font-bold text-white truncate">
+771:                     {tournament.map || "Bermuda"}
+772:                   </p>
+773:                   <p className="text-[9px] text-slate-500 font-medium uppercase">{tournament.mode || "Squad"}</p>
+774:                 </div>
+775:               </div>
+776: 
+777:             </div>
+778:           </div>
+779:         </div>
+780: 
+781: 
+782: 
+783: 
+784:         {/* ── MODERN ESPORTS TABS BAR ── */}
+785:         <div>
+786:           <Tabs defaultValue="details" className="w-full">
+787:             <TabsList className="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-1 grid grid-cols-4 h-12 w-full mb-4 shadow-xl backdrop-blur-md">
+788:               {[
+789:                 { id: "details", label: "Overview", icon: ScrollText },
+790:                 { id: "teams", label: `Teams (${registrations.length})`, icon: Users },
+791:                 { id: "standings", label: "Standings", icon: Trophy },
+792:                 { id: "rules", label: "Rules", icon: ScrollText },
+793:               ].map((t) => {
+794: 
+795:                 const IconComponent = t.icon;
+796:                 return (
+797:                   <TabsTrigger
+798:                     key={t.id}
+799:                     value={t.id}
+800:                     className="data-[state=active]:bg-orange-500 data-[state=active]:text-slate-950 text-slate-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

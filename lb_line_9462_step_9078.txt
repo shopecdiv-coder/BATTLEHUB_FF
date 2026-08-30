@@ -1,0 +1,74 @@
+Created At: 2026-08-23T08:01:48+05:30
+Completed At: 2026-08-23T08:01:48+05:30
+File Path: `file:///E:/BATTLEHUB%20%203.0/src/pages/TournamentDetail.jsx`
+Total Lines: 2778
+Total Bytes: 148384
+Showing lines 1820 to 1885
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1820:     const selNorm = (selectedStage || "all").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+1821:     const effectiveStageNorm = (selNorm === "all" || selNorm === "qualified") ? ongoingStageNorm : selNorm;
+1822: 
+1823:     if (registrations && registrations.length > 0) {
+1824:       registrations.forEach((reg, i) => {
+1825:         // 1. Find stage-specific leaderboard entry for the target stage
+1826:         const stageSpecificLb = lbList.find(lb => {
+1827:           const isMatchUser = (
+1828:             (lb.user_id && String(lb.user_id) === String(reg.team_leader_id)) ||
+1829:             (lb.user_id && String(lb.user_id) === String(reg.user_id)) ||
+1830:             (lb.id && String(lb.id) === String(reg.id)) ||
+1831:             (lb.team_name && reg.team_name && String(lb.team_name).trim().toLowerCase() === String(reg.team_name).trim().toLowerCase()) ||
+1832:             String(lb.unique_id || "").includes(String(reg.id || '___')) ||
+1833:             String(lb.unique_id || "").includes(String(reg.team_leader_id || '___'))
+1834:           );
+1835:           if (!isMatchUser) return false;
+1836: 
+1837:           const lbStageNorm = String(lb.stage || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+1838:           const effStageNorm = String(effectiveStageNorm || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+1839:           const selNormStr = String(selectedStage || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, '_');
+1840:           
+1841:           return (
+1842:             lbStageNorm === effStageNorm ||
+1843:             lbStageNorm === selNormStr ||
+1844:             (effStageNorm && lbStageNorm.includes(effStageNorm)) ||
+1845:             (lbStageNorm && effStageNorm.includes(lbStageNorm)) ||
+1846:             (selNormStr && lbStageNorm.includes(selNormStr)) ||
+1847:             (!lb.stage && (effStageNorm.includes("round_1") || effStageNorm.includes("stage_0") || effStageNorm.includes("qual")))
+1848:           );
+1849:         });
+1850: 
+1851:         // 2. Find general/fallback leaderboard entry
+1852:         const generalLb = lbList.find(lb => 
+1853:           (lb.user_id && String(lb.user_id) === String(reg.team_leader_id)) ||
+1854:           (lb.user_id && String(lb.user_id) === String(reg.user_id)) ||
+1855:           (lb.id && String(lb.id) === String(reg.id)) ||
+1856:           (lb.team_name && reg.team_name && String(lb.team_name).trim().toLowerCase() === String(reg.team_name).trim().toLowerCase()) ||
+1857:           String(lb.unique_id || "").includes(String(reg.id || '___')) ||
+1858:           String(lb.unique_id || "").includes(String(reg.team_leader_id || '___'))
+1859:         );
+1860: 
+1861:         // Fallback: If only 1 leaderboard entry exists in database for this team:
+1862:         const isSingleLbEntry = lbList.filter(lb => 
+1863:           (lb.user_id && String(lb.user_id) === String(reg.team_leader_id)) || 
+1864:           (lb.id && String(lb.id) === String(reg.id)) || 
+1865:           String(lb.unique_id || "").includes(String(reg.id || '___'))
+1866:         ).length <= 1;
+1867: 
+1868:         const effectiveLb = stageSpecificLb || (isSingleLbEntry ? generalLb : null);
+1869:         const lb = effectiveLb || generalLb;
+1870: 
+1871:         const regScore = reg.stage_scores?.[effectiveStageNorm] || 
+1872:                          reg.stage_scores?.[selectedStage] || 
+1873:                          reg.stage_scores?.[ongoingStageObj?.id] || 
+1874:                          reg.stage_scores?.[ongoingStageObj?.name];
+1875: 
+1876:         // Stage-Isolated Points & Kills (Multi-source fallback to ensure 100% accuracy):
+1877:         const effectiveKills = effectiveLb ? (effectiveLb.kills ?? 0) : (regScore ? (regScore.kills ?? 0) : (selNorm === "all" ? (generalLb?.kills ?? reg.total_kills ?? 0) : 0));
+1878:         const effectivePoints = effectiveLb ? (effectiveLb.points ?? 0) : (regScore ? (regScore.points ?? 0) : (selNorm === "all" ? (generalLb?.points ?? reg.total_points ?? 0) : 0));
+1879:         const effectiveResults = effectiveLb ? (effectiveLb.match_results || []) : (regScore ? (regScore.match_results || []) : (selNorm === "all" ? (generalLb?.match_results ?? reg.match_results ?? []) : []));
+1880: 
+1881:         rows.push({
+1882:           ...(lb || {}),
+1883:           _rowUid: `reg-${i}-${reg.id || reg.team_leader_id || i}`,
+1884:           id: lb?.id || reg.id,
+1885:           team_name: reg.team_name || lb?.team_name || reg.team_leader_ign || `Team ${i + 1}`,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

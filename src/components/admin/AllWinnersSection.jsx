@@ -73,7 +73,7 @@ export default function AllWinnersSection() {
   }
 
   const medals = { 1: "🥇", 2: "🥈", 3: "🥉" };
-  const rankColors = { 1: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30", 2: "text-gray-300 bg-gray-500/10 border-gray-500/30", 3: "text-orange-400 bg-orange-500/10 border-orange-500/30" };
+  const rankColors = { 1: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30", 2: "text-gray-300 bg-gray-500/10 border-gray-500/30", 3: "text-orange-500 bg-orange-600/10 border-orange-600/30" };
 
   if (loading) return (
     <div className="flex items-center justify-center py-12">

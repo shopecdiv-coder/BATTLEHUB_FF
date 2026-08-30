@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "957392257082",
+    "project_id": "battlehubff-8dbc7",
+    "storage_bucket": "battlehubff-8dbc7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:957392257082:android:REPLACE_WITH_ANDROID_APP_ID",
+        "android_client_info": {
+          "package_name": "com.battlehub.ff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPoUEVfjtAwT1A94vbJuI-ZS9z6AqhVsI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

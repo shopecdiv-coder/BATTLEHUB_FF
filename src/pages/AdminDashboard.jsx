@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { db } from "@/api/firebaseClient";
+import { collection, onSnapshot, query } from "firebase/firestore";
 import { Report } from "@/entities/Report";
 import { BanRecord } from "@/entities/BanRecord";
 import { User } from "@/entities/User";
@@ -22,7 +24,7 @@ import {
   Gift, MessageCircle, BarChart2, Bell, Image, Video, Tag, Settings,
   BookOpen, HelpCircle, Code, MessageSquare, Percent, QrCode,
   CheckSquare, FileText, Link, Wallet, Coins, History, Award, Zap,
-  ChevronRight, Menu, X, RefreshCw, Star, Megaphone, Map, Layers, Target
+  ChevronRight, Menu, X, RefreshCw, Star, Megaphone, Map, Layers, Target, ShoppingBag, Globe
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
@@ -58,6 +60,7 @@ import AdminTaskManagement from "../components/admin/AdminTaskManagement";
 import TournamentRegistrations from "../components/admin/TournamentRegistrations";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import TutorialLinkManager from "../components/admin/TutorialLinkManager";
+import AppealsManagement from "../components/admin/AppealsManagement";
 import WalletOverview from "../components/admin/WalletOverview";
 import TournamentEmailHistory from "../components/admin/TournamentEmailHistory";
 import CoinLedger from "../components/admin/CoinLedger";
@@ -68,9 +71,15 @@ import TeamProfilesManagement from "../components/admin/TeamProfilesManagement";
 import PlayerProfilesManagement from "../components/admin/PlayerProfilesManagement";
 import MatchKillTracker from "../components/admin/MatchKillTracker";
 import SupportContactManager from "../components/admin/SupportContactManager";
+import SupportTicketManagement from "../components/admin/SupportTicketManagement";
+import WebsiteInquiriesManagement from "../components/admin/WebsiteInquiriesManagement";
 
 import MediaManagement from "../components/admin/MediaManagement";
+import StoreManagement from "../components/admin/StoreManagement";
 import MediaAnalytics from "../components/admin/MediaAnalytics";
+import AppProblemReportsManager from "../components/admin/AppProblemReportsManager";
+import GameMapManagement from "../components/admin/GameMapManagement";
+import BlogManagement from "../components/admin/BlogManagement";
 
 // ─── Nav Groups ───────────────────────────────────────────────────────────────
 const NAV_GROUPS = [
@@ -120,21 +129,31 @@ const NAV_GROUPS = [
     ]
   },
   {
+    label: "Commerce",
+    items: [
+      { id: "store", label: "Store Management", icon: ShoppingBag },
+    ]
+  },
+  {
     label: "Moderation",
     items: [
       { id: "reports", label: "Reports", icon: AlertTriangle, badgeKey: "reports" },
+      { id: "app-problems", label: "Report Problem in App", icon: AlertTriangle },
       { id: "bans", label: "Bans", icon: Ban },
+      { id: "appeals", label: "Ban Appeals", icon: RefreshCw },
     ]
   },
   {
     label: "Content",
     items: [
+      { id: "blog", label: "Write Blog", icon: FileText },
       { id: "notices", label: "Dashboard Notices", icon: Bell },
       { id: "appnotices", label: "App Notices", icon: Megaphone },
       { id: "announcements", label: "Announcements", icon: Megaphone },
       { id: "banners", label: "Banners", icon: Image },
       { id: "video", label: "Video Banner", icon: Video },
       { id: "photos", label: "Photo Library", icon: Image },
+      { id: "gamemaps", label: "Game Maps", icon: Map },
     ]
   },
   {
@@ -144,6 +163,8 @@ const NAV_GROUPS = [
       { id: "tasks", label: "Admin Tasks", icon: CheckSquare },
       { id: "templates", label: "Message Templates", icon: MessageSquare },
       { id: "chatsettings", label: "Chat Settings", icon: MessageCircle },
+      { id: "supporttickets", label: "Support Tickets", icon: MessageCircle },
+      { id: "web-inquiries", label: "Website Inquiries", icon: Globe, badgeKey: "webInquiries" },
       { id: "supportcontacts", label: "Support Contacts", icon: MessageCircle },
       { id: "tutorial", label: "Tutorial Link", icon: Link },
       { id: "theme", label: "Theme", icon: Settings },
@@ -177,12 +198,54 @@ export default function AdminDashboard() {
   const [paymentDateTo, setPaymentDateTo] = useState("");
   const [redeemDateFrom, setRedeemDateFrom] = useState("");
   const [redeemDateTo, setRedeemDateTo] = useState("");
+  const [webInquiriesCount, setWebInquiriesCount] = useState(0);
 
   const { unreadPayments, unreadRedeems, unreadTickets, unreadCodes } = useAdminUnreadCounts();
 
   useEffect(() => {
     loadData();
-    // No auto-refresh — only manual refresh button to prevent glitches
+
+    // 🟢 REAL-TIME onSnapshot Listener for Redeem Requests!
+    const qRedeems = query(collection(db, 'redeem_requests'));
+    const unsubRedeems = onSnapshot(qRedeems, (snapshot) => {
+      const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      all.sort((a, b) => (new Date(b.created_date || 0)) - (new Date(a.created_date || 0)));
+      setAllRedeemRequests(all);
+      const pending = all.filter(r => r.status === "Pending");
+      setRedeemRequests(pending);
+    }, (err) => {
+      console.warn("Live onSnapshot error on redeem_requests:", err);
+    });
+
+    // 🟢 REAL-TIME onSnapshot Listener for Coin Purchases (payment_requests)!
+    const qPayments = query(collection(db, 'payment_requests'));
+    const unsubPayments = onSnapshot(qPayments, (snapshot) => {
+      const all = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      all.sort((a, b) => (new Date(b.created_date || 0)) - (new Date(a.created_date || 0)));
+      setAllPaymentRequests(all);
+      const pending = all.filter(p => p.status === "Pending");
+      setPaymentRequests(pending);
+    }, (err) => {
+      console.warn("Live onSnapshot error on payment_requests:", err);
+    });
+
+    // 🟢 REAL-TIME onSnapshot Listener for Website Inquiries!
+    const qInq = query(collection(db, 'inquiries'));
+    const unsubInq = onSnapshot(qInq, (snapshot) => {
+      const unread = snapshot.docs.filter(d => {
+        const s = d.data().status;
+        return s === 'New' || s === 'Open';
+      }).length;
+      setWebInquiriesCount(unread);
+    }, (err) => {
+      console.warn("Live onSnapshot error on inquiries:", err);
+    });
+
+    return () => {
+      unsubRedeems();
+      unsubPayments();
+      unsubInq();
+    };
   }, []);
 
   const loadData = async () => {
@@ -204,9 +267,9 @@ export default function AdminDashboard() {
     // Load critical data first (small, fast calls) — each setState triggers progressive render
     try {
       const [allTournaments, allReports, allBans] = await Promise.all([
-        Tournament.list("-created_date", 100).catch(() => []),
-        Report.list("-created_date", 100).catch(() => []),
-        BanRecord.list("-created_date", 100).catch(() => []),
+        Tournament.list("-created_date", 30).catch(() => []),
+        Report.list("-created_date", 30).catch(() => []),
+        BanRecord.list("-created_date", 30).catch(() => []),
       ]);
       setTournaments(allTournaments || []);
       setReports(allReports || []);
@@ -216,9 +279,9 @@ export default function AdminDashboard() {
     // Load finance data
     try {
       const [allPayments, allRedeems, allRegs] = await Promise.all([
-        PaymentRequest.list("-created_date", 500).catch(() => []),
-        RedeemRequest.list("-created_date", 500).catch(() => []),
-        Registration.list("-created_date", 500).catch(() => []),
+        PaymentRequest.list("-created_date", 50).catch(() => []),
+        RedeemRequest.list("-created_date", 50).catch(() => []),
+        Registration.list("-created_date", 50).catch(() => []),
       ]);
       setPaymentRequests((allPayments || []).filter(p => p.status === "Pending"));
       setAllPaymentRequests(allPayments || []);
@@ -287,17 +350,20 @@ export default function AdminDashboard() {
   const activeBans = bans.filter(b => b.severity === "Permanent" || (b.end_date && new Date(b.end_date) > new Date()));
 
   const getBadge = (itemId) => {
-    if (itemId === "payments") return unreadPayments;
-    if (itemId === "redeems") return unreadRedeems;
+    if (itemId === "payments") return paymentRequests.length || unreadPayments;
+    if (itemId === "redeems") return redeemRequests.length || unreadRedeems;
     if (itemId === "codes") return unreadCodes;
     if (itemId === "reports") return pendingReports.length;
+    if (itemId === "webInquiries") return webInquiriesCount;
     return 0;
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case "reports": return <ReportsManagement reports={reports} onUpdate={loadData} />;
+      case "app-problems": return <AppProblemReportsManager />;
       case "bans": return <BansManagement bans={bans} onRefresh={loadData} />;
+      case "appeals": return <AppealsManagement reports={reports} onUpdate={loadData} />;
       case "tournaments": return <TournamentManagement tournaments={tournaments.filter(t => t.status !== "Completed" && t.status !== "Cancelled")} onUpdate={loadData} />;
       case "completed": return <TournamentManagement tournaments={tournaments.filter(t => t.status === "Completed" || t.status === "Cancelled")} onUpdate={loadData} />;
       case "registrations": return <div className="space-y-6"><TournamentRegistrations /><TournamentEmailHistory tournaments={tournaments} /></div>;
@@ -309,6 +375,7 @@ export default function AdminDashboard() {
       case "banners": return <BannerManagement banners={banners} onUpdate={loadData} />;
       case "appnotices": return <AppNoticeManagement notices={appNotices} onUpdate={loadData} />;
       case "video": return <VideoBannerManagement banners={videoBanners} onUpdate={loadData} />;
+      case "blog": return <BlogManagement />;
       case "referrals": return <ReferralManagement onUpdate={loadData} />;
       case "announcements": return <AnnouncementManagement />;
       case "users": return <UserManagement />;
@@ -336,8 +403,12 @@ export default function AdminDashboard() {
       case "playerprofiles": return <PlayerProfilesManagement />;
       case "killtracker": return <MatchKillTracker onUpdate={loadData} />;
       case "supportcontacts": return <SupportContactManager />;
+      case "supporttickets": return <SupportTicketManagement />;
+      case "web-inquiries": return <WebsiteInquiriesManagement />;
       case "media-management": return <MediaManagement />;
       case "media-analytics": return <MediaAnalytics />;
+      case "store": return <StoreManagement />;
+      case "gamemaps": return <GameMapManagement />;
       default: return <RealTimeAnalytics />;
     }
   };
@@ -347,7 +418,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-2 border-t-orange-500 border-orange-500/20 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-2 border-t-orange-600 border-orange-600/20 rounded-full animate-spin" />
         <p className="text-gray-400 text-sm">Loading Admin Dashboard...</p>
       </div>
     );
@@ -369,12 +440,12 @@ export default function AdminDashboard() {
         {/* Sidebar Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-gray-950">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-orange-600 to-red-600 rounded-lg flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
               <p className="text-white font-bold text-sm leading-tight">BattleHub</p>
-              <p className="text-orange-400 text-[10px] font-semibold tracking-wider uppercase">Admin Panel</p>
+              <p className="text-orange-500 text-[10px] font-semibold tracking-wider uppercase">Admin Panel</p>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-white p-1">
@@ -389,8 +460,8 @@ export default function AdminDashboard() {
               <p className="text-cyan-400 text-lg font-black">{users.length}</p>
               <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Users</p>
             </div>
-            <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border border-orange-500/20 rounded-lg p-2.5">
-              <p className="text-orange-400 text-lg font-black">{tournaments.filter(t=>t.status!=="Completed"&&t.status!=="Cancelled").length}</p>
+            <div className="bg-gradient-to-br from-orange-600/10 to-orange-600/5 border border-orange-600/20 rounded-lg p-2.5">
+              <p className="text-orange-500 text-lg font-black">{tournaments.filter(t=>t.status!=="Completed"&&t.status!=="Cancelled").length}</p>
               <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Active</p>
             </div>
           </div>
@@ -421,11 +492,11 @@ export default function AdminDashboard() {
                       onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isActive
-                          ? "bg-gradient-to-r from-orange-500/20 to-red-500/10 text-orange-400 border border-orange-500/20"
+                          ? "bg-gradient-to-r from-orange-600/20 to-red-500/10 text-orange-500 border border-orange-600/20"
                           : "text-gray-400 hover:bg-gray-800 hover:text-white"
                       }`}
                     >
-                      <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-orange-400' : ''}`} />
+                      <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-orange-500' : ''}`} />
                       <span className="flex-1 text-left truncate">{item.label}</span>
                       {badge > 0 && (
                         <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 animate-pulse">
@@ -467,7 +538,7 @@ export default function AdminDashboard() {
           </button>
 
           <div className="flex items-center gap-2 flex-1">
-            <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-orange-500/60 bg-orange-500/5 px-2 py-0.5 rounded">
+            <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-orange-600/60 bg-orange-600/5 px-2 py-0.5 rounded">
               Admin Panel
             </div>
             <ChevronRight className="w-3 h-3 text-gray-700 hidden sm:block" />
@@ -486,14 +557,14 @@ export default function AdminDashboard() {
               <button onClick={downloadPayments} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-green-400 hover:bg-green-500/10 transition-all">
                 <Download className="w-3 h-3" /> Pay
               </button>
-              <button onClick={downloadRedeems} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-orange-400 hover:bg-orange-500/10 transition-all">
+              <button onClick={downloadRedeems} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-orange-500 hover:bg-orange-600/10 transition-all">
                 <Download className="w-3 h-3" /> Redeem
               </button>
             </div>
             <button
               onClick={loadData}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 text-orange-400 border border-orange-500/20 text-xs font-semibold hover:from-orange-500/20 hover:to-red-500/20 disabled:opacity-50 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-600/10 to-red-500/10 text-orange-500 border border-orange-600/20 text-xs font-semibold hover:from-orange-600/20 hover:to-red-500/20 disabled:opacity-50 transition-all"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:block">Refresh All</span>
