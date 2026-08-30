@@ -483,6 +483,7 @@ export const Announcement = new FirestoreEntity('announcements');
 export const TournamentMatch = new FirestoreEntity('tournament_matches');
 export const GameMap = new FirestoreEntity('game_maps');
 export const Blog = new FirestoreEntity('blogs');
+export const GiftMail = new FirestoreEntity('gift_mails');
 
 // Mock query object just in case
 export const Query = {

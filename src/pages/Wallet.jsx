@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import BuyCoinsStepper from "../components/wallet/BuyCoinsStepper";
 import PhoneNumberModal from "../components/wallet/PhoneNumberModal";
 import CoinInvoiceDownload from "../components/wallet/CoinInvoiceDownload";
+import GiftMailboxModal from "../components/wallet/GiftMailboxModal";
 import { createPageUrl } from "@/utils";
 import { auth } from "@/api/firebaseClient";
 
@@ -337,6 +338,13 @@ export default function Wallet() {
               </button>
             )}
           </div>
+
+          {/* In-Game Gift Mailbox Alert & Drawer */}
+          <GiftMailboxModal 
+            user={user} 
+            coinAccount={coinAccount} 
+            onBalanceUpdate={loadData} 
+          />
 
           {/* Tabs */}
           <div className="flex gap-1 bg-gray-800/50 rounded-xl p-1">
