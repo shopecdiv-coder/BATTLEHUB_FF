@@ -24,6 +24,7 @@ import BuyCoinsStepper from "../components/wallet/BuyCoinsStepper";
 import PhoneNumberModal from "../components/wallet/PhoneNumberModal";
 import CoinInvoiceDownload from "../components/wallet/CoinInvoiceDownload";
 import { createPageUrl } from "@/utils";
+import { auth } from "@/api/firebaseClient";
 
 // Safe date formatter — prevents crash on null/invalid dates
 const safeFormat = (dateStr, fmt) => {
@@ -128,12 +129,108 @@ export default function Wallet() {
     setSubmitting(true);
     setError("");
     try {
-      // First deduct coins, then create request
-      const now = new Date().toISOString();
-      const updatedTransactions = [...(coinAccount.transactions || []), { type: "Redeem", coin_type: "BH Coin", amount: -redeemAmount, description: `Redeem request for ₹${redeemAmount}`, timestamp: now }];
-      await Diamond.update(coinAccount.id, { bh_coin_balance: bhCoins - redeemAmount, transactions: updatedTransactions });
-      await RedeemRequest.create({ user_id: user.id, user_ign: user.ign || user.full_name, diamond_amount: redeemAmount, inr_amount: redeemAmount, bank_details: bankDetails, status: "Pending", admin_notes: "Processing within 10 hours" });
-      await Notification.create({ recipient_id: user.id, type: "Prize Distributed", title: "🏦 Redeem Request Submitted", message: `Request to redeem ${redeemAmount} coins (₹${redeemAmount}) submitted.`, link: createPageUrl("Wallet"), priority: "Medium", dismissable: true, created_at: now }).catch(() => null);
+      let apiProcessed = false;
+
+      // 1. Try secure API if available
+      try {
+        const idToken = await auth.currentUser?.getIdToken(true);
+        if (idToken) {
+          const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5174/api/wallet' 
+            : 'https://battlehub.site/api/wallet';
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+              action: 'withdraw',
+              amount: redeemAmount,
+              method: bankDetails.upi_id ? 'upi' : 'bank',
+              upiId: bankDetails.upi_id,
+              bankDetails: {
+                accountNumber: bankDetails.account_number,
+                ifsc: bankDetails.ifsc_code,
+                accountHolder: bankDetails.account_holder
+              }
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json().catch(() => null);
+            if (data && data.success) {
+              apiProcessed = true;
+            }
+          }
+        }
+      } catch (apiErr) {
+        console.warn("Wallet API unavailable, processing directly via Firestore:", apiErr);
+      }
+
+      // 2. Direct bulletproof Firestore deduction if API wasn't reachable
+      if (!apiProcessed && coinAccount?.id) {
+        const now = new Date().toISOString();
+        const updatedTransactions = [
+          ...(coinAccount.transactions || []),
+          {
+            type: "Redeem",
+            coin_type: "BH Coin",
+            amount: -redeemAmount,
+            description: `Redeem request for ₹${redeemAmount} to ${bankDetails.upi_id || bankDetails.account_number || 'Bank'}`,
+            timestamp: now
+          }
+        ];
+
+        let rem = redeemAmount;
+        let curW = Number(coinAccount.winnings_balance || 0);
+        let curD = Number(coinAccount.deposit_balance || 0);
+        let curB = Number(coinAccount.bonus_balance || 0);
+
+        let newW = curW >= rem ? (curW - rem) : 0;
+        rem = curW >= rem ? 0 : (rem - curW);
+
+        let newD = curD >= rem ? (curD - rem) : 0;
+        rem = curD >= rem ? 0 : (rem - curD);
+
+        let newB = curB >= rem ? (curB - rem) : 0;
+        const newTotal = newW + newD + newB;
+
+        await Diamond.update(coinAccount.id, {
+          winnings_balance: newW,
+          deposit_balance: newD,
+          bonus_balance: newB,
+          bh_coin_balance: newTotal,
+          transactions: updatedTransactions
+        });
+      }
+
+      // 3. Record local request for Admin Dashboard only if API didn't already create it
+      if (!apiProcessed) {
+        const now = new Date().toISOString();
+        await RedeemRequest.create({
+          user_id: user.id,
+          user_ign: user.ign || user.full_name,
+          diamond_amount: redeemAmount,
+          inr_amount: redeemAmount,
+          bank_details: bankDetails,
+          status: "Pending",
+          admin_notes: "App Redeem Request"
+        });
+      }
+
+      await Notification.create({
+        recipient_id: user.id,
+        type: "Prize Distributed",
+        title: "🏦 Redeem Request Submitted",
+        message: `Request to redeem ${redeemAmount} coins (₹${redeemAmount}) submitted.`,
+        link: createPageUrl("Wallet"),
+        priority: "Medium",
+        dismissable: true,
+        created_at: now
+      }).catch(() => null);
+      
       await loadData();
       setRedeemAmount(0);
       setBankDetails({ account_holder: "", account_number: "", ifsc_code: "", bank_name: "", upi_id: "", phone_number: "" });
@@ -141,7 +238,7 @@ export default function Wallet() {
       setTimeout(() => setRedeemSuccess(false), 4000);
     } catch (e) {
       console.error("Redeem error:", e);
-      setError("Failed to submit redeem request. Please try again.");
+      setError(e.message || "Failed to submit redeem request. Please try again.");
     }
     setSubmitting(false);
   };
@@ -155,7 +252,7 @@ export default function Wallet() {
 
   if (loading) return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
     </div>
   );
 
@@ -167,7 +264,7 @@ export default function Wallet() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-black text-white flex items-center gap-2">
-                <Wallet2 className="w-7 h-7 text-orange-400" /> BattleHub Wallet
+                <Wallet2 className="w-7 h-7 text-orange-500" /> BattleHub Wallet
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">{user?.ign || user?.full_name}</p>
             </div>
@@ -179,7 +276,7 @@ export default function Wallet() {
           {/* Balance Cards */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             {/* BH Coin */}
-            <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/20 rounded-2xl p-4">
+            <div className="bg-gradient-to-br from-yellow-500/10 to-orange-600/5 border border-yellow-500/20 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
                   <Coins className="w-4 h-4 text-yellow-400" />
@@ -366,7 +463,7 @@ export default function Wallet() {
               </div>
             ) : (
               <div className="divide-y divide-gray-800/50">
-                {coinAccount.transactions.slice().reverse().map((tx, i) => (
+                {[...(coinAccount.transactions || [])].sort((a, b) => (new Date(b.timestamp || 0)) - (new Date(a.timestamp || 0))).map((tx, i) => (
                   <div key={i} className="px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center ${tx.amount > 0 ? "bg-green-500/15" : "bg-red-500/15"}`}>
@@ -586,7 +683,7 @@ export default function Wallet() {
       </Dialog>
 
       <Dialog open={showHelpPopup} onOpenChange={setShowHelpPopup}>
-        <DialogContent className="bg-gray-900 border-blue-500/30 max-w-sm rounded-2xl">
+        <DialogContent className="bg-gray-900 border-orange-500/30 max-w-sm rounded-2xl">
           <div className="space-y-4 p-2 text-center">
             <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
               <svg className="w-9 h-9 text-red-400" viewBox="0 0 24 24" fill="currentColor">
