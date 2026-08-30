@@ -23,9 +23,9 @@ import { format } from "date-fns";
 import BuyCoinsStepper from "../components/wallet/BuyCoinsStepper";
 import PhoneNumberModal from "../components/wallet/PhoneNumberModal";
 import CoinInvoiceDownload from "../components/wallet/CoinInvoiceDownload";
-import GiftMailboxModal from "../components/wallet/GiftMailboxModal";
 import { createPageUrl } from "@/utils";
-import { auth } from "@/api/firebaseClient";
+import { auth, db } from "@/api/firebaseClient";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 // Safe date formatter — prevents crash on null/invalid dates
 const safeFormat = (dateStr, fmt) => {
@@ -56,8 +56,32 @@ export default function Wallet() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [unclaimedGiftCount, setUnclaimedGiftCount] = useState(0);
 
-  useEffect(() => { loadData(); loadTutorialLink(); }, []);
+  useEffect(() => { 
+    loadData(); 
+    loadTutorialLink(); 
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const q = query(
+      collection(db, "gift_mails"),
+      where("recipient_id", "==", user.id),
+      where("status", "==", "unclaimed")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setUnclaimedGiftCount(snap.docs.length);
+    });
+    const handleBalanceUpdated = () => {
+      loadData();
+    };
+    window.addEventListener("wallet-balance-updated", handleBalanceUpdated);
+    return () => {
+      unsub();
+      window.removeEventListener("wallet-balance-updated", handleBalanceUpdated);
+    };
+  }, [user?.id]);
 
   const loadTutorialLink = async () => {
     const settings = await AppSettings.filter({ setting_key: "wallet_tutorial_link" }).catch(() => []);
@@ -269,9 +293,24 @@ export default function Wallet() {
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">{user?.ign || user?.full_name}</p>
             </div>
-            <button onClick={loadData} className="w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center">
-              <RefreshCw className="w-4 h-4 text-gray-400" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("open-gift-mailbox"))}
+                className="relative w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-amber-400 hover:text-amber-300 transition-all cursor-pointer border border-amber-500/20 shadow-sm"
+                title="Gift Mailbox"
+              >
+                <Gift className="w-4 h-4" />
+                {unclaimedGiftCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                    {unclaimedGiftCount}
+                  </span>
+                )}
+              </button>
+
+              <button onClick={loadData} className="w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center">
+                <RefreshCw className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
           </div>
 
           {/* Balance Cards */}
@@ -339,12 +378,7 @@ export default function Wallet() {
             )}
           </div>
 
-          {/* In-Game Gift Mailbox Alert & Drawer */}
-          <GiftMailboxModal 
-            user={user} 
-            coinAccount={coinAccount} 
-            onBalanceUpdate={loadData} 
-          />
+
 
           {/* Tabs */}
           <div className="flex gap-1 bg-gray-800/50 rounded-xl p-1">

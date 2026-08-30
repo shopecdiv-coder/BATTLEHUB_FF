@@ -203,6 +203,16 @@ export default function NotificationBell() {
                         }`}
                         onClick={() => {
                           markAsRead(notif);
+                          const isGiftNotif = (notif.type === 'wallet' || notif.type === 'gift') && (
+                            notif.title?.toLowerCase().includes('gift') ||
+                            notif.message?.toLowerCase().includes('gift') ||
+                            notif.message?.toLowerCase().includes('gifted')
+                          );
+                          if (isGiftNotif) {
+                            setShowPanel(false);
+                            window.dispatchEvent(new CustomEvent('open-gift-mailbox'));
+                            return;
+                          }
                           if (notif.action_url) {
                             setShowPanel(false);
                             navigate(notif.action_url);

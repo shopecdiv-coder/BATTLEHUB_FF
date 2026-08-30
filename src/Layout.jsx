@@ -57,6 +57,7 @@ import ChatUnreadTracker from "./components/ChatUnreadTracker";
 import ProfileUnreadTracker from "./components/ProfileUnreadTracker";
 import LoadingBar from "./components/LoadingBar";
 import PhoneNumberModal from "./components/PhoneNumberModal";
+import GlobalGiftMailHandler from "./components/GlobalGiftMailHandler";
 import { useAuth } from "@/lib/AuthContext";
 
 
@@ -395,6 +396,7 @@ function LayoutContent({ children, currentPageName }) {
       <WelcomeBonusHandler />
       <ChatUnreadTracker />
       <ProfileUnreadTracker />
+      <GlobalGiftMailHandler />
       
     </div>
   );
