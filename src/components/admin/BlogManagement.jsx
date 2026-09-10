@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Blog } from "@/entities/Blog";
+import { cacheInvalidateAll } from "@/lib/cache";
 import { UploadFile } from "@/integrations/Core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import {
   Link as LinkIcon, HelpCircle, Sparkles, AlertCircle,
   Clock, Calendar, User, Tag, Share2, Bold, Italic,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Table,
-  CheckCircle2, ExternalLink
+  CheckCircle2, ExternalLink, RotateCw
 } from "lucide-react";
 
 const toast = {
@@ -89,14 +90,19 @@ export default function BlogManagement() {
     loadBlogs();
   }, []);
 
-  const loadBlogs = async () => {
-    setLoading(false);
+  const loadBlogs = async (forceRefresh = false) => {
+    setLoading(true);
     try {
+      if (forceRefresh) {
+        cacheInvalidateAll();
+      }
       const docs = await Blog.list("-created_date");
       setBlogs(docs || []);
     } catch (err) {
       console.error("Error loading blogs:", err);
       toast.error("Failed to load blogs from database");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -257,6 +263,7 @@ export default function BlogManagement() {
   };
 
   // Save / Publish Blog
+  // Save / Publish Blog
   const handleSaveBlog = async (statusOverride = null) => {
     if (!formData.title.trim()) {
       toast.error("Please enter a blog title");
@@ -271,8 +278,10 @@ export default function BlogManagement() {
     const finalStatus = statusOverride || formData.status;
     const finalSlug = formData.slug || formData.title.toLowerCase().replace(/\s+/g, "-");
 
+    const { id: currentId, ...cleanFormData } = formData;
+
     const payload = {
-      ...formData,
+      ...cleanFormData,
       slug: finalSlug,
       status: finalStatus,
       updated_date: new Date().toISOString(),
@@ -284,8 +293,8 @@ export default function BlogManagement() {
     }
 
     try {
-      if (formData.id) {
-        await Blog.update(formData.id, payload);
+      if (currentId) {
+        await Blog.update(currentId, payload);
         toast.success(`Blog updated successfully! (${finalStatus})`);
       } else {
         const created = await Blog.create(payload);
@@ -302,18 +311,24 @@ export default function BlogManagement() {
     }
   };
 
-  // Delete Blog
   const handleDeleteBlog = async (id, title) => {
-    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+    if (!id) {
+      toast.error("Invalid Blog ID");
+      return false;
+    }
+    if (confirm(`Are you sure you want to delete "${title || 'this article'}"?`)) {
       try {
         await Blog.delete(id);
         toast.success("Blog deleted successfully");
-        loadBlogs();
+        await loadBlogs();
+        return true;
       } catch (err) {
         console.error("Delete error:", err);
-        toast.error("Failed to delete blog");
+        toast.error(`Failed to delete blog: ${err.message || 'Unknown error'}`);
+        return false;
       }
     }
+    return false;
   };
 
   // Start New Blog
@@ -437,6 +452,21 @@ export default function BlogManagement() {
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            {formData.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const deleted = await handleDeleteBlog(formData.id, formData.title);
+                  if (deleted) setIsEditing(false);
+                }}
+                disabled={saving}
+                className="bg-slate-950 border-slate-800 hover:bg-red-500/10 hover:border-red-500/30 text-red-500 gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -454,7 +484,7 @@ export default function BlogManagement() {
               disabled={saving}
               className="bg-slate-950 border-slate-800 hover:bg-slate-800 text-amber-400 gap-1"
             >
-              Save Draft
+              {formData.id ? "Update Draft" : "Save Draft"}
             </Button>
 
             <Button
@@ -463,8 +493,8 @@ export default function BlogManagement() {
               disabled={saving}
               className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold gap-1.5 shadow-lg shadow-orange-600/20"
             >
-              {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Globe className="w-4 h-4" />}
-              Publish Article
+              {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (formData.id ? <Edit3 className="w-4 h-4" /> : <Globe className="w-4 h-4" />)}
+              {formData.id ? "Update Article" : "Publish Article"}
             </Button>
           </div>
         </div>
@@ -510,339 +540,155 @@ export default function BlogManagement() {
           </div>
         ) : (
           /* MAIN TWO-COLUMN STUDIO */
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-8 xl:gap-12">
             
-            {/* LEFT COLUMN: Content Editor (Col-span 2) */}
-            <div className="lg:col-span-2 space-y-5">
+            {/* LEFT COLUMN: The Document (Col-span 3) */}
+            <div className="xl:col-span-3 space-y-4">
               
-              {/* Title Input */}
-              <div className="bg-slate-900/60 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-3 shadow-sm">
-                <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Blog Title (H1 Header) <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  placeholder="e.g., How to Host Free Fire MAX Tournaments in 2026 (Complete Guide)"
-                  className="bg-slate-950 border-slate-800 text-white font-bold text-base sm:text-lg focus:border-orange-500"
-                />
-                
-                {/* Auto URL Slug */}
-                <div className="flex items-center gap-1 text-xs text-slate-400 font-mono overflow-hidden">
-                  <span className="text-slate-500 shrink-0">https://battlehub.site/blog/</span>
-                  <input
-                    value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
-                    className="bg-transparent border-b border-dashed border-slate-700 text-orange-400 focus:outline-none focus:border-orange-500 w-full"
-                    placeholder="url-slug"
-                  />
-                </div>
-              </div>
-
-              {/* Short Excerpt */}
-              <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl space-y-2">
-                <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Short Excerpt / Summary (Card Preview)
-                </Label>
-                <Textarea
-                  value={formData.excerpt}
-                  onChange={(e) => setFormData({ ...formData, excerpt: e.target.value, meta_description: e.target.value })}
-                  placeholder="Brief summary of the article that appears in Google search and blog cards (1-2 sentences)..."
-                  className="bg-slate-950 border-slate-800 text-slate-200 text-xs sm:text-sm h-18 resize-none focus:border-orange-500"
-                />
-              </div>
-
-              {/* Rich Content Editor with Floating Toolbar */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-                
-                {/* Toolbar */}
-                <div className="bg-slate-950/80 border-b border-slate-800 p-2 flex flex-wrap items-center gap-1 text-xs sticky top-18 z-10">
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("\n## Subheading Here\n")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300 flex items-center gap-1 font-bold text-xs"
-                    title="Insert H2 Heading"
-                  >
-                    <Heading2 className="w-3.5 h-3.5 text-orange-400" /> H2
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("\n### Sub-section Here\n")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300 flex items-center gap-1 font-bold text-xs"
-                    title="Insert H3 Heading"
-                  >
-                    <Heading3 className="w-3.5 h-3.5 text-orange-400" /> H3
-                  </button>
-                  <div className="w-[1px] h-4 bg-slate-800 mx-1" />
-                  
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("**bold text**")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300 font-bold"
-                    title="Bold"
-                  >
-                    <Bold className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("*italic text*")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300 italic"
-                    title="Italic"
-                  >
-                    <Italic className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("\n* Bullet item 1\n* Bullet item 2\n")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-                    title="Bullet List"
-                  >
-                    <List className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("\n1. Step 1\n2. Step 2\n")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-                    title="Numbered List"
-                  >
-                    <ListOrdered className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("\n> Important Note or Pro Player Tip goes here.\n")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-                    title="Quote / Tip Box"
-                  >
-                    <Quote className="w-3.5 h-3.5" />
-                  </button>
-
-                  <div className="w-[1px] h-4 bg-slate-800 mx-1" />
-
-                  {/* Table Insert */}
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent("\n| Rank | Placement Points | Kill Points |\n| :--- | :--- | :--- |\n| #1 | 12 Pts | 1 Pt per Kill |\n| #2 | 9 Pts | 1 Pt per Kill |\n| #3 | 8 Pts | 1 Pt per Kill |\n")}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-300 flex items-center gap-1 font-semibold"
-                    title="Insert Point Table"
-                  >
-                    <Table className="w-3.5 h-3.5 text-cyan-400" /> Table
-                  </button>
-
-                  {/* CTA Widget */}
-                  <button
-                    type="button"
-                    onClick={() => insertIntoContent('\n<div class="my-6 p-5 bg-gradient-to-r from-orange-600/20 to-amber-600/10 border border-orange-500/30 rounded-2xl text-center"><h3 class="text-lg font-black text-white mb-2">Ready to Host Your Tournament?</h3><p class="text-xs text-slate-300 mb-4">Join India\'s fastest growing esports platform with automated brackets and 0-leak room dispatch.</p><a href="/tournaments" class="inline-block bg-orange-600 hover:bg-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider shadow-lg">Host Tournament on BattleHub</a></div>\n')}
-                    className="p-1.5 rounded hover:bg-slate-800 text-orange-400 font-bold flex items-center gap-1"
-                    title="Insert Call-To-Action Box"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-orange-500" /> CTA Box
-                  </button>
-
-                  <div className="w-[1px] h-4 bg-slate-800 mx-1" />
-
-                  {/* AWS S3 Image Uploader in Toolbar */}
-                  <label className="p-1.5 rounded hover:bg-slate-800 text-emerald-400 flex items-center gap-1 font-semibold cursor-pointer">
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Upload Image (AWS)</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleInContentMediaUpload(e, "image")}
-                    />
-                  </label>
-
-                  {/* AWS S3 Video Uploader in Toolbar */}
-                  <label className="p-1.5 rounded hover:bg-slate-800 text-purple-400 flex items-center gap-1 font-semibold cursor-pointer">
-                    <Video className="w-3.5 h-3.5" />
-                    <span>Upload Video (AWS)</span>
-                    <input
-                      type="file"
-                      accept="video/*"
-                      className="hidden"
-                      onChange={(e) => handleInContentMediaUpload(e, "video")}
-                    />
-                  </label>
-                </div>
-
-                {/* Media Upload Progress Banner */}
-                {uploadingMedia && (
-                  <div className="bg-orange-950/40 border-b border-orange-500/30 px-4 py-2 flex items-center justify-between text-xs text-orange-300">
-                    <span className="flex items-center gap-2">
-                      <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                      Uploading Media to AWS S3... ({mediaUploadProgress}%)
-                    </span>
-                    <span className="font-mono">{mediaUploadProgress}%</span>
-                  </div>
-                )}
-
-                {/* Main Textarea */}
-                <Textarea
-                  ref={contentTextareaRef}
-                  value={formData.content}
-                  onChange={(e) => handleContentChange(e.target.value)}
-                  placeholder="Write your article content here in Markdown or HTML... Use headings (##), images (![alt](url)), tables, and tips to make it rank #1 on Google!"
-                  className="bg-transparent border-0 text-slate-100 text-sm sm:text-base leading-relaxed p-4 sm:p-5 min-h-[420px] focus:ring-0 resize-y font-mono"
-                />
-
-                {/* Editor Footer Status */}
-                <div className="bg-slate-950/80 border-t border-slate-800 px-4 py-2 flex items-center justify-between text-xs text-slate-500">
-                  <span>
-                    Words: <strong className="text-slate-300">{formData.content.trim().split(/\s+/).filter(Boolean).length}</strong>
-                  </span>
-                  <span>{formData.read_time}</span>
-                </div>
-              </div>
-
-              {/* FAQ Schema Builder Section (Google Rich Snippets) */}
-              <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <HelpCircle className="w-4 h-4 text-orange-500" /> FAQ Section (Google Rich Snippet Schema)
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Add questions and answers here to make Google show expandable accordion cards on Search!
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addFAQ}
-                    className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add FAQ
-                  </Button>
-                </div>
-
-                {formData.faqs.map((faq, idx) => (
-                  <div key={idx} className="bg-slate-950/80 border border-slate-800 p-3 rounded-xl space-y-2 relative">
-                    <button
-                      type="button"
-                      onClick={() => removeFAQ(idx)}
-                      className="absolute top-2 right-2 text-slate-500 hover:text-red-400 p-1"
-                    >
-                      <X className="w-3.5 h-3.5" />
+              {/* Inline Cover Image */}
+              {formData.cover_image ? (
+                <div className="relative group w-full rounded-3xl overflow-hidden bg-slate-900 border border-slate-800/50 aspect-[21/9] sm:aspect-[3/1] mb-8">
+                  <img src={formData.cover_image} alt={formData.cover_image_alt || "Cover"} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                    <label className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-lg">
+                      Change Cover Image
+                      <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+                    </label>
+                    <button type="button" onClick={() => setFormData({ ...formData, cover_image: "" })} className="px-5 py-2.5 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-colors shadow-lg">
+                      Remove
                     </button>
-                    <Input
-                      value={faq.q}
-                      onChange={(e) => updateFAQ(idx, "q", e.target.value)}
-                      placeholder={`Question #${idx + 1} (e.g., How do I withdraw tournament prize money?)`}
-                      className="bg-slate-900 border-slate-800 text-xs text-white"
-                    />
-                    <Textarea
-                      value={faq.a}
-                      onChange={(e) => updateFAQ(idx, "a", e.target.value)}
-                      placeholder="Answer in 1-3 sentences..."
-                      className="bg-slate-900 border-slate-800 text-xs text-slate-300 h-16 resize-none"
-                    />
                   </div>
-                ))}
+                </div>
+              ) : (
+                <label className="block w-full border border-dashed border-slate-700 hover:border-slate-500 rounded-3xl aspect-[21/9] sm:aspect-[3/1] mb-8 flex flex-col items-center justify-center p-6 cursor-pointer bg-slate-900/20 hover:bg-slate-900/40 transition-all text-slate-500 hover:text-slate-400 group">
+                  {uploadingCover ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-bold text-orange-400">Uploading... ({coverUploadProgress}%)</span>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-8 h-8 mb-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      <span className="text-sm font-bold text-slate-300">Add a Cover Banner</span>
+                      <span className="text-[10px] mt-1 opacity-70">Recommended: 1200 x 675 px</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} disabled={uploadingCover} />
+                </label>
+              )}
+
+              {/* Title Input */}
+              <input
+                value={formData.title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder="Blog Title..."
+                className="w-full bg-transparent border-0 text-white font-black text-4xl sm:text-5xl lg:text-6xl focus:ring-0 px-0 placeholder:text-slate-800 leading-tight mb-2 tracking-tight"
+              />
+
+              {/* Subtle Toolbar */}
+              <div className="border-b border-slate-800/60 pb-3 mb-6 sticky top-16 z-10 bg-slate-950/95 backdrop-blur-md flex flex-wrap items-center gap-1.5 text-slate-400">
+                <button type="button" onClick={() => insertIntoContent("\n## Subheading\n")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="H2"><Heading2 className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertIntoContent("\n### Section\n")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="H3"><Heading3 className="w-4 h-4" /></button>
+                <div className="w-[1px] h-4 bg-slate-800 mx-1" />
+                <button type="button" onClick={() => insertIntoContent("**bold text**")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="Bold"><Bold className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertIntoContent("*italic text*")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="Italic"><Italic className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertIntoContent("\n* item\n* item\n")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="Bulleted List"><List className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertIntoContent("\n> Important Note\n")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="Quote"><Quote className="w-4 h-4" /></button>
+                <div className="w-[1px] h-4 bg-slate-800 mx-1" />
+                <button type="button" onClick={() => insertIntoContent("\n| Header | Header |\n| :--- | :--- |\n| Row | Row |\n")} className="p-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors" title="Table"><Table className="w-4 h-4" /></button>
+                <button type="button" onClick={() => insertIntoContent('\n<div class="my-6 p-5 bg-gradient-to-r from-orange-600/20 to-amber-600/10 border border-orange-500/30 rounded-2xl text-center"><h3 class="text-lg font-black text-white mb-2">Ready to Host Your Tournament?</h3><a href="/tournaments" class="inline-block bg-orange-600 hover:bg-orange-500 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider shadow-lg mt-4">Host Tournament on BattleHub</a></div>\n')} className="p-2 rounded-lg hover:bg-slate-800 hover:text-orange-400 transition-colors" title="CTA Box"><Sparkles className="w-4 h-4" /></button>
+                <div className="w-[1px] h-4 bg-slate-800 mx-1" />
+                <label className="p-2 rounded-lg hover:bg-slate-800 hover:text-emerald-400 transition-colors cursor-pointer" title="Upload Image">
+                  <ImageIcon className="w-4 h-4" />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleInContentMediaUpload(e, "image")} />
+                </label>
+                <label className="p-2 rounded-lg hover:bg-slate-800 hover:text-purple-400 transition-colors cursor-pointer" title="Upload Video">
+                  <Video className="w-4 h-4" />
+                  <input type="file" accept="video/*" className="hidden" onChange={(e) => handleInContentMediaUpload(e, "video")} />
+                </label>
               </div>
 
+              {/* Media Upload Progress Banner */}
+              {uploadingMedia && (
+                <div className="bg-orange-950/40 border border-orange-500/30 rounded-xl px-4 py-2 flex items-center justify-between text-xs text-orange-300 mb-4">
+                  <span className="flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    Uploading Media to AWS S3...
+                  </span>
+                  <span className="font-mono">{mediaUploadProgress}%</span>
+                </div>
+              )}
+
+              {/* Content Textarea */}
+              <Textarea
+                ref={contentTextareaRef}
+                value={formData.content}
+                onChange={(e) => handleContentChange(e.target.value)}
+                placeholder="Write your story here... Use Markdown or HTML."
+                className="w-full bg-transparent border-0 text-slate-300 text-lg sm:text-xl leading-[1.8] p-0 min-h-[600px] focus:ring-0 resize-y font-sans placeholder:text-slate-700"
+              />
+              
+              <div className="text-[11px] text-slate-600 font-mono mt-8 pt-6 border-t border-slate-800/50">
+                Words: {formData.content.trim().split(/\s+/).filter(Boolean).length} | {formData.read_time}
+              </div>
             </div>
 
-            {/* RIGHT COLUMN: Inspector & SEO Settings (Col-span 1) */}
-            <div className="space-y-5">
+            {/* RIGHT COLUMN: Settings Sidebar (Col-span 1) */}
+            <div className="space-y-6 lg:sticky lg:top-16 lg:h-[calc(100vh-80px)] overflow-y-auto pb-10 scrollbar-hide">
               
-              {/* Featured Image (Cover Banner) Upload Card */}
-              <div className="bg-slate-900/60 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-3">
-                <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                  <span>Cover Banner (16:9)</span>
-                  <span className="text-[10px] text-orange-400 font-semibold">AWS S3 Stored</span>
-                </Label>
-
-                {formData.cover_image ? (
-                  <div className="relative group rounded-xl overflow-hidden border border-slate-800 aspect-video">
-                    <img
-                      src={formData.cover_image}
-                      alt={formData.cover_image_alt || "Cover"}
-                      className="w-full h-full object-cover"
+              {/* Publishing / SEO Card */}
+              <div className="bg-slate-900/40 border border-slate-800/60 p-5 rounded-3xl space-y-5">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5 text-orange-500" /> Post Settings
+                </h4>
+                
+                {/* URL Slug */}
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">URL Slug</Label>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] text-slate-500 font-mono">battlehub.site/blog/</span>
+                    <Input
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
+                      className="bg-slate-950/50 border-slate-800 text-xs text-orange-400 h-8 focus:border-orange-500"
                     />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <label className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs cursor-pointer">
-                        Change Image
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleCoverUpload}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, cover_image: "" })}
-                        className="p-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
                   </div>
-                ) : (
-                  <label className="border-2 border-dashed border-slate-800 hover:border-orange-500/50 rounded-xl aspect-video flex flex-col items-center justify-center p-4 cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition-all text-center">
-                    {uploadingCover ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs text-orange-400 font-bold">Uploading to AWS ({coverUploadProgress}%)</span>
-                      </div>
-                    ) : (
-                      <>
-                        <Upload className="w-8 h-8 text-slate-500 mb-2" />
-                        <span className="text-xs font-bold text-slate-300">Click to Upload Cover Image</span>
-                        <span className="text-[10px] text-slate-500 mt-1">Recommended: 1200 x 675 px (PNG, JPG, WebP)</span>
-                      </>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleCoverUpload}
-                      disabled={uploadingCover}
-                    />
-                  </label>
-                )}
+                </div>
 
-                {/* Alt-Text input for image SEO */}
-                <div className="space-y-1 pt-1">
+                {/* Short Excerpt */}
+                <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Image Alt Text (Google Image SEO)
+                    Short Excerpt (SEO Description)
                   </Label>
-                  <Input
-                    value={formData.cover_image_alt}
-                    onChange={(e) => setFormData({ ...formData, cover_image_alt: e.target.value })}
-                    placeholder="Describe image with keywords..."
-                    className="bg-slate-950 border-slate-800 text-xs h-8 text-slate-300"
+                  <Textarea
+                    value={formData.excerpt}
+                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value, meta_description: e.target.value })}
+                    placeholder="1-2 sentences summarizing the article..."
+                    className="bg-slate-950/50 border-slate-800 text-slate-300 text-xs h-20 resize-none focus:border-orange-500"
                   />
                 </div>
-              </div>
-
-              {/* Category & Tags Card */}
-              <div className="bg-slate-900/60 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Category</Label>
+                
+                {/* Category & Tags */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-800/50">
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Category</Label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500"
                   >
                     {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </div>
-
-                {/* Tags */}
+                
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Tags</Label>
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tags</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {formData.tags.map((t) => (
-                      <Badge key={t} className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs gap-1 py-1">
+                      <Badge key={t} className="bg-slate-800/50 text-slate-300 text-[10px] gap-1 py-0.5 border-slate-700">
                         #{t}
-                        <button type="button" onClick={() => removeTag(t)} className="text-slate-500 hover:text-white">
-                          <X className="w-3 h-3" />
-                        </button>
+                        <button type="button" onClick={() => removeTag(t)} className="text-slate-500 hover:text-white"><X className="w-2.5 h-2.5" /></button>
                       </Badge>
                     ))}
                   </div>
@@ -850,85 +696,95 @@ export default function BlogManagement() {
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleAddTag}
-                    placeholder="Type tag & press Enter (e.g. FreeFire, Scrims)..."
-                    className="bg-slate-950 border-slate-800 text-xs text-slate-300 h-8"
+                    placeholder="Type tag & press Enter..."
+                    className="bg-slate-950/50 border-slate-800 text-xs text-slate-300 h-8"
                   />
                 </div>
 
-                {/* Author Info */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Author Name</Label>
+                <div className="space-y-1.5 pt-2 border-t border-slate-800/50">
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Author Name</Label>
                   <Input
                     value={formData.author_name}
                     onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
-                    className="bg-slate-950 border-slate-800 text-xs text-white h-8"
+                    className="bg-slate-950/50 border-slate-800 text-xs text-white h-8"
                   />
                 </div>
               </div>
 
-              {/* SEO Score & Google Preview Card */}
-              <div className="bg-slate-900/60 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-4">
-                
-                {/* Score Header */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              {/* FAQ Builder (Accordian Style) */}
+              <div className="bg-slate-900/40 border border-slate-800/60 p-5 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">SEO Audit Score</h4>
-                    <p className="text-[10px] text-slate-400">Real-time Google Algorithm Check</p>
+                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                      <HelpCircle className="w-3.5 h-3.5 text-orange-500" /> FAQ Schema
+                    </h3>
                   </div>
-                  <div className={`px-2.5 py-1 rounded-full text-xs font-black border ${
-                    seoData.score >= 80 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" :
-                    seoData.score >= 50 ? "bg-amber-500/20 text-amber-400 border-amber-500/40" :
-                    "bg-red-500/20 text-red-400 border-red-500/40"
+                  <Button type="button" size="sm" onClick={addFAQ} className="h-6 px-2 bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-200 gap-1 rounded-lg">
+                    <Plus className="w-3 h-3" /> Add
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {formData.faqs.map((faq, idx) => (
+                    <div key={idx} className="bg-slate-950/50 border border-slate-800/80 p-3 rounded-2xl space-y-2 relative group">
+                      <button type="button" onClick={() => removeFAQ(idx)} className="absolute top-1 right-1 text-slate-600 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                      <Input
+                        value={faq.q}
+                        onChange={(e) => updateFAQ(idx, "q", e.target.value)}
+                        placeholder={`Q${idx + 1}...`}
+                        className="bg-transparent border-0 border-b border-slate-800 rounded-none px-1 h-6 text-xs text-white focus:ring-0"
+                      />
+                      <Textarea
+                        value={faq.a}
+                        onChange={(e) => updateFAQ(idx, "a", e.target.value)}
+                        placeholder="Answer..."
+                        className="bg-transparent border-0 px-1 text-[11px] text-slate-400 h-12 resize-none focus:ring-0"
+                      />
+                    </div>
+                  ))}
+                  {formData.faqs.length === 0 && (
+                    <p className="text-[10px] text-slate-500 text-center italic py-2">Add FAQs to show in Google Search cards.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Google SEO Score Mini Card */}
+              <div className="bg-slate-900/40 border border-slate-800/60 p-5 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-blue-400" /> SEO Score
+                  </h4>
+                  <div className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                    seoData.score >= 80 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                    seoData.score >= 50 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                    "bg-red-500/10 text-red-400 border-red-500/20"
                   }`}>
-                    {seoData.score} / 100
+                    {seoData.score}/100
                   </div>
                 </div>
-
-                {/* Focus Keyword */}
+                
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Target / Focus Keyword
-                  </Label>
                   <Input
                     value={formData.focus_keyword}
                     onChange={(e) => setFormData({ ...formData, focus_keyword: e.target.value })}
-                    placeholder="e.g., Free Fire tournament"
-                    className="bg-slate-950 border-slate-800 text-xs text-orange-400 h-8"
+                    placeholder="Focus Keyword..."
+                    className="bg-slate-950/50 border-slate-800 text-xs text-orange-400 h-8"
                   />
                 </div>
-
-                {/* Google Snippet Live Simulation */}
-                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1 text-left">
-                  <span className="text-[9px] uppercase tracking-widest text-slate-500 font-bold block mb-1">
-                    Google Search Preview
-                  </span>
-                  <p className="text-xs text-blue-400 font-semibold hover:underline truncate">
-                    {formData.meta_title || formData.title || "Blog Title - BattleHub"}
-                  </p>
-                  <p className="text-[10px] text-emerald-500 truncate font-mono">
-                    https://battlehub.site/blog/{formData.slug || "post-url"}
-                  </p>
-                  <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
-                    {formData.meta_description || formData.excerpt || "Article preview description will appear here on Google search..."}
-                  </p>
-                </div>
-
-                {/* Checklist */}
-                <div className="space-y-1.5 text-xs">
+                
+                {/* Checklist (Mini) */}
+                <div className="space-y-1 pt-2">
                   {seoData.checks.map((c, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[11px]">
-                      {c.pass ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      )}
-                      <span className={c.pass ? "text-slate-300" : "text-slate-500"}>{c.label}</span>
+                    <div key={i} className="flex items-center gap-1.5 text-[10px]">
+                      {c.pass ? <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" /> : <AlertCircle className="w-3 h-3 text-slate-600 shrink-0" />}
+                      <span className={c.pass ? "text-slate-400" : "text-slate-600 truncate"}>{c.label}</span>
                     </div>
                   ))}
                 </div>
-
               </div>
-
+              
             </div>
 
           </div>
@@ -955,12 +811,23 @@ export default function BlogManagement() {
           </p>
         </div>
 
-        <Button
-          onClick={startNewBlog}
-          className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs gap-1.5 shadow-lg shadow-orange-600/20"
-        >
-          <Plus className="w-4 h-4" /> Write New Blog
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadBlogs(true)}
+            disabled={loading}
+            className="bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300 text-xs h-9 px-3 gap-1.5"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          <Button
+            onClick={startNewBlog}
+            className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs gap-1.5 shadow-lg shadow-orange-600/20 h-9"
+          >
+            <Plus className="w-4 h-4" /> Write New Blog
+          </Button>
+        </div>
       </div>
 
       {/* Filter Bar */}

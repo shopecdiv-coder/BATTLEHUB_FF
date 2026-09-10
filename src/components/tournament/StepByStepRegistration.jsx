@@ -12,6 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { SendEmail } from "@/api/integrations";
 import { sendBrevoEmail } from "@/utils/brevoEmail";
 import { UploadFile } from "@/integrations/Core";
+import { WalletEngine } from "@/lib/walletEngine";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import RegistrationSuccessModal from "./RegistrationSuccessModal";
@@ -757,34 +758,20 @@ export default function StepByStepRegistration({ tournament, user, onClose, onSu
       }
     } catch (e) { console.error("Referral reward failed", e); }
 
-    try {
-      // Deduct coins based on payment method (skip for free tournaments)
-      if (!isFree && requiredCoins > 0) {
-        const accounts = await Diamond.filter({ user_id: user.id });
-        if (accounts.length > 0) {
-          const account = accounts[0];
-          const now = new Date().toISOString();
-          const updateData = {
-            transactions: [
-              ...(account.transactions || []),
-              {
-                type: "Tournament Entry",
-                coin_type: effectivePaymentMethod,
-                amount: -requiredCoins,
-                description: `Entered ${tournament.title}`,
-                timestamp: now
-              }
-            ]
-          };
-          if (effectivePaymentMethod === "BH Coin") {
-            updateData.bh_coin_balance = (account.bh_coin_balance || 0) - requiredCoins;
-          } else if (effectivePaymentMethod === "Diamond") {
-            updateData.diamond_balance = (account.diamond_balance || 0) - requiredCoins;
-          }
-          await Diamond.update(account.id, updateData);
-        }
+    // 🔒 SECURE: Deduct tournament entry fee via server-side API
+    // This atomically deducts from all 3 buckets (bonus → deposit → winnings)
+    // If deduction fails, registration will NOT proceed (no more free entries!)
+    if (!isFree && requiredCoins > 0) {
+      const deductResult = await WalletEngine.deductTournamentFee(
+        tournament.id,
+        tournament.title,
+        requiredCoins,
+        effectivePaymentMethod
+      );
+      if (!deductResult.success) {
+        throw new Error(deductResult.error || "Failed to deduct tournament entry fee");
       }
-    } catch (e) { console.error("Coin deduction failed", e); }
+    }
 
     try {
       // Upsert TeamProfile so team history is tracked

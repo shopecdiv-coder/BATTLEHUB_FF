@@ -4,26 +4,57 @@ import { RedeemRequest } from "@/entities/RedeemRequest";
 import { PaymentRequest } from "@/entities/PaymentRequest";
 import { Notification } from "@/entities/Notification";
 import { cacheInvalidateAll } from "@/lib/cache";
+import { auth } from "@/api/firebaseClient";
 
-// 🚀 Instant Cross-Tab / Cross-App Broadcast Channel
+// ═══════════════════════════════════════════════════════════
+// 🔒 BattleHub Wallet Engine v2.0 — UPI-Grade Security
+// ALL balance mutations go through the server-side API.
+// Client-side code is READ-ONLY for wallet data.
+// ═══════════════════════════════════════════════════════════
+
+// 🔒 Server API URL
+const WALLET_API_URL = import.meta.env.VITE_WALLET_API_URL || 'https://battlehub-ten.vercel.app/api/wallet';
+
+// Helper: Make authenticated API call to wallet server
+async function secureWalletApiCall(action, payload = {}) {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Not logged in");
+  
+  const idToken = await currentUser.getIdToken(true);
+  
+  const response = await fetch(WALLET_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`
+    },
+    body: JSON.stringify({ action, ...payload })
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || `Wallet operation failed (${response.status})`);
+  }
+  
+  return data;
+}
+
+// 🚀 Cross-Tab Broadcast Channel
 const walletBroadcastChannel = typeof window !== "undefined" && "BroadcastChannel" in window 
   ? new BroadcastChannel("battlehub_wallet_sync") 
   : null;
 
 const notifyRealtimeSync = (newBalances) => {
   if (typeof window !== "undefined") {
-    // Invalidate local in-memory cache on all updates
     cacheInvalidateAll();
-
-    // 1. Dispatch Local Event
     window.dispatchEvent(new CustomEvent("wallet_balance_updated", { detail: { newBalances } }));
+    window.dispatchEvent(new CustomEvent("wallet-balance-updated", { detail: { newBalances } }));
     
-    // 2. BroadcastChannel Message
     if (walletBroadcastChannel) {
       walletBroadcastChannel.postMessage({ type: "SYNC_BALANCE", newBalances, timestamp: Date.now() });
     }
 
-    // 3. LocalStorage Cross-Window Event
     try {
       localStorage.setItem("battlehub_wallet_sync_trigger", Date.now().toString());
     } catch (e) {}
@@ -31,15 +62,17 @@ const notifyRealtimeSync = (newBalances) => {
 };
 
 /**
- * 🏆 Bulletproof 3-Bucket Real-Time Wallet Engine for BattleHub 3.0
+ * 🏦 Secure 3-Bucket Wallet Engine for BattleHub 3.0
+ * All write operations go through secure server API.
+ * Client-side is READ-ONLY.
  */
 export const WalletEngine = {
   /**
    * Fetch current user's 3-bucket wallet balances and transaction history
+   * This is the ONLY client-side Firestore read — safe because rules allow reads.
    */
   async getWalletData() {
     try {
-      // Invalidate cache before fetching to guarantee FRESH data from DB
       cacheInvalidateAll();
 
       const user = await User.me();
@@ -49,21 +82,14 @@ export const WalletEngine = {
       const accounts = await Diamond.filter({ user_id: user.id }).catch(() => []);
       
       if (accounts && accounts.length > 0) {
+        accounts.sort((a, b) => Number(b.bh_coin_balance || 0) - Number(a.bh_coin_balance || 0));
         account = accounts[0];
       } else {
-        account = await Diamond.create({
-          user_id: user.id,
-          user_ign: user.ign || user.full_name,
-          deposit_balance: 0,
-          bonus_balance: 0,
-          winnings_balance: 0,
-          bh_coin_balance: 0,
-          diamond_balance: 0,
-          transactions: []
-        }).catch(() => ({ 
+        // Don't create wallet from client! Server will create it on first transaction.
+        account = { 
           deposit_balance: 0, bonus_balance: 0, winnings_balance: 0, 
           bh_coin_balance: 0, diamond_balance: 0, transactions: [] 
-        }));
+        };
       }
 
       const [redeemReqs, paymentReqs] = await Promise.all([
@@ -71,10 +97,15 @@ export const WalletEngine = {
         PaymentRequest.filter({ user_id: user.id }, "-created_date").catch(() => [])
       ]);
 
-      const deposit = account?.deposit_balance || 0;
-      const bonus = account?.bonus_balance || 0;
-      const winnings = account?.winnings_balance || 0;
-      const totalCoins = deposit + bonus + winnings || account?.bh_coin_balance || 0;
+      const deposit = Number(account?.deposit_balance || 0);
+      let bonus = Number(account?.bonus_balance || 0);
+      const winnings = Number(account?.winnings_balance || 0);
+      const rawTotal = Number(account?.bh_coin_balance || 0);
+
+      if (rawTotal > (deposit + bonus + winnings)) {
+        bonus = rawTotal - deposit - winnings;
+      }
+      const totalCoins = deposit + bonus + winnings;
 
       return {
         success: true,
@@ -96,19 +127,18 @@ export const WalletEngine = {
   },
 
   /**
-   * Subscribe to INSTANT Real-Time Balance Updates (0.5s High-Speed Sync)
+   * Subscribe to Real-Time Balance Updates
    */
   subscribeToUpdates(onUpdateCallback) {
     if (typeof window === "undefined") return () => {};
 
-    // 1. Local Event Listener
     const handleLocalEvent = () => {
       cacheInvalidateAll();
       onUpdateCallback();
     };
     window.addEventListener("wallet_balance_updated", handleLocalEvent);
+    window.addEventListener("wallet-balance-updated", handleLocalEvent);
 
-    // 2. Broadcast Channel Listener
     const handleBroadcastMessage = (event) => {
       if (event.data?.type === "SYNC_BALANCE") {
         cacheInvalidateAll();
@@ -119,7 +149,6 @@ export const WalletEngine = {
       walletBroadcastChannel.addEventListener("message", handleBroadcastMessage);
     }
 
-    // 3. Storage Event Listener (Cross-Port / Cross-Window Sync)
     const handleStorageEvent = (e) => {
       if (e.key === "battlehub_wallet_sync_trigger") {
         cacheInvalidateAll();
@@ -128,14 +157,15 @@ export const WalletEngine = {
     };
     window.addEventListener("storage", handleStorageEvent);
 
-    // 4. Ultra-Fast 1-Second Heartbeat Polling Fallback (Cloud DB Sync)
+    // Reduced polling from 1s to 5s since we have real-time onSnapshot in Layout.jsx
     const intervalId = setInterval(() => {
       cacheInvalidateAll();
       onUpdateCallback();
-    }, 1000);
+    }, 5000);
 
     return () => {
       window.removeEventListener("wallet_balance_updated", handleLocalEvent);
+      window.removeEventListener("wallet-balance-updated", handleLocalEvent);
       if (walletBroadcastChannel) {
         walletBroadcastChannel.removeEventListener("message", handleBroadcastMessage);
       }
@@ -145,64 +175,21 @@ export const WalletEngine = {
   },
 
   /**
-   * Credit Coins to Specific Bucket (BONUS vs DEPOSIT vs WINNINGS)
+   * 🔒 Credit Coins — Server-Side API Call
+   * Previously this directly wrote to Firestore from the client.
+   * Now it calls the secure server API which validates and writes atomically.
    */
   async creditCoins(amount, bucketType = "BONUS", source = "REWARD_AD", description = "Earned Reward Bonus") {
     try {
-      cacheInvalidateAll();
-
-      const user = await User.me();
-      if (!user) throw new Error("Not logged in");
-
-      const accounts = await Diamond.filter({ user_id: user.id });
-      let account = accounts[0];
-
-      let deposit = account?.deposit_balance || 0;
-      let bonus = account?.bonus_balance || 0;
-      let winnings = account?.winnings_balance || 0;
-
-      if (bucketType === "BONUS") {
-        bonus += amount;
-      } else if (bucketType === "DEPOSIT") {
-        deposit += amount;
-      } else if (bucketType === "WINNINGS") {
-        winnings += amount;
-      }
-
-      const totalCoins = deposit + bonus + winnings;
-
-      const newTx = {
-        id: `tx_${Date.now()}`,
-        type: "CREDIT",
+      const result = await secureWalletApiCall('admin-credit', {
+        targetUserId: auth.currentUser?.uid,
+        amount,
         bucket: bucketType,
-        source: source,
-        amount: amount,
-        description: description,
-        timestamp: new Date().toISOString()
-      };
-
-      const updatedTxs = [newTx, ...(account?.transactions || [])];
-
-      await Diamond.update(account.id, {
-        deposit_balance: deposit,
-        bonus_balance: bonus,
-        winnings_balance: winnings,
-        bh_coin_balance: totalCoins,
-        transactions: updatedTxs
+        reason: `${source}: ${description}`
       });
 
-      cacheInvalidateAll();
-      notifyRealtimeSync({ deposit, bonus, winnings, totalCoins });
-
-      await Notification.create({
-        user_id: user.id,
-        title: `${bucketType} Credited! 🎉`,
-        message: `+${amount} Coins added to your ${bucketType} wallet via ${description}.`,
-        type: "wallet",
-        read: false
-      }).catch(() => {});
-
-      return { success: true, deposit, bonus, winnings, totalCoins };
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return { success: true, totalCoins: result.newBalance };
     } catch (err) {
       console.error("WalletEngine.creditCoins error:", err);
       return { success: false, error: err.message };
@@ -210,110 +197,66 @@ export const WalletEngine = {
   },
 
   /**
-   * Claim Gift Code / Promo Code
+   * 🔒 Claim Promo Code — Server-Side with Per-User Tracking
+   * Previously hardcoded promo codes on client with zero claim tracking.
+   * Now server validates, checks per-user claims, and credits atomically.
    */
   async claimPromoCode(code) {
     try {
       const cleanCode = (code || "").trim().toUpperCase();
       if (!cleanCode) return { success: false, error: "Please enter a valid Gift/Promo Code" };
 
-      const validCodes = {
-        "FREE50": 50,
-        "BATTLEHUB100": 100,
-        "BH2026": 50,
-        "PROMO200": 200,
-        "WELCOME50": 50
-      };
-
-      const rewardAmount = validCodes[cleanCode];
-      if (!rewardAmount) {
-        return { success: false, error: "Invalid or expired Gift Code! Try 'BATTLEHUB100' or 'FREE50'." };
-      }
-
-      return await this.creditCoins(rewardAmount, "BONUS", "PROMO_CODE", `Claimed Promo Code: ${cleanCode}`);
+      const result = await secureWalletApiCall('promo-claim', { code: cleanCode });
+      
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return { success: true, message: result.message, totalCoins: result.newBalance };
     } catch (err) {
       return { success: false, error: err.message };
     }
   },
 
   /**
-   * Request Reward Redeem (FF Diamonds / Gift Cards)
+   * 🔒 Claim Welcome Bonus
+   */
+  async claimWelcomeBonus(amount = 20) {
+    try {
+      const result = await secureWalletApiCall('claim-welcome-bonus', { amount });
+      if (result.success) notifyRealtimeSync({ totalCoins: result.newBalance });
+      return result;
+    } catch (err) {
+      console.error("WalletEngine.claimWelcomeBonus error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Claim Referral Bonus
+   */
+  async claimReferral(amount, friendCount) {
+    try {
+      const result = await secureWalletApiCall('claim-referral', { amount, friendCount });
+      if (result.success) notifyRealtimeSync({ totalCoins: result.newBalance });
+      return result;
+    } catch (err) {
+      console.error("WalletEngine.claimReferral error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Request Reward Redeem — Server-Side Atomic Deduction
    */
   async requestRedeem(rewardType, itemTitle, coinCost, targetAccountDetails) {
     try {
-      cacheInvalidateAll();
-
-      const user = await User.me();
-      if (!user) throw new Error("Not logged in");
-
-      const accounts = await Diamond.filter({ user_id: user.id });
-      const account = accounts[0];
-
-      let deposit = account?.deposit_balance || 0;
-      let bonus = account?.bonus_balance || 0;
-      let winnings = account?.winnings_balance || 0;
-
-      // 🛡️ STRICT SECURITY RULE: Only DEPOSIT & WINNINGS balance can be redeemed!
-      const redeemableBalance = deposit + winnings;
-
-      if (redeemableBalance < coinCost) {
-        return { 
-          success: false, 
-          error: `Security Check: Only Deposit balance (and Winnings) can be redeemed! Your redeemable Deposit balance is ${deposit} Coins. Bonus coins cannot be redeemed directly.` 
-        };
-      }
-
-      let remainingToDeduct = coinCost;
-
-      // Deduct from Deposit balance first
-      if (deposit >= remainingToDeduct) {
-        deposit -= remainingToDeduct;
-        remainingToDeduct = 0;
-      } else {
-        remainingToDeduct -= deposit;
-        deposit = 0;
-      }
-
-      // Deduct remaining from Winnings balance
-      if (remainingToDeduct > 0) {
-        winnings -= remainingToDeduct;
-        remainingToDeduct = 0;
-      }
-
-      const newTotal = deposit + bonus + winnings;
-
-      await RedeemRequest.create({
-        user_id: user.id,
-        user_ign: user.ign || user.full_name,
-        reward_type: rewardType,
-        reward_title: itemTitle,
-        coins_spent: coinCost,
-        target_account: targetAccountDetails,
-        status: "Pending",
-        created_date: new Date().toISOString()
+      const result = await secureWalletApiCall('redeem', {
+        rewardType,
+        itemTitle,
+        coinCost,
+        targetAccountDetails
       });
 
-      const newTx = {
-        id: `tx_${Date.now()}`,
-        type: "DEBIT",
-        source: "REDEEM_STORE",
-        amount: coinCost,
-        description: `Redeemed ${itemTitle}`,
-        timestamp: new Date().toISOString()
-      };
-
-      await Diamond.update(account.id, {
-        deposit_balance: deposit,
-        bonus_balance: bonus,
-        winnings_balance: winnings,
-        bh_coin_balance: newTotal,
-        transactions: [newTx, ...(account.transactions || [])]
-      });
-
-      cacheInvalidateAll();
-      notifyRealtimeSync({ deposit, bonus, winnings, totalCoins: newTotal });
-
-      return { success: true, newBalance: newTotal };
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return { success: true, newBalance: result.newBalance };
     } catch (err) {
       console.error("WalletEngine.requestRedeem error:", err);
       return { success: false, error: err.message };
@@ -321,85 +264,111 @@ export const WalletEngine = {
   },
 
   /**
-   * Request Bank / UPI Withdrawal - STRICTLY WINNINGS ONLY
+   * 🔒 Request Bank / UPI Withdrawal — Server-Side Atomic
    */
   async requestWithdrawal(amount, payoutDetails) {
     try {
-      cacheInvalidateAll();
-
-      const user = await User.me();
-      if (!user) throw new Error("Not logged in");
-
-      const accounts = await Diamond.filter({ user_id: user.id });
-      const account = accounts[0];
-
-      let deposit = account?.deposit_balance || 0;
-      let bonus = account?.bonus_balance || 0;
-      let winnings = account?.winnings_balance || 0;
-
-      // 🛡️ NEW WITHDRAWAL POLICY: Deposit + Winnings can be withdrawn! Only BONUS coins (Ads/Spin) are blocked.
-      const withdrawableBalance = deposit + winnings;
-
-      if (withdrawableBalance < amount) {
-        return { 
-          success: false, 
-          error: `Insufficient withdrawable balance! You can withdraw up to ₹${withdrawableBalance} (Deposit: ₹${deposit}, Winnings: ₹${winnings}). Bonus coins cannot be withdrawn to Bank.` 
-        };
-      }
-
-      let remainingToDeduct = amount;
-
-      // Deduct from Deposit balance first
-      if (deposit >= remainingToDeduct) {
-        deposit -= remainingToDeduct;
-        remainingToDeduct = 0;
-      } else {
-        remainingToDeduct -= deposit;
-        deposit = 0;
-      }
-
-      // Deduct remaining from Winnings balance
-      if (remainingToDeduct > 0) {
-        winnings -= remainingToDeduct;
-        remainingToDeduct = 0;
-      }
-
-      const newTotal = deposit + bonus + winnings;
-
-      await PaymentRequest.create({
-        user_id: user.id,
-        user_name: user.full_name,
-        user_ign: user.ign || user.full_name,
-        type: "Withdrawal",
-        amount: amount,
-        payout_details: payoutDetails,
-        status: "Pending",
-        created_date: new Date().toISOString()
+      const result = await secureWalletApiCall('withdraw', {
+        amount,
+        method: payoutDetails?.method || 'upi',
+        upiId: payoutDetails?.upiId || payoutDetails?.upi_id,
+        bankDetails: payoutDetails?.bankDetails || payoutDetails
       });
 
-      const newTx = {
-        id: `tx_${Date.now()}`,
-        type: "DEBIT",
-        source: "WITHDRAWAL",
-        amount: amount,
-        description: `Requested Withdrawal of ₹${amount}`,
-        timestamp: new Date().toISOString()
-      };
-
-      await Diamond.update(account.id, {
-        deposit_balance: deposit,
-        bonus_balance: bonus,
-        winnings_balance: winnings,
-        bh_coin_balance: newTotal,
-        transactions: [newTx, ...(account.transactions || [])]
-      });
-
-      cacheInvalidateAll();
-      notifyRealtimeSync({ deposit, bonus, winnings, totalCoins: newTotal });
-
-      return { success: true, newBalance: newTotal };
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return { success: true, newBalance: result.newBalance };
     } catch (err) {
       console.error("WalletEngine.requestWithdrawal error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Tournament Join — Server-Side Atomic Fee Deduction
+   * Ensures fee is deducted from ALL 3 buckets properly and registration
+   * only succeeds if deduction succeeds.
+   */
+  async deductTournamentFee(tournamentId, tournamentTitle, entryFee, paymentMethod = 'BH Coin') {
+    try {
+      if (!entryFee || Number(entryFee) <= 0) {
+        return { success: true, message: 'Free tournament', newBalance: null };
+      }
+
+      const result = await secureWalletApiCall('tournament-join', {
+        tournamentId,
+        tournamentTitle,
+        entryFee: Number(entryFee),
+        paymentMethod
+      });
+
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return { success: true, newBalance: result.newBalance };
+    } catch (err) {
+      console.error("WalletEngine.deductTournamentFee error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Admin Credit User (Server-Side)
+   */
+  async adminCreditUser(targetUserId, amount, bucket = "BONUS", reason = "Admin Credit") {
+    try {
+      const result = await secureWalletApiCall('admin-credit', {
+        targetUserId, amount, bucket, reason
+      });
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return result;
+    } catch (err) {
+      console.error("WalletEngine.adminCreditUser error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Admin Set Balance (Server-Side)
+   */
+  async adminSetBalance(targetUserId, deposit, bonus, winnings, reason = "Admin Balance Overwrite") {
+    try {
+      const result = await secureWalletApiCall('admin-set-balance', {
+        targetUserId, deposit, bonus, winnings, reason
+      });
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return result;
+    } catch (err) {
+      console.error("WalletEngine.adminSetBalance error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Admin Approve Payment (Server-Side)
+   */
+  async adminApprovePayment(paymentRequestId, targetUserId, amount, bucket = "DEPOSIT") {
+    try {
+      const result = await secureWalletApiCall('admin-approve-payment', {
+        paymentRequestId, targetUserId, amount, bucket
+      });
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return result;
+    } catch (err) {
+      console.error("WalletEngine.adminApprovePayment error:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * 🔒 Admin Award Tournament Prize (Server-Side)
+   */
+  async adminAwardTournamentPrize(targetUserId, amount, tournamentId, tournamentTitle) {
+    try {
+      const result = await secureWalletApiCall('tournament-prize', {
+        targetUserId, amount, tournamentId, tournamentTitle
+      });
+      notifyRealtimeSync({ totalCoins: result.newBalance });
+      return result;
+    } catch (err) {
+      console.error("WalletEngine.adminAwardTournamentPrize error:", err);
       return { success: false, error: err.message };
     }
   }

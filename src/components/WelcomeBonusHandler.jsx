@@ -3,6 +3,7 @@ import { User } from "@/entities/User";
 import { Diamond } from "@/entities/Diamond";
 import { Referral } from "@/entities/Referral";
 import { AppSettings } from "@/entities/AppSettings";
+import { WalletEngine } from "@/lib/walletEngine";
 
 export default function WelcomeBonusHandler() {
   const [processed, setProcessed] = useState(false);
@@ -51,38 +52,8 @@ export default function WelcomeBonusHandler() {
 
   const giveWelcomeBonus = async (user, bonusAmount) => {
     try {
-      const accounts = await Diamond.filter({ user_id: user.id }).catch(() => []);
-      const now = new Date().toISOString();
-
-      if (accounts.length > 0) {
-        // Check if welcome bonus already given
-        const hasBonus = accounts[0].transactions?.some(t => 
-          t.description?.includes("Welcome Bonus")
-        );
-        if (!hasBonus) {
-          await Diamond.update(accounts[0].id, {
-            amount: (accounts[0].amount || 0) + bonusAmount,
-            transactions: [...(accounts[0].transactions || []), {
-              type: "Win",
-              amount: bonusAmount,
-              description: "🎉 Welcome Bonus",
-              timestamp: now
-            }]
-          });
-        }
-      } else {
-        await Diamond.create({
-          user_id: user.id,
-          user_ign: user.ign || user.full_name,
-          amount: bonusAmount,
-          transactions: [{
-            type: "Win",
-            amount: bonusAmount,
-            description: "🎉 Welcome Bonus",
-            timestamp: now
-          }]
-        });
-      }
+      // 🔒 SECURE: Claim welcome bonus via server API
+      await WalletEngine.claimWelcomeBonus(bonusAmount);
     } catch (e) {
       console.error("Give bonus error:", e);
     }

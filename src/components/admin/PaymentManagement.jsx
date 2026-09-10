@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Check, X, ExternalLink, Eye, ZoomIn } from "lucide-react";
 import { format } from "date-fns";
+import { WalletEngine } from "@/lib/walletEngine";
 
 
 export default function PaymentManagement({ requests, onUpdate }) {
@@ -23,23 +24,20 @@ export default function PaymentManagement({ requests, onUpdate }) {
     const now = new Date().toISOString();
     
     try {
-      // Add BH coins to user account
-      const accounts = await Diamond.filter({ user_id: request.user_id });
-      if (accounts.length > 0) {
-        const account = accounts[0];
-        await Diamond.update(account.id, {
-          bh_coin_balance: (account.bh_coin_balance || 0) + request.diamond_amount,
-          transactions: [
-            ...(account.transactions || []),
-            {
-              type: "Purchase",
-              coin_type: "BH Coin",
-              amount: request.diamond_amount,
-              description: `Purchased ${request.diamond_amount} BH coins via ${request.payment_app}`,
-              timestamp: now
-            }
-          ]
-        });
+      // 🔒 SECURE: Admin approve payment via server API
+      // This will atomically update the balance, mark the payment request as approved, and add an audit log
+      const result = await WalletEngine.adminApprovePayment(
+        request.id,
+        request.user_id,
+        request.diamond_amount,
+        "DEPOSIT" // Purchases go to Deposit wallet
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to approve payment");
+      }
+
+      const now = new Date().toISOString();
 
         // Create notification for user
         await Notification.create({
@@ -52,7 +50,6 @@ export default function PaymentManagement({ requests, onUpdate }) {
           dismissable: true,
           created_at: now
         });
-      }
 
       // Send SES Email Notification
       if (request.user_email) {

@@ -60,12 +60,43 @@ export default function WalletWeb() {
   const [unclaimedGiftCount, setUnclaimedGiftCount] = useState(0);
 
   useEffect(() => {
-    fetchWallet();
-    const unsubscribe = WalletEngine.subscribeToUpdates(() => {
-      fetchWallet(true);
-    });
-
     const userUid = auth.currentUser?.uid;
+
+    // 1. Direct Real-Time listener on diamonds collection
+    let unsubDiamonds = () => {};
+    if (userUid) {
+      const dQuery = query(collection(db, "diamonds"), where("user_id", "==", userUid));
+      unsubDiamonds = onSnapshot(dQuery, (snap) => {
+        if (!snap.empty) {
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          docs.sort((a, b) => Number(b.bh_coin_balance || 0) - Number(a.bh_coin_balance || 0));
+          const account = docs[0];
+
+          const deposit = Number(account.deposit_balance || 0);
+          let bonus = Number(account.bonus_balance || 0);
+          const winnings = Number(account.winnings_balance || 0);
+          const rawTotal = Number(account.bh_coin_balance || 0);
+
+          if (rawTotal > (deposit + bonus + winnings)) {
+            bonus = rawTotal - deposit - winnings;
+          }
+          const totalCoins = deposit + bonus + winnings;
+
+          setData(prev => ({
+            ...prev,
+            coins: totalCoins,
+            totalCoins: totalCoins,
+            deposit: deposit,
+            bonus: bonus,
+            winnings: winnings,
+            transactions: account.transactions || prev.transactions || []
+          }));
+          setLoading(false);
+        }
+      });
+    }
+
+    // 2. Direct Real-Time listener on gift_mails collection
     let unsubGifts = () => {};
     if (userUid) {
       const q = query(
@@ -78,15 +109,27 @@ export default function WalletWeb() {
       });
     }
 
+    // 3. Engine and Event Subscriptions
+    const unsubscribe = WalletEngine.subscribeToUpdates(() => {
+      fetchWallet(true);
+    });
+
     const handleBalanceUpdated = () => {
-      fetchWallet(false);
+      fetchWallet(true);
     };
     window.addEventListener("wallet-balance-updated", handleBalanceUpdated);
+    window.addEventListener("wallet_balance_updated", handleBalanceUpdated);
+    window.addEventListener("wallet_updated", handleBalanceUpdated);
+
+    fetchWallet();
 
     return () => {
-      unsubscribe();
+      unsubDiamonds();
       unsubGifts();
+      unsubscribe();
       window.removeEventListener("wallet-balance-updated", handleBalanceUpdated);
+      window.removeEventListener("wallet_balance_updated", handleBalanceUpdated);
+      window.removeEventListener("wallet_updated", handleBalanceUpdated);
     };
   }, []);
 

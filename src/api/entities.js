@@ -63,13 +63,13 @@ export class FirestoreEntity {
       }
       const q = query(colRef, ...queryConstraints);
       const snap = await getDocs(q);
-      finalRes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      finalRes = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     } catch (e) {
       console.warn(`[FirestoreEntity.list] Direct query failed, falling back to in-memory:`, e);
       try {
         const colRef = collection(db, this.collectionName);
         const snap = await getDocs(colRef);
-        let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let results = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 
         if (orderField) {
           let field = orderField;
@@ -145,13 +145,13 @@ export class FirestoreEntity {
       }
       const q = query(colRef, ...queryConstraints);
       const snap = await getDocs(q);
-      finalRes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      finalRes = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     } catch (e) {
       console.warn(`[FirestoreEntity.filter] Direct query failed, falling back to in-memory:`, e);
       try {
         const colRef = collection(db, this.collectionName);
         const snap = await getDocs(colRef);
-        let results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let results = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 
         results = results.filter(doc => {
           for (const [key, val] of Object.entries(conditions)) {
@@ -204,7 +204,7 @@ export class FirestoreEntity {
     const docRef = doc(db, this.collectionName, id);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
-      const data = { id: snap.id, ...snap.data() };
+      const data = { ...snap.data(), id: snap.id };
       cacheSet(cacheKey, data, 2 * 60 * 1000);
       return data;
     }

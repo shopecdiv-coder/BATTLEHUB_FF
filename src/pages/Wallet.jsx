@@ -7,6 +7,7 @@ import { User } from "@/entities/User";
 import { Notification } from "@/entities/Notification";
 import { AppSettings } from "@/entities/AppSettings";
 import { base44 } from "@/api/base44Client";
+import { WalletEngine } from "@/lib/walletEngine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -151,121 +152,30 @@ export default function Wallet() {
     if (redeemAmount < 1 || redeemAmount > bhCoins) { setError(`Invalid amount. Balance: ${bhCoins} BH Coins`); return; }
     if (!bankDetails.account_holder || (!bankDetails.upi_id && !bankDetails.phone_number && !bankDetails.account_number)) { setError("Please fill required fields"); return; }
     if (bankDetails.account_number && !bankDetails.ifsc_code) { setError("IFSC code required for bank account"); return; }
+    
     setSubmitting(true);
     setError("");
+    
     try {
-      let apiProcessed = false;
-
-      // 1. Try secure API if available
-      try {
-        const idToken = await auth.currentUser?.getIdToken(true);
-        if (idToken) {
-          const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:5174/api/wallet' 
-            : 'https://battlehub.site/api/wallet';
-
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`
-            },
-            body: JSON.stringify({
-              action: 'withdraw',
-              amount: redeemAmount,
-              method: bankDetails.upi_id ? 'upi' : 'bank',
-              upiId: bankDetails.upi_id,
-              bankDetails: {
-                accountNumber: bankDetails.account_number,
-                ifsc: bankDetails.ifsc_code,
-                accountHolder: bankDetails.account_holder
-              }
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json().catch(() => null);
-            if (data && data.success) {
-              apiProcessed = true;
-            }
-          }
-        }
-      } catch (apiErr) {
-        console.warn("Wallet API unavailable, processing directly via Firestore:", apiErr);
-      }
-
-      // 2. Direct bulletproof Firestore deduction if API wasn't reachable
-      if (!apiProcessed && coinAccount?.id) {
-        const now = new Date().toISOString();
-        const updatedTransactions = [
-          ...(coinAccount.transactions || []),
-          {
-            type: "Redeem",
-            coin_type: "BH Coin",
-            amount: -redeemAmount,
-            description: `Redeem request for ₹${redeemAmount} to ${bankDetails.upi_id || bankDetails.account_number || 'Bank'}`,
-            timestamp: now
-          }
-        ];
-
-        let rem = redeemAmount;
-        let curW = Number(coinAccount.winnings_balance || 0);
-        let curD = Number(coinAccount.deposit_balance || 0);
-        let curB = Number(coinAccount.bonus_balance || 0);
-
-        let newW = curW >= rem ? (curW - rem) : 0;
-        rem = curW >= rem ? 0 : (rem - curW);
-
-        let newD = curD >= rem ? (curD - rem) : 0;
-        rem = curD >= rem ? 0 : (rem - curD);
-
-        let newB = curB >= rem ? (curB - rem) : 0;
-        const newTotal = newW + newD + newB;
-
-        await Diamond.update(coinAccount.id, {
-          winnings_balance: newW,
-          deposit_balance: newD,
-          bonus_balance: newB,
-          bh_coin_balance: newTotal,
-          transactions: updatedTransactions
-        });
-      }
-
-      // 3. Record local request for Admin Dashboard only if API didn't already create it
-      if (!apiProcessed) {
-        const now = new Date().toISOString();
-        await RedeemRequest.create({
-          user_id: user.id,
-          user_ign: user.ign || user.full_name,
-          diamond_amount: redeemAmount,
-          inr_amount: redeemAmount,
-          bank_details: bankDetails,
-          status: "Pending",
-          admin_notes: "App Redeem Request"
-        });
-      }
-
-      await Notification.create({
-        recipient_id: user.id,
-        type: "Prize Distributed",
-        title: "🏦 Redeem Request Submitted",
-        message: `Request to redeem ${redeemAmount} coins (₹${redeemAmount}) submitted.`,
-        link: createPageUrl("Wallet"),
-        priority: "Medium",
-        dismissable: true,
-        created_at: now
-      }).catch(() => null);
+      // 🔒 SECURE: Direct server API call for withdrawal
+      const result = await WalletEngine.requestWithdrawal(redeemAmount, bankDetails);
       
-      await loadData();
-      setRedeemAmount(0);
-      setBankDetails({ account_holder: "", account_number: "", ifsc_code: "", bank_name: "", upi_id: "", phone_number: "" });
+      if (!result.success) {
+        throw new Error(result.error || "Failed to process redeem request");
+      }
+      
       setRedeemSuccess(true);
+      setRedeemAmount(0);
+      setBankDetails({ upi_id: "", phone_number: "", account_number: "", ifsc_code: "", account_holder: "" });
+      await loadData();
+      
       setTimeout(() => setRedeemSuccess(false), 4000);
-    } catch (e) {
-      console.error("Redeem error:", e);
-      setError(e.message || "Failed to submit redeem request. Please try again.");
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to process redeem request. Try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const tabs = [
@@ -640,13 +550,28 @@ export default function Wallet() {
                   if (codeAmount < 1 || codeAmount > bhCoins) { setError("Invalid amount"); return; }
                   setSubmitting(true);
                   try {
-                    await RedeemCode.create({ user_id: user.id, user_ign: user.ign || user.full_name, coin_amount: codeAmount, status: "Pending" });
-                    const now = new Date().toISOString();
-                    await Diamond.update(coinAccount.id, { bh_coin_balance: bhCoins - codeAmount, transactions: [...(coinAccount.transactions || []), { type: "Redeem", coin_type: "BH Coin", amount: -codeAmount, description: `Code request for ${codeAmount} coins`, timestamp: now }] });
-                    await Notification.create({ recipient_id: user.id, type: "App Update", title: "🎁 Code Requested", message: `Request for ${codeAmount} coins code submitted!`, link: createPageUrl("Wallet"), priority: "High", dismissable: true, created_at: now }).catch(() => null);
-                    await loadData(); setCodeAmount(0); setCodeSuccess(true); setTimeout(() => setCodeSuccess(false), 4000);
-                  } catch (e) { console.error(e); setError("Failed to request code. Try again."); }
-                  setSubmitting(false);
+                    // 🔒 SECURE: Request Redeem Code via server API
+                    const result = await WalletEngine.requestRedeem(
+                      "Redeem Code",
+                      `Code Request for ${codeAmount} coins`,
+                      codeAmount,
+                      { note: "App Request" }
+                    );
+
+                    if (!result.success) {
+                      throw new Error(result.error || "Failed to request code");
+                    }
+
+                    await loadData();
+                    setCodeAmount(0);
+                    setCodeSuccess(true);
+                    setTimeout(() => setCodeSuccess(false), 4000);
+                  } catch (e) {
+                    console.error(e);
+                    setError(e.message || "Failed to request code. Try again.");
+                  } finally {
+                    setSubmitting(false);
+                  }
                 }}
                 disabled={submitting || codeAmount < 1 || codeAmount > bhCoins}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 py-5 rounded-xl font-bold"

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { 
   Gift, CheckCircle2, Clock, User, ArrowRight, 
@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { db, auth } from "@/api/firebaseClient";
 import { 
   collection, query, where, onSnapshot, doc, updateDoc, 
-  getDocs, setDoc, increment, serverTimestamp, addDoc
+  getDocs, setDoc, increment, serverTimestamp, addDoc, runTransaction
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -34,13 +34,16 @@ const BHCoinIcon = ({ className = "w-12 h-12" }) => (
   </svg>
 );
 
+// 🔒 Server API URL — all wallet mutations go through this secure endpoint
+const WALLET_API_URL = import.meta.env.VITE_WALLET_API_URL || 'https://battlehub-ten.vercel.app/api/wallet';
+
 export default function GlobalGiftMailHandler() {
   const [currentUser, setCurrentUser] = useState(null);
   const [mails, setMails] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [viewMode, setViewMode] = useState("card"); // 'card' or 'inbox'
+  const [viewMode, setViewMode] = useState("card");
   const [copiedId, setCopiedId] = useState(false);
   const hasAutoOpenedRef = useRef(new Set());
 
@@ -52,7 +55,7 @@ export default function GlobalGiftMailHandler() {
     return () => unsubAuth();
   }, []);
 
-  // 2. Listen to Gift Mails in real-time
+  // 2. Listen to Gift Mails in real-time (READ-ONLY — no client writes)
   useEffect(() => {
     if (!currentUser?.uid) {
       setMails([]);
@@ -146,103 +149,85 @@ export default function GlobalGiftMailHandler() {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  // 4. Claim Gift function (Atomic balance addition + Confetti)
+  // ═══════════════════════════════════════════════════════
+  // 🔒 SECURE GIFT CLAIM — Server-Side API Call
+  // No client-side Firestore writes! All mutations via secure API.
+  // ═══════════════════════════════════════════════════════
   const handleClaimGift = async (mail) => {
     if (!mail || mail.status === "claimed" || claiming || !currentUser) return;
 
     setClaiming(true);
     try {
-      const nowIso = new Date().toISOString();
-      const numAmount = Number(mail.amount || 0);
+      // Get fresh ID token for authentication
+      const idToken = await currentUser.getIdToken(true);
+      
+      const response = await fetch(WALLET_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          action: 'claim-gift',
+          giftMailId: mail.id
+        })
+      });
 
-      // Confetti celebration
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to claim gift');
+      }
+
+      // Grand Confetti fireworks shooting UPWARDS into the screen ON TOP OF MODAL
       try {
+        // Center explosive fountain blasting upwards
         confetti({
           particleCount: 120,
-          spread: 80,
-          origin: { y: 0.55 },
-          colors: ["#f59e0b", "#fbbf24", "#10b981", "#06b6d4", "#f43f5e"]
+          angle: 90,
+          spread: 85,
+          startVelocity: 55,
+          gravity: 0.8,
+          ticks: 200,
+          zIndex: 9999999,
+          origin: { x: 0.5, y: 0.9 },
+          colors: ["#f59e0b", "#fbbf24", "#10b981", "#06b6d4", "#ff5722", "#ffffff"]
+        });
+
+        // Left cannon shooting up-right
+        confetti({
+          particleCount: 70,
+          angle: 60,
+          spread: 60,
+          startVelocity: 50,
+          gravity: 0.8,
+          ticks: 200,
+          zIndex: 9999999,
+          origin: { x: 0.1, y: 0.85 },
+          colors: ["#f59e0b", "#fbbf24", "#10b981", "#06b6d4", "#ff5722"]
+        });
+
+        // Right cannon shooting up-left
+        confetti({
+          particleCount: 70,
+          angle: 120,
+          spread: 60,
+          startVelocity: 50,
+          gravity: 0.8,
+          ticks: 200,
+          zIndex: 9999999,
+          origin: { x: 0.9, y: 0.85 },
+          colors: ["#f59e0b", "#fbbf24", "#10b981", "#06b6d4", "#ff5722"]
         });
       } catch (cErr) {}
 
-      // Update gift_mails doc
-      const mailRef = doc(db, "gift_mails", mail.id);
-      await updateDoc(mailRef, {
-        status: "claimed",
-        claimed_at: nowIso
-      });
-
-      // Update diamonds doc
-      const dQuery = query(collection(db, "diamonds"), where("user_id", "==", currentUser.uid));
-      const dSnap = await getDocs(dQuery);
-      const newTx = {
-        id: `tx_${Date.now()}`,
-        type: "CREDIT",
-        bucket: "DEPOSIT",
-        source: "GIFT_CLAIM",
-        amount: numAmount,
-        description: `Gift claimed from ${mail.sender_name || "Player"}`,
-        timestamp: nowIso,
-        gift_mail_id: mail.id
-      };
-
-      if (!dSnap.empty) {
-        const docRef = dSnap.docs[0].ref;
-        const dData = dSnap.docs[0].data();
-        const curDep = Number(dData.deposit_balance || 0);
-        const curBon = Number(dData.bonus_balance || 0);
-        const curWin = Number(dData.winnings_balance || 0);
-        const newDep = curDep + numAmount;
-        const newTotal = newDep + curBon + curWin;
-        const existingTxs = Array.isArray(dData.transactions) ? dData.transactions : [];
-
-        await updateDoc(docRef, {
-          deposit_balance: newDep,
-          bh_coin_balance: newTotal,
-          transactions: [newTx, ...existingTxs.slice(0, 49)],
-          updated_date: nowIso
-        });
-      } else {
-        await addDoc(collection(db, "diamonds"), {
-          user_id: currentUser.uid,
-          user_ign: currentUser.displayName || "Player",
-          deposit_balance: numAmount,
-          bonus_balance: 0,
-          winnings_balance: 0,
-          bh_coin_balance: numAmount,
-          diamond_balance: 0,
-          transactions: [newTx],
-          created_date: nowIso,
-          updated_date: nowIso
-        });
-      }
-
-      // Update users doc
-      await setDoc(doc(db, "users", currentUser.uid), {
-        walletBalance: increment(numAmount),
-        depositBalance: increment(numAmount),
-        updatedAt: serverTimestamp()
-      }, { merge: true }).catch(() => {});
-
-      // In-App Notification
-      await addDoc(collection(db, "notifications"), {
-        user_id: currentUser.uid,
-        recipient_id: currentUser.uid,
-        title: "Gift Claimed! 🎁",
-        message: `₹${numAmount} gift from ${mail.sender_name || "Friend"} has been credited to your deposit wallet!`,
-        type: "wallet",
-        read: false,
-        priority: "High",
-        created_date: nowIso,
-        created_at: nowIso
-      }).catch(() => {});
-
       // Dispatch global balance update event
       window.dispatchEvent(new CustomEvent("wallet-balance-updated"));
+      window.dispatchEvent(new CustomEvent("wallet_balance_updated"));
 
     } catch (err) {
       console.error("Error claiming gift mail:", err);
-      alert("Failed to claim gift. Please try again.");
+      alert(err.message || "Failed to claim gift. Please try again.");
     } finally {
       setClaiming(false);
     }
@@ -257,27 +242,15 @@ export default function GlobalGiftMailHandler() {
         {/* Ambient Top Glow Beam */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-36 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
-        {/* ── TOP VIP HEADER ── */}
-        <div className="relative px-5 pt-5 pb-3.5 border-b border-white/[0.08] flex items-center justify-between bg-gradient-to-b from-white/[0.04] to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-[1px] shadow-lg shadow-amber-500/20">
-              <div className="w-full h-full bg-[#0d0f17] rounded-2xl flex items-center justify-center">
-                <Gift className="w-5 h-5 text-amber-400 animate-pulse" />
-              </div>
+        {/* ── TOP HEADER ── */}
+        <div className="relative px-5 py-4 pr-10 border-b border-white/[0.08] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+              <Gift className="w-4 h-4 text-amber-400" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm tracking-wide text-white uppercase font-sans">
-                  Player Gift Vault
-                </h3>
-                {unclaimedCount > 0 && (
-                  <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-black shadow-sm">
-                    {unclaimedCount} NEW
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium">Official In-Game Delivery</p>
-            </div>
+            <h3 className="font-bold text-base text-white">
+              Gift Mail
+            </h3>
           </div>
 
           <div className="flex items-center gap-2">
@@ -287,7 +260,7 @@ export default function GlobalGiftMailHandler() {
                 <button
                   onClick={handlePrevGift}
                   disabled={selectedIndex === 0}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/[0.1] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/[0.1] disabled:opacity-30 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -297,21 +270,12 @@ export default function GlobalGiftMailHandler() {
                 <button
                   onClick={handleNextGift}
                   disabled={selectedIndex === mails.length - 1}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/[0.1] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/[0.1] disabled:opacity-30 transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
-
-            {/* Close Button */}
-            <button
-              onClick={() => setIsOpen(false)}
-              className="w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
-              title="Close (Saved in Mailbox)"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
@@ -320,116 +284,74 @@ export default function GlobalGiftMailHandler() {
           
           {selectedMail ? (
             <>
-              {/* 1. SENDER VIP PROFILE CARD */}
-              <div className="relative overflow-hidden p-3.5 rounded-2xl bg-gradient-to-r from-white/[0.05] via-white/[0.02] to-transparent border border-white/[0.09] flex items-center justify-between">
+              {/* 1. SENDER CARD */}
+              <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 p-[1.5px] shadow-md">
-                      <div className="w-full h-full bg-[#111420] rounded-2xl flex items-center justify-center font-black text-amber-300 text-base">
-                        {selectedMail.sender_name?.charAt(0)?.toUpperCase() || "P"}
-                      </div>
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#090b11] flex items-center justify-center">
-                      <ShieldCheck className="w-2.5 h-2.5 text-black stroke-[3]" />
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-[1px]">
+                    <div className="w-full h-full bg-[#111420] rounded-xl flex items-center justify-center font-bold text-amber-300 text-sm">
+                      {selectedMail.sender_name?.charAt(0)?.toUpperCase() || "P"}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block leading-none mb-1">
-                      Gifted By
-                    </span>
-                    <h4 className="font-extrabold text-sm text-white tracking-tight flex items-center gap-1.5">
+                    <h4 className="font-bold text-sm text-white">
                       {selectedMail.sender_name || "BattleHub Player"}
                     </h4>
                     {selectedMail.sender_bhid && (
                       <button
                         type="button"
                         onClick={() => handleCopyBhid(selectedMail.sender_bhid)}
-                        className="inline-flex items-center gap-1 text-[10px] font-mono text-amber-400/90 hover:text-amber-300 mt-0.5 transition-colors cursor-pointer group"
+                        className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-400/90 hover:text-amber-300 transition-colors cursor-pointer"
                       >
                         <span>{selectedMail.sender_bhid}</span>
                         {copiedId ? (
                           <Check className="w-3 h-3 text-emerald-400" />
                         ) : (
-                          <Copy className="w-2.5 h-2.5 text-slate-500 group-hover:text-amber-400" />
+                          <Copy className="w-2.5 h-2.5 text-slate-500" />
                         )}
                       </button>
                     )}
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm ${
-                    selectedMail.status === "claimed"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      : "bg-amber-500/10 text-amber-300 border-amber-500/30 animate-pulse"
-                  }`}>
-                    {selectedMail.status === "claimed" ? "✓ Claimed" : "• Pending"}
+                {selectedMail.status === "claimed" && (
+                  <span className="text-[11px] font-bold text-emerald-400">
+                    Claimed
                   </span>
-                  {selectedMail.created_at && (
-                    <p className="text-[10px] text-slate-500 mt-1 font-medium">
-                      {format(new Date(selectedMail.created_at), "MMM d, h:mm a")}
-                    </p>
-                  )}
+                )}
+              </div>
+
+              {/* 2. REWARD SHOWCASE */}
+              <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-[#0d0f17] to-[#0a0c14] p-5 text-center">
+                <div className="inline-flex items-center justify-center mb-2">
+                  <BHCoinIcon className="w-14 h-14 drop-shadow-md" />
+                </div>
+
+                <div className="font-black text-4xl text-amber-400 font-mono tracking-tight">
+                  ₹{Number(selectedMail.amount || 0).toLocaleString("en-IN")}
                 </div>
               </div>
 
-              {/* 2. PRESTIGE REWARD SHOWCASE (The Golden Medallion Hero) */}
-              <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-gradient-to-b from-amber-500/15 via-[#0f121d] to-[#0a0c14] p-6 text-center shadow-[inset_0_0_30px_rgba(245,158,11,0.1)]">
-                
-                {/* Radial Lighting */}
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-gradient-to-b from-amber-400/25 to-transparent rounded-full blur-2xl pointer-events-none" />
-
-                {/* 3D Coin Badge with Golden Rings */}
-                <div className="relative inline-flex items-center justify-center mb-3">
-                  <div className="absolute inset-0 rounded-full bg-amber-400/20 blur-xl animate-pulse" />
-                  <div className="w-18 h-18 rounded-full border-2 border-amber-400/40 p-1 bg-gradient-to-b from-amber-400/30 to-amber-600/10 flex items-center justify-center shadow-xl">
-                    <BHCoinIcon className="w-14 h-14 drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]" />
-                  </div>
+              {/* 3. MESSAGE NOTE */}
+              {selectedMail.message && (
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-center">
+                  <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap">
+                    "{selectedMail.message}"
+                  </p>
                 </div>
+              )}
 
-                {/* Big Bold Coin / Rupee Display */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-center gap-1.5 font-black text-4xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-500 tracking-tight font-mono drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)]">
-                    <span>₹{Number(selectedMail.amount || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-bold text-amber-300">
-                    <Sparkles className="w-3 h-3 text-amber-400" />
-                    <span>Instant Deposit Wallet Balance</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. PERSONAL MESSAGE SCROLL / NOTE */}
-              <div className="relative p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Quote className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                    Personal Message
-                  </span>
-                </div>
-                <p className="text-xs text-slate-200 italic leading-relaxed pl-5 whitespace-pre-wrap font-sans">
-                  "{selectedMail.message || "Sent you a gift on BattleHub! Have fun in tournaments! 🎮🔥"}"
-                </p>
-              </div>
-
-              {/* 4. ACTION CTA BUTTON */}
+              {/* 4. ACTION BUTTON */}
               {selectedMail.status === "unclaimed" ? (
                 <div className="space-y-2 pt-1">
                   <button
                     type="button"
                     onClick={() => handleClaimGift(selectedMail)}
                     disabled={claiming}
-                    className="relative group w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:via-yellow-300 hover:to-amber-400 text-slate-950 font-black text-sm tracking-wide shadow-[0_4px_25px_rgba(245,158,11,0.35)] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2.5 overflow-hidden disabled:opacity-50"
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-sm shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    {/* Shimmer Sweep Effect */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
-
                     {claiming ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                        <span>TRANSFERRING ₹{selectedMail.amount} TO WALLET...</span>
-                      </>
+                      <span>Crediting Wallet...</span>
                     ) : (
                       <>
                         <Gift className="w-4 h-4 stroke-[2.5]" />
@@ -441,20 +363,15 @@ export default function GlobalGiftMailHandler() {
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="w-full py-1 text-center text-xs text-slate-400 hover:text-amber-300 transition-colors cursor-pointer font-medium"
+                    className="w-full py-1 text-center text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
                   >
-                    Claim Later • Stored safely in Wallet (🎁)
+                    Claim Later
                   </button>
                 </div>
               ) : (
-                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold">
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Successfully Claimed to Deposit Wallet</span>
-                  {selectedMail.claimed_at && (
-                    <span className="text-slate-400 font-normal text-[11px]">
-                      ({format(new Date(selectedMail.claimed_at), "h:mm a")})
-                    </span>
-                  )}
+                  <span>Successfully Claimed</span>
                 </div>
               )}
             </>

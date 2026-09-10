@@ -68,7 +68,7 @@ export default function PrivacyPolicy() {
             {/* Preamble */}
             <div className="space-y-2">
               <p>
-                BattleHub (&ldquo;Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) respects your privacy and is committed to protecting the personal information entrusted to us.
+                BattleHub, operated by <strong>Shivam Kumar</strong> (&ldquo;Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) respects your privacy and is committed to protecting the personal information entrusted to us.
               </p>
               <p className="text-slate-400">
                 This Privacy Policy explains how BattleHub collects, uses, stores, shares, protects, and otherwise processes personal data when you access or use our websites, mobile applications, tournament-management services, SaaS platforms, APIs, and related services (collectively, the &ldquo;Platform&rdquo;).
@@ -84,7 +84,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">1. ABOUT BATTLEHUB</h2>
               <p className="text-slate-400 mb-1.5">
-                BattleHub is an esports tournament and tournament-management technology platform that provides digital infrastructure for players, tournament organizers, teams, communities, institutions, and other authorized users.
+                BattleHub is an esports tournament and tournament-management technology platform operated by <strong>Shivam Kumar</strong> that provides digital infrastructure for players, tournament organizers, teams, communities, institutions, and other authorized users.
               </p>
               <p className="text-slate-400 mb-1.5">
                 The Platform provides digital features including tournament creation and management, player and team registration, match and bracket management, leaderboards and scoring, match-room distribution, result verification, anti-cheat and fraud-prevention mechanisms, prize-management and payout facilitation, organizer dashboards, communication and support services, analytics and reporting, and other esports-related technology services.
@@ -295,13 +295,14 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">22. CONTACT US</h2>
               <div className="border-t border-b border-white/10 py-2.5 my-2 space-y-0.5 text-xs text-slate-300">
-                <p><strong className="text-white">BattleHub</strong></p>
-                <p>Privacy & Grievance Desk</p>
+                <p><strong className="text-white">BattleHub (Operated by Shivam Kumar)</strong></p>
+                <p><strong className="text-white">Merchant / Operator Legal Name:</strong> Shivam Kumar</p>
+                <p><strong className="text-white">Privacy & Grievance Desk:</strong> Shivam Kumar</p>
                 <p><strong className="text-white">Email:</strong> <a href="mailto:contact@battlehub.site" className="text-orange-400 underline">contact@battlehub.site</a></p>
                 <p><strong className="text-white">Location:</strong> Gautam Buddha Nagar, Greater Noida, Uttar Pradesh, India</p>
               </div>
               <p className="text-center text-xs text-slate-500 pt-3">
-                &copy; 2026 BattleHub . All Rights Reserved.
+                &copy; 2026 BattleHub (Operated by Shivam Kumar). All Rights Reserved.
               </p>
             </section>
 

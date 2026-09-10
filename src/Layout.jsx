@@ -4,6 +4,8 @@ import MenuPage from "./pages/Menu";
 import { createPageUrl } from "@/utils";
 import { User } from "@/entities/User";
 import { Diamond } from "@/entities/Diamond";
+import { db, auth } from "@/api/firebaseClient";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -154,25 +156,69 @@ function Header({ user, onLogout, unreadMessages, onLoginClick, isMenuOpen, setI
   }, []);
 
   useEffect(() => {
-    const fetchBalances = () => {
-      if (user) {
-        Diamond.filter({ user_id: user.id })
-          .then(accounts => {
-            if (accounts.length > 0) {
-              setBalances({
-                diamonds: accounts[0].diamond_balance || 0,
-                coins: accounts[0].bh_coin_balance || 0
-              });
-            }
-          })
-          .catch(() => {});
+    const uid = user?.id || auth.currentUser?.uid;
+    if (!uid) return;
+
+    // 1. Direct Real-Time Balance Listener on diamonds collection
+    const dQuery = query(collection(db, "diamonds"), where("user_id", "==", uid));
+    const unsubscribe = onSnapshot(dQuery, (snap) => {
+      if (!snap.empty) {
+        const docs = snap.docs.map(d => d.data());
+        docs.sort((a, b) => Number(b.bh_coin_balance || 0) - Number(a.bh_coin_balance || 0));
+        const activeDoc = docs[0];
+
+        const dep = Number(activeDoc.deposit_balance || 0);
+        let bon = Number(activeDoc.bonus_balance || 0);
+        const win = Number(activeDoc.winnings_balance || 0);
+        const rawTot = Number(activeDoc.bh_coin_balance || 0);
+
+        if (rawTot > (dep + bon + win)) {
+          bon = rawTot - dep - win;
+        }
+        const total = dep + bon + win;
+
+        setBalances({
+          diamonds: Number(activeDoc.diamond_balance || 0),
+          coins: total
+        });
       }
+    }, (err) => {
+      console.warn("Real-time header balance listener error:", err);
+    });
+
+    // 2. Global Event Listeners for Cross-Component Sync
+    const handleManualSync = () => {
+      Diamond.filter({ user_id: uid })
+        .then(accounts => {
+          if (accounts.length > 0) {
+            accounts.sort((a, b) => Number(b.bh_coin_balance || 0) - Number(a.bh_coin_balance || 0));
+            const acc = accounts[0];
+            const dep = Number(acc.deposit_balance || 0);
+            let bon = Number(acc.bonus_balance || 0);
+            const win = Number(acc.winnings_balance || 0);
+            const rawTot = Number(acc.bh_coin_balance || 0);
+            if (rawTot > (dep + bon + win)) {
+              bon = rawTot - dep - win;
+            }
+            setBalances({
+              diamonds: Number(acc.diamond_balance || 0),
+              coins: dep + bon + win
+            });
+          }
+        })
+        .catch(() => {});
     };
 
-    fetchBalances();
+    window.addEventListener("wallet_updated", handleManualSync);
+    window.addEventListener("wallet-balance-updated", handleManualSync);
+    window.addEventListener("wallet_balance_updated", handleManualSync);
 
-    window.addEventListener("wallet_updated", fetchBalances);
-    return () => window.removeEventListener("wallet_updated", fetchBalances);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("wallet_updated", handleManualSync);
+      window.removeEventListener("wallet-balance-updated", handleManualSync);
+      window.removeEventListener("wallet_balance_updated", handleManualSync);
+    };
   }, [user]);
 
   return (

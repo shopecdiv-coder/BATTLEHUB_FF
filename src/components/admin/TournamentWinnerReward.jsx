@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trophy, X, Check, Search, Loader2, RefreshCw } from "lucide-react";
+import { WalletEngine } from "@/lib/walletEngine";
 
 export default function TournamentWinnerReward({ tournament, onClose }) {
   const [registrations, setRegistrations] = useState([]);
@@ -61,37 +62,17 @@ export default function TournamentWinnerReward({ tournament, onClose }) {
     setError("");
 
     try {
-      const accounts = await base44.entities.Diamond.filter({ user_id: recipientId });
+      // 🔒 SECURE: Admin award prize via server API
+      const result = await WalletEngine.adminAwardTournamentPrize(
+        recipientId,
+        amount,
+        tournament.id,
+        txDesc // Optional tournament title/description override
+      );
 
-      if (accounts && accounts.length > 0) {
-        const acc = accounts[0];
-        await base44.entities.Diamond.update(acc.id, {
-          bh_coin_balance: (acc.bh_coin_balance || 0) + amount,
-          transactions: [
-            ...(acc.transactions || []),
-            { type: "Win", coin_type: "BH Coin", amount, description: txDesc, timestamp: now }
-          ]
-        });
-      } else {
-        await base44.entities.Diamond.create({
-          user_id: recipientId,
-          user_ign: selectedWinner.team_leader_ign,
-          bh_coin_balance: amount,
-          diamond_balance: 0,
-          transactions: [{ type: "Win", coin_type: "BH Coin", amount, description: txDesc, timestamp: now }]
-        });
+      if (!result.success) {
+        throw new Error(result.error || "Failed to award prize");
       }
-
-      await base44.entities.Notification.create({
-        recipient_id: recipientId,
-        type: "Prize Distributed",
-        title: "🏆 Tournament Win Reward!",
-        message: `Congratulations! You received ${amount} BH Coins for: ${txDesc}`,
-        priority: "High",
-        dismissable: true,
-        created_at: now,
-        read: false
-      });
 
       // Non-critical: update win stats
       base44.entities.User.get(recipientId).then(u => {

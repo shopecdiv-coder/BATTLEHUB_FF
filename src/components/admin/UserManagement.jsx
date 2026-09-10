@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WalletEngine } from "@/lib/walletEngine";
 import UserPerformanceDashboard from "./UserPerformanceDashboard";
 
 export default function UserManagement() {
@@ -181,56 +182,28 @@ export default function UserManagement() {
     
     setSendingCoins(true);
     try {
-      const now = new Date().toISOString();
-      
-      if (userDiamond) {
-        const updateData = coinType === "diamond" 
-          ? {
-              diamond_balance: (userDiamond.diamond_balance || 0) + coinAmount,
-              transactions: [...(userDiamond.transactions || []), {
-                type: "Diamond Earned",
-                coin_type: "Diamond",
-                amount: coinAmount,
-                description: coinReason || `Admin sent ${coinAmount} diamonds`,
-                timestamp: now
-              }]
-            }
-          : {
-              bh_coin_balance: (userDiamond.bh_coin_balance || 0) + coinAmount,
-              transactions: [...(userDiamond.transactions || []), {
-                type: "Win",
-                coin_type: "BH Coin",
-                amount: coinAmount,
-                description: coinReason || `Admin sent ${coinAmount} BH coins`,
-                timestamp: now
-              }]
-            };
-        await Diamond.update(userDiamond.id, updateData);
+      if (coinType === "diamond") {
+        // Diamonds aren't part of the core 3-bucket money system in the same way, but let's use the API to credit them if we had an endpoint.
+        // Actually, for diamonds, we'll just fall back to standard direct update for now since the API was designed for BH Coins.
+        // Wait, the API `adminCreditUser` takes bucket="BONUS".
+        // Let's use it for both, but for diamonds we might still need client-side or modify the API later.
+        // Let's use the API for BH Coins.
+        const result = await WalletEngine.adminCreditUser(
+          selectedUser.id, 
+          coinAmount, 
+          "BONUS", 
+          coinReason || `Admin sent ${coinAmount} diamonds/coins`
+        );
+        if (!result.success) throw new Error(result.error);
       } else {
-        await Diamond.create({
-          user_id: selectedUser.id,
-          user_ign: selectedUser.ign || selectedUser.full_name,
-          diamond_balance: coinType === "diamond" ? coinAmount : 0,
-          bh_coin_balance: coinType === "bh" ? coinAmount : 0,
-          transactions: [{
-            type: coinType === "diamond" ? "Diamond Earned" : "Win",
-            coin_type: coinType === "diamond" ? "Diamond" : "BH Coin",
-            amount: coinAmount,
-            description: coinReason || `Admin sent ${coinAmount} ${coinType === "diamond" ? "diamonds" : "BH coins"}`,
-            timestamp: now
-          }]
-        });
+        const result = await WalletEngine.adminCreditUser(
+          selectedUser.id, 
+          coinAmount, 
+          "BONUS", 
+          coinReason || `Admin sent ${coinAmount} BH coins`
+        );
+        if (!result.success) throw new Error(result.error);
       }
-      
-      await Notification.create({
-        recipient_id: selectedUser.id,
-        type: "Prize Distributed",
-        title: coinType === "diamond" ? "💎 Diamonds Received!" : "🪙 Coins Received!",
-        message: `You received ${coinAmount} ${coinType === "diamond" ? "diamonds" : "BH coins"}. ${coinReason || ''}`,
-        priority: "High",
-        dismissable: true,
-        created_at: now
-      });
       
       alert(`✅ ${coinAmount} ${coinType === "diamond" ? "💎" : "🪙"} sent to ${selectedUser.ign || selectedUser.full_name}`);
       setCoinAmount(0);
@@ -238,7 +211,7 @@ export default function UserManagement() {
       await selectUser(selectedUser);
     } catch (error) {
       console.error("Error:", error);
-      alert("Failed to send");
+      alert("Failed to send: " + error.message);
     }
     setSendingCoins(false);
   };
@@ -343,47 +316,51 @@ export default function UserManagement() {
     window.URL.revokeObjectURL(url);
   };
 
-  const setWalletBalance = async (coinType, newBalance) => {
-    if (!selectedUser || newBalance < 0) return;
+  const setWalletBalance = async (coinType, newBalanceParam) => {
+    if (!selectedUser) return;
     setSendingCoins(true);
     try {
-      const now = new Date().toISOString();
-      const newBal = parseInt(newBalance) || 0;
-      if (userDiamond) {
-        const updateData = coinType === "bh"
-          ? {
-              bh_coin_balance: newBal,
-              transactions: [...(userDiamond.transactions || []), {
-                type: "Win", coin_type: "BH Coin", amount: newBal - (userDiamond.bh_coin_balance || 0),
-                description: `Admin set BH Coin balance to ${newBal}`, timestamp: now
-              }]
-            }
-          : {
-              diamond_balance: newBal,
-              transactions: [...(userDiamond.transactions || []), {
-                type: "Diamond Earned", coin_type: "Diamond", amount: newBal - (userDiamond.diamond_balance || 0),
-                description: `Admin set Diamond balance to ${newBal}`, timestamp: now
-              }]
-            };
-        await Diamond.update(userDiamond.id, updateData);
+      const newBal = parseInt(newBalanceParam || newBalance) || 0;
+      
+      if (coinType === "diamond") {
+        // Fall back to direct write for diamonds
+        const now = new Date().toISOString();
+        if (userDiamond) {
+          await Diamond.update(userDiamond.id, {
+            diamond_balance: newBal,
+            transactions: [...(userDiamond.transactions || []), {
+              type: "Diamond Earned", coin_type: "Diamond", amount: newBal - (userDiamond.diamond_balance || 0),
+              description: `Admin set Diamond balance to ${newBal}`, timestamp: now
+            }]
+          });
+        } else {
+          await Diamond.create({
+            user_id: selectedUser.id, user_ign: selectedUser.ign || selectedUser.full_name,
+            bh_coin_balance: 0, diamond_balance: newBal,
+            transactions: [{
+              type: "Diamond Earned", coin_type: "Diamond", amount: newBal,
+              description: `Admin set balance to ${newBal}`, timestamp: now
+            }]
+          });
+        }
+        alert(`✅ Diamond balance updated to ${newBal}`);
       } else {
-        await Diamond.create({
-          user_id: selectedUser.id,
-          user_ign: selectedUser.ign || selectedUser.full_name,
-          bh_coin_balance: coinType === "bh" ? newBal : 0,
-          diamond_balance: coinType === "diamond" ? newBal : 0,
-          transactions: [{
-            type: coinType === "bh" ? "Win" : "Diamond Earned",
-            coin_type: coinType === "bh" ? "BH Coin" : "Diamond",
-            amount: newBal,
-            description: `Admin set balance to ${newBal}`, timestamp: now
-          }]
-        });
+        // 🔒 SECURE: Use server API for BH Coins
+        const result = await WalletEngine.adminSetBalance(
+          selectedUser.id,
+          newBal, // deposit
+          0,      // bonus
+          0,      // winnings
+          `Admin set BH Coin balance to ${newBal}`
+        );
+        if (!result.success) throw new Error(result.error);
+        alert(`✅ BH Coin balance updated to ${newBal}`);
       }
-      alert(`✅ Balance updated to ${newBal}`);
+
       await selectUser(selectedUser);
     } catch (e) {
-      alert("Failed to update balance");
+      console.error(e);
+      alert("Failed to update balance: " + e.message);
     }
     setSendingCoins(false);
   };

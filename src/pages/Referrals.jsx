@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { createPageUrl } from "@/utils";
+import { WalletEngine } from "@/lib/walletEngine";
+import { format } from "date-fns";
 import { User } from "@/entities/User";
 import { Referral } from "@/entities/Referral";
 import { Diamond } from "@/entities/Diamond";
@@ -122,36 +125,9 @@ export default function Referrals() {
     if (totalEarned <= 0) return;
     setTransferring(true);
     try {
-      const accounts = await Diamond.filter({ user_id: user.id });
-      const now = new Date().toISOString();
-      
-      if (accounts.length > 0) {
-        const account = accounts[0];
-        await Diamond.update(account.id, {
-          bh_coin_balance: (account.bh_coin_balance || 0) + totalEarned,
-          transactions: [...(account.transactions || []), {
-            type: "Win",
-            coin_type: "BH Coin",
-            amount: totalEarned,
-            description: `🎁 Referral bonus (${notTransferred.length} friends)`,
-            timestamp: now
-          }]
-        });
-      } else {
-        await Diamond.create({
-          user_id: user.id,
-          user_ign: user.ign || user.full_name,
-          bh_coin_balance: totalEarned,
-          diamond_balance: 0,
-          transactions: [{
-            type: "Win",
-            coin_type: "BH Coin",
-            amount: totalEarned,
-            description: `🎁 Referral bonus (${notTransferred.length} friends)`,
-            timestamp: now
-          }]
-        });
-      }
+      // 🔒 SECURE: Claim referral bonus via server API
+      const result = await WalletEngine.claimReferral(totalEarned, notTransferred.length);
+      if (!result.success) throw new Error(result.error);
 
       for (const ref of notTransferred) {
         await Referral.update(ref.id, { transferred: true });

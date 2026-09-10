@@ -82,7 +82,7 @@ export default function TermsConditions() {
             <section>
               <h2 className="text-sm sm:text-base font-bold text-white mb-1.5">1. ABOUT BATTLEHUB</h2>
               <p className="text-slate-400 mb-1.5">
-                BattleHub is an esports technology and tournament-management platform operated by BattleHub (&ldquo;BattleHub&rdquo;, &ldquo;Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;).
+                BattleHub is an esports technology and tournament-management platform operated by <strong>Shivam Kumar</strong> (&ldquo;BattleHub&rdquo;, &ldquo;Company&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;).
               </p>
               <p className="text-slate-400 mb-1.5">
                 BattleHub provides digital infrastructure that enables tournament creation and management, player and team registration, match scheduling, bracket management, room and lobby management, leaderboards and scoring, tournament result management, anti-cheat and fraud-prevention systems, organizer dashboards, prize-management and payout facilitation, communication and support tools, analytics, reporting, and other esports-related technology services.
@@ -392,13 +392,14 @@ export default function TermsConditions() {
                 For questions, complaints, legal notices, or support relating to these Terms, contact:
               </p>
               <div className="border-t border-b border-white/10 py-2.5 my-2 space-y-0.5 text-xs text-slate-300">
-                <p><strong className="text-white">BattleHub</strong></p>
-                <p>Legal & Compliance Desk</p>
+                <p><strong className="text-white">BattleHub (Operated by Shivam Kumar)</strong></p>
+                <p><strong className="text-white">Merchant / Operator Legal Name:</strong> Shivam Kumar</p>
+                <p><strong className="text-white">Legal & Compliance Desk:</strong> Shivam Kumar</p>
                 <p><strong className="text-white">Email:</strong> <a href="mailto:contact@battlehub.site" className="text-orange-400 underline">contact@battlehub.site</a></p>
                 <p><strong className="text-white">Location:</strong> Gautam Buddha Nagar, Greater Noida, Uttar Pradesh, India</p>
               </div>
               <p className="text-center text-xs text-slate-500 pt-3">
-                &copy; 2026 BattleHub . All Rights Reserved.
+                &copy; 2026 BattleHub (Operated by Shivam Kumar). All Rights Reserved.
               </p>
             </section>
 
