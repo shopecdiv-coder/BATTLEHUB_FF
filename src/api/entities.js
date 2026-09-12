@@ -300,6 +300,34 @@ class UserEntityClass extends FirestoreEntity {
     super('users');
   }
 
+  // Phase 8: Intercept updates to store PII safely in users_private
+  async update(id, data) {
+    const sensitiveKeys = ['email', 'phone', 'mobile_number', 'password'];
+    const publicData = { ...data };
+    const privateData = {};
+    let hasPrivate = false;
+
+    for (const key of sensitiveKeys) {
+      if (publicData[key] !== undefined) {
+        privateData[key] = publicData[key];
+        delete publicData[key]; // Strip from public profile
+        hasPrivate = true;
+      }
+    }
+
+    if (hasPrivate) {
+      try {
+        const privateDocRef = doc(db, 'users_private', id);
+        await setDoc(privateDocRef, privateData, { merge: true });
+      } catch (e) {
+        console.error("Could not save to users_private:", e);
+      }
+    }
+
+    // Pass the cleaned public data up to the normal FirestoreEntity update
+    return super.update(id, publicData);
+  }
+
   async addXP(userId, amount) {
     if (!userId || amount <= 0) return;
     try {
@@ -317,8 +345,18 @@ class UserEntityClass extends FirestoreEntity {
         unsubscribe();
         if (firebaseUser) {
           try {
-            const profile = await this.get(firebaseUser.uid);
+            let profile = await this.get(firebaseUser.uid);
+            
             if (profile) {
+              // Phase 8: Fetch Private PII (Phone/Email)
+              try {
+                const privateDocRef = doc(db, 'users_private', firebaseUser.uid);
+                const privateSnap = await getDoc(privateDocRef);
+                if (privateSnap.exists()) {
+                  profile = { ...profile, ...privateSnap.data() };
+                }
+              } catch(e) { console.error("Could not fetch private PII:", e); }
+
               if (profile.email === 'shopecdiv@gmail.com' && profile.role !== 'admin') {
                 profile.role = 'admin';
                 await this.update(firebaseUser.uid, { role: 'admin' });
@@ -488,4 +526,4 @@ export const GiftMail = new FirestoreEntity('gift_mails');
 // Mock query object just in case
 export const Query = {
   equal: (field, value) => ({ field, op: '==', value })
-};
+};export const WebsiteVideo = new FirestoreEntity('website_videos');

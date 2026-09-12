@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LegalContent } from "@/entities/LegalContent";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Lock, FileText, RefreshCw, ShieldAlert, Scale, Info } from "lucide-react";
 
@@ -176,7 +177,7 @@ export default function LegalPolicies() {
               {getPolicyContent() ? (
                 <div 
                   className="text-gray-300 text-xs sm:text-sm whitespace-pre-wrap leading-relaxed space-y-4"
-                  dangerouslySetInnerHTML={{ __html: getPolicyContent() }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(getPolicyContent()) }}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-500 space-y-2">

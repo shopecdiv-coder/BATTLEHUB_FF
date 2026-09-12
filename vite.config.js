@@ -24,15 +24,19 @@ export default defineConfig({
     }
   },
   build: {
+    sourcemap: false, // Phase 10: Block source maps to prevent code theft
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-          aws: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
           ui: ['lucide-react', 'framer-motion', 'clsx', 'tailwind-merge'],
         }
       }
     }
+  },
+  esbuild: {
+    drop: ['console', 'debugger'], // Phase 10: Remove all console.logs in production
   }
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { VideoBanner } from "@/entities/VideoBanner";
+import { WebsiteVideo } from "@/entities/WebsiteVideo";
 import { AppSettings } from "@/entities/AppSettings";
 import { UploadFile } from "@/integrations/Core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,33 +10,21 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function VideoBannerManagement({ banners = [], onUpdate }) {
+export default function WebsiteVideoManagement() {
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoType, setVideoType] = useState("direct");
   const [youtubeId, setYoutubeId] = useState("");
-  const [bannerText, setBannerText] = useState("Welcome to Battle Hub FF");
   const [savingText, setSavingText] = useState(false);
+  const [banners, setBanners] = useState([]);
+
+  const loadData = () => {
+    AppSettings.filter({ setting_key: "website_promo_video" }).then(res => setBanners(res)).catch(()=>{});
+  };
 
   useEffect(() => {
-    AppSettings.filter({ setting_key: "video_banner_text" }).then(s => {
-      if (s.length > 0 && s[0].setting_value) setBannerText(s[0].setting_value);
-    }).catch(() => {});
+    loadData();
   }, []);
-
-  const saveBannerText = async () => {
-    setSavingText(true);
-    try {
-      const existing = await AppSettings.filter({ setting_key: "video_banner_text" });
-      if (existing.length > 0) {
-        await AppSettings.update(existing[0].id, { setting_value: bannerText });
-      } else {
-        await AppSettings.create({ setting_key: "video_banner_text", setting_value: bannerText, is_enabled: true });
-      }
-      alert("✅ Banner text updated!");
-    } catch { alert("Failed to save"); }
-    setSavingText(false);
-  };
 
   const handleVideoUpload = async (e) => {
     const file = e.target.files[0];
@@ -71,87 +59,57 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
       return;
     }
 
+    setSavingText(true);
     try {
-      // Deactivate all existing banners first
-      for (const banner of banners) {
-        await VideoBanner.update(banner.id, { active: false });
-      }
+      const existing = await AppSettings.filter({ setting_key: "website_promo_video" });
+      const settingData = {
+        setting_key: "website_promo_video",
+        setting_value: finalUrl,
+        video_type: videoType
+      };
 
-      // Create new active banner
-      await VideoBanner.create({
-        video_url: finalUrl,
-        video_type: videoType,
-        active: true
-      });
+      if (existing.length > 0) {
+        await AppSettings.update(existing[0].id, settingData);
+      } else {
+        await AppSettings.create(settingData);
+      }
 
       setVideoUrl("");
       setYoutubeId("");
-      onUpdate();
-      alert("Video banner set successfully!");
+      loadData();
+      alert("Website Promo Video saved successfully!");
     } catch (error) {
-      console.error("Error creating banner:", error);
-      alert("Failed to create video banner");
+      console.error("Error saving website promo video:", error);
+      alert("Failed to save. Please try again.");
+    } finally {
+      setSavingText(false);
     }
   };
 
   const toggleActive = async (banner) => {
-    try {
-      // Deactivate all other banners
-      for (const b of banners) {
-        if (b.id !== banner.id) {
-          await VideoBanner.update(b.id, { active: false });
-        }
-      }
-
-      // Toggle this banner
-      await VideoBanner.update(banner.id, { active: !banner.active });
-      onUpdate();
-    } catch (error) {
-      console.error("Error toggling banner:", error);
-      alert("Failed to update banner");
-    }
+    // For AppSettings, we just delete or clear it to make it inactive
   };
 
   const deleteBanner = async (id) => {
-    if (confirm("Delete this video banner?")) {
+    if (confirm("Delete this Website Promo Video?")) {
       try {
-        await VideoBanner.delete(id);
-        onUpdate();
-        alert("Video banner deleted successfully!");
+        await AppSettings.delete(id);
+        loadData();
+        alert("Website Promo Video deleted successfully!");
       } catch (error) {
-        console.error("Error deleting banner:", error);
-        alert("Failed to delete banner");
+        console.error("Error deleting video:", error);
+        alert("Failed to delete video.");
       }
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Banner Text Editor */}
-      <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-gray-100 text-base">
-            ✏️ Video Banner Text (Homepage)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            value={bannerText}
-            onChange={(e) => setBannerText(e.target.value)}
-            placeholder="e.g. Welcome to Battle Hub FF"
-            className="bg-gray-800 border-gray-700 text-white text-lg"
-          />
-          <Button onClick={saveBannerText} disabled={savingText} className="w-full bg-cyan-600 hover:bg-cyan-700">
-            {savingText ? "Saving..." : "Save Banner Text"}
-          </Button>
-        </CardContent>
-      </Card>
-
       <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-gray-100">
             <Video className="w-5 h-5 text-purple-400" />
-            Upload New Video Banner for Homepage
+            Upload New Website Promo Video for Homepage
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -275,7 +233,7 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
                     ) : (
                       <>
                         <Video className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-                        <p className="text-sm text-gray-400 mb-1">Click to upload video banner</p>
+                        <p className="text-sm text-gray-400 mb-1">Click to upload Website Promo Video</p>
                         <p className="text-xs text-gray-500">MP4, WebM, or OGG (Max 50MB recommended)</p>
                       </>
                     )}
@@ -304,12 +262,12 @@ export default function VideoBannerManagement({ banners = [], onUpdate }) {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-100">Existing Video Banners</h3>
+        <h3 className="text-lg font-semibold text-gray-100">Existing Website Promo Videos</h3>
         {banners.length === 0 ? (
           <Card className="p-12 text-center bg-gray-900/50 border-gray-800">
             <Video className="w-16 h-16 mx-auto text-gray-700 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-300 mb-2">No Video Banners</h3>
-            <p className="text-gray-500">Upload your first video banner to get started</p>
+            <h3 className="text-xl font-semibold text-gray-300 mb-2">No Website Promo Videos</h3>
+            <p className="text-gray-500">Upload your first Website Promo Video to get started</p>
           </Card>
         ) : (
           banners.map((banner, index) => (

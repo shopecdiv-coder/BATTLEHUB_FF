@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import CoinInvoiceDownload from "@/components/wallet/CoinInvoiceDownload";
+import CoinInvoiceDownload from "@/features/wallet/components/CoinInvoiceDownload";
 import { 
   ArrowUpCircle, ArrowDownCircle, Banknote, 
   History, RefreshCw, Smartphone, Building2,

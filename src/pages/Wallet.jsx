@@ -21,9 +21,9 @@ import {
   Gift, Banknote, ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
-import BuyCoinsStepper from "../components/wallet/BuyCoinsStepper";
-import PhoneNumberModal from "../components/wallet/PhoneNumberModal";
-import CoinInvoiceDownload from "../components/wallet/CoinInvoiceDownload";
+import BuyCoinsStepper from "@/features/wallet/components/BuyCoinsStepper";
+import PhoneNumberModal from "@/features/wallet/components/PhoneNumberModal";
+import CoinInvoiceDownload from "@/features/wallet/components/CoinInvoiceDownload";
 import { createPageUrl } from "@/utils";
 import { auth, db } from "@/api/firebaseClient";
 import { collection, query, where, onSnapshot } from "firebase/firestore";

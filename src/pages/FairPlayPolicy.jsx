@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import React, { useState, useEffect } from "react";
 import { LegalContent } from "@/entities/LegalContent";
 import { useNavigate } from "react-router-dom";
@@ -59,7 +60,7 @@ export default function FairPlayPolicy() {
         {content ? (
           <div 
             className="text-slate-300 whitespace-pre-wrap leading-relaxed text-sm"
-            dangerouslySetInnerHTML={{ __html: content.content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.content) }}
           />
         ) : (
           <div className="space-y-6 text-xs sm:text-sm text-slate-300 leading-relaxed">

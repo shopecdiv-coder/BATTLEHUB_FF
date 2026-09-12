@@ -114,35 +114,30 @@ export default function TournamentDetail() {
   const loadData = async () => {
     try {
       // Parallel loading for massive speedup
-      const [currentUser, tournamentData, allRegistrations, tournamentMatches, lbEntries] = await Promise.all([
+      // Phase 7: Using Edge Caching API to prevent Firebase Read Bill shock (50M reads to 1 read)
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://battlehub-ten.vercel.app/api';
+      
+      const [currentUser, tournamentMatches, cacheRes] = await Promise.all([
         User.me().catch(() => null),
-        Tournament.filter({ id: tournamentId }).catch(() => []),
-        Registration.filter({ tournament_id: tournamentId }).catch(() => []),
         Match.filter({ tournament_id: tournamentId }, "-match_number").catch(() => []),
-        TournamentLeaderboard.filter({ tournament_id: tournamentId }, "rank").catch(() => [])
+        fetch(`${API_URL}/tournament-data?id=${tournamentId}`).then(r => r.json()).catch(() => null)
       ]);
 
       if (currentUser) setUser(currentUser);
-      
-      let currentTournament = null;
-      if (tournamentData && tournamentData.length > 0) {
-        currentTournament = tournamentData[0];
-        setTournament(currentTournament);
-      }
-
       setMatches(tournamentMatches || []);
-      setLeaderboardEntries(lbEntries || []);
 
-      if (allRegistrations) {
-        setRegistrations(allRegistrations);
+      if (cacheRes && cacheRes.success) {
+        setTournament(cacheRes.tournament);
+        setRegistrations(cacheRes.registrations || []);
+        setLeaderboardEntries(cacheRes.leaderboards || []);
+
         if (currentUser) {
-          const userReg = allRegistrations.find(r => r.team_leader_id === currentUser.id);
+          const userReg = (cacheRes.registrations || []).find(r => r.team_leader_id === currentUser.id);
           setIsRegistered(!!userReg);
           setUserRegistration(userReg);
           if (userReg) {
             setEditIGN(userReg.team_members?.[0]?.ign || userReg.team_leader_ign || "");
             setEditUID(userReg.team_members?.[0]?.uid || "");
-            
           }
         }
       }

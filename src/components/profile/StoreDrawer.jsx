@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ShoppingCart, Search, ArrowLeft, Star, Heart, CheckCircle2, Package, Percent, Monitor, Gift, Gem, ChevronRight, ChevronLeft, X, Trash2, Plus, Minus, CreditCard, Home, LayoutGrid, ShoppingBag, UserCircle, Settings, FileText, Bell, Lock, HelpCircle, LogOut, Shield, Truck, MapPin, Download, Headset, CheckCircle, Map, RefreshCcw, Store, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import DOMPurify from "dompurify";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -1457,7 +1459,7 @@ export default function StoreDrawer({ isOpen, onClose }) {
                   </div>
                   <div className="p-4 overflow-y-auto flex-1">
                     {dynamicPolicies.seller_terms ? (
-                      <div className="prose prose-invert prose-sm max-w-none text-gray-300" dangerouslySetInnerHTML={{ __html: dynamicPolicies.seller_terms.content }} />
+                      <div className="prose prose-invert prose-sm max-w-none text-gray-300" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(dynamicPolicies.seller_terms.content) }} />
                     ) : (
                       <p className="text-gray-400 text-sm">Terms and Conditions will be updated soon by the admin.</p>
                     )}

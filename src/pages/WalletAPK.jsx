@@ -11,7 +11,7 @@ import {
   CheckCircle2, AlertCircle, Sparkles, Trophy, Lock
 } from "lucide-react";
 import { format } from "date-fns";
-import BuyCoinsStepper from "@/components/wallet/BuyCoinsStepper";
+import BuyCoinsStepper from "@/features/wallet/components/BuyCoinsStepper";
 
 export default function WalletAPK() {
   const [data, setData] = useState({ 

@@ -9,6 +9,7 @@ import { Registration } from "@/entities/Registration";
 import { PastTournament } from "@/entities/PastTournament";
 import { Banner } from "@/entities/Banner";
 import { VideoBanner } from "@/entities/VideoBanner";
+import { WebsiteVideo } from "@/entities/WebsiteVideo";
 import { DashboardNotice } from "@/entities/DashboardNotice";
 import { AppNotice } from "@/entities/AppNotice";
 import { RedeemRequest } from "@/entities/RedeemRequest";
@@ -40,6 +41,7 @@ import PastTournamentManagement from "../components/admin/PastTournamentManageme
 import BannerManagement from "../components/admin/BannerManagement";
 import AppNoticeManagement from "../components/admin/AppNoticeManagement";
 import VideoBannerManagement from "../components/admin/VideoBannerManagement";
+import WebsiteVideoManagement from "../components/admin/WebsiteVideoManagement";
 import ReferralManagement from "../components/admin/ReferralManagement";
 import AnnouncementManagement from "../components/admin/AnnouncementManagement";
 import UserManagement from "../components/admin/UserManagement";
@@ -152,6 +154,7 @@ const NAV_GROUPS = [
       { id: "announcements", label: "Announcements", icon: Megaphone },
       { id: "banners", label: "Banners", icon: Image },
       { id: "video", label: "Video Banner", icon: Video },
+      { id: "website-video", label: "Website Promo Video", icon: Video },
       { id: "photos", label: "Photo Library", icon: Image },
       { id: "gamemaps", label: "Game Maps", icon: Map },
     ]
@@ -188,6 +191,7 @@ export default function AdminDashboard() {
   const [banners, setBanners] = useState([]);
   const [appNotices, setAppNotices] = useState([]);
   const [videoBanners, setVideoBanners] = useState([]);
+  const [websiteVideos, setWebsiteVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allPaymentRequests, setAllPaymentRequests] = useState([]);
   const [allRedeemRequests, setAllRedeemRequests] = useState([]);
@@ -292,18 +296,20 @@ export default function AdminDashboard() {
 
     // Load content data
     try {
-      const [allNotices, allPastTournaments, allBanners, allAppNotices, allVideoBanners] = await Promise.all([
+      const [allNotices, allPastTournaments, allBanners, allAppNotices, allVideoBanners, allWebsiteVideos] = await Promise.all([
         DashboardNotice.list("-created_date", 20).catch(() => []),
         PastTournament.list("-date", 50).catch(() => []),
         Banner.list("order", 20).catch(() => []),
         AppNotice.list("-created_date", 20).catch(() => []),
-        VideoBanner.list("-created_date", 10).catch(() => [])
+        VideoBanner.list("-created_date", 10).catch(() => []),
+        WebsiteVideo.list("-created_date", 10).catch(() => [])
       ]);
       setNotices(allNotices || []);
       setPastTournaments(allPastTournaments || []);
       setBanners(allBanners || []);
       setAppNotices(allAppNotices || []);
       setVideoBanners(allVideoBanners || []);
+      setWebsiteVideos(allWebsiteVideos || []);
     } catch {}
 
     // Load all users in a single fetch (up to 5000)
@@ -375,6 +381,7 @@ export default function AdminDashboard() {
       case "banners": return <BannerManagement banners={banners} onUpdate={loadData} />;
       case "appnotices": return <AppNoticeManagement notices={appNotices} onUpdate={loadData} />;
       case "video": return <VideoBannerManagement banners={videoBanners} onUpdate={loadData} />;
+      case "website-video": return <WebsiteVideoManagement banners={websiteVideos} onUpdate={loadData} />;
       case "blog": return <BlogManagement />;
       case "referrals": return <ReferralManagement onUpdate={loadData} />;
       case "announcements": return <AnnouncementManagement />;

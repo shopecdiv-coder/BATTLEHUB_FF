@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Download, Calendar, Target, Medal, ArrowLeft, X } from "lucide-react";
+import DOMPurify from "dompurify";
 
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
@@ -241,7 +242,7 @@ export default function PastTournamentDetail() {
             <CardContent>
               <div 
                 className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: tournament.full_details }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(tournament.full_details) }}
               />
             </CardContent>
           </Card>
