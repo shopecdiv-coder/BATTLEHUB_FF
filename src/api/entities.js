@@ -527,3 +527,5 @@ export const GiftMail = new FirestoreEntity('gift_mails');
 export const Query = {
   equal: (field, value) => ({ field, op: '==', value })
 };export const WebsiteVideo = new FirestoreEntity('website_videos');
+e x p o r t   c o n s t   W e b s i t e L o g o   =   n e w   F i r e s t o r e E n t i t y ( ' w e b s i t e _ l o g o s ' ) ;  
+ 

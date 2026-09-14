@@ -42,6 +42,7 @@ import BannerManagement from "../components/admin/BannerManagement";
 import AppNoticeManagement from "../components/admin/AppNoticeManagement";
 import VideoBannerManagement from "../components/admin/VideoBannerManagement";
 import WebsiteVideoManagement from "../components/admin/WebsiteVideoManagement";
+import WebsiteLogoManagement from "../components/admin/WebsiteLogoManagement";
 import ReferralManagement from "../components/admin/ReferralManagement";
 import AnnouncementManagement from "../components/admin/AnnouncementManagement";
 import UserManagement from "../components/admin/UserManagement";
@@ -155,6 +156,7 @@ const NAV_GROUPS = [
       { id: "banners", label: "Banners", icon: Image },
       { id: "video", label: "Video Banner", icon: Video },
       { id: "website-video", label: "Website Promo Video", icon: Video },
+      { id: "website-logo", label: "Website Logo", icon: Image },
       { id: "photos", label: "Photo Library", icon: Image },
       { id: "gamemaps", label: "Game Maps", icon: Map },
     ]
@@ -382,6 +384,7 @@ export default function AdminDashboard() {
       case "appnotices": return <AppNoticeManagement notices={appNotices} onUpdate={loadData} />;
       case "video": return <VideoBannerManagement banners={videoBanners} onUpdate={loadData} />;
       case "website-video": return <WebsiteVideoManagement banners={websiteVideos} onUpdate={loadData} />;
+      case "website-logo": return <WebsiteLogoManagement />;
       case "blog": return <BlogManagement />;
       case "referrals": return <ReferralManagement onUpdate={loadData} />;
       case "announcements": return <AnnouncementManagement />;
